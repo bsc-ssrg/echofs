@@ -24,7 +24,9 @@
  * Cambridge, MA 02139, USA.                                             *
  *************************************************************************/
 
+#include <fuse.h>
 #include <iostream>
+
 
 int main (int argc, char *argv[]){
 

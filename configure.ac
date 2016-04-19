@@ -47,6 +47,9 @@ AX_CHECK_COMPILE_FLAG([-std=c11], [CFLAGS+=" -std=c++11"], [
   exit -1
 ])
 
+# check that FUSE >= 2.6 is available
+PKG_CHECK_MODULES([FUSE], [fuse >= 2.6])
+
 AC_CONFIG_FILES([
         Makefile
 ])
