@@ -2,7 +2,7 @@
  * (C) Copyright 2016 Barcelona Supercomputing Center                    * 
  *                    Centro Nacional de Supercomputacion                *
  *                                                                       *
- * This file is part of the Echo Filesystem.                             *
+ * This file is part of the Echo Filesystem NG.                          *
  *                                                                       *
  * See AUTHORS file in the top level directory for information           *
  * regarding developers and contributors.                                *
@@ -28,13 +28,14 @@
 #include <fuse.h>
 #include <boost/filesystem.hpp>
 #include <getopt.h>
+#include "config.h"
 #include "command-line.h"
 
 namespace bfs = boost::filesystem;
 
 void usage(const char* name){
 
-    std::cerr << "Echo Filesystem vX.Y.Z" << "\n\n"
+    std::cerr << PACKAGE_NAME << " v" << VERSION << "\n\n"
               << "Usage: " << name << " [options] root_dir mount_point [-- [FUSE Mount Options]]\n";
 }
 
@@ -82,6 +83,9 @@ bool process_args(int argc, char* argv[],
         }
     }
 
+    /* o: arguments directly passed to FUSE */
+    opt_string += ("o:");
+
     /* lambda function to safely add an argument to fuse_argv */
     auto push_arg = [&out](const char* arg){
         assert(out->fuse_argc < MAX_FUSE_ARGS);
@@ -89,7 +93,7 @@ bool process_args(int argc, char* argv[],
     };
 
     /* process the options */
-    while(1){
+    while(true){
 
         int opt_idx = 0;
 
@@ -115,6 +119,15 @@ bool process_args(int argc, char* argv[],
                 exit(EXIT_SUCCESS);
                 break;
             case 'V':
+                std::cerr << exec_name.c_str() << " version " << VERSION << "\n"
+                          << "Copyright (C) 2016 Barcelona Supercomputing Center (BSC-CNS)\n" 
+                          << "This is free software; see the source for copying conditions. There is NO\n"
+                          << "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n";
+                exit(EXIT_SUCCESS);
+                break;
+            case 'o':
+                push_arg("-o");
+                push_arg(optarg);
                 break;
             case '?':
                 /* invalid option */
@@ -125,6 +138,12 @@ bool process_args(int argc, char* argv[],
             default:
                 break;
         }
+    }
+
+    /* if there are still extra unparsed arguments, pass them onto FUSE */
+    if(optind < argc){
+        push_arg(argv[optind]);
+        ++optind;
     }
 
     /* fill in the mount point for FUSE */

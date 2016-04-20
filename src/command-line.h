@@ -2,7 +2,7 @@
  * (C) Copyright 2016 Barcelona Supercomputing Center                    * 
  *                    Centro Nacional de Supercomputacion                *
  *                                                                       *
- * This file is part of the Echo Filesystem.                             *
+ * This file is part of the Echo Filesystem NG.                          *
  *                                                                       *
  * See AUTHORS file in the top level directory for information           *
  * regarding developers and contributors.                                *

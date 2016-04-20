@@ -2,7 +2,7 @@
  * (C) Copyright 2016 Barcelona Supercomputing Center                    * 
  *                    Centro Nacional de Supercomputacion                *
  *                                                                       *
- * This file is part of the Echo Filesystem.                             *
+ * This file is part of the Echo Filesystem NG.                          *
  *                                                                       *
  * See AUTHORS file in the top level directory for information           *
  * regarding developers and contributors.                                *
@@ -35,14 +35,11 @@
 // main entry point
 int main (int argc, char *argv[]){
 
-    (void) argc;
-    (void) argv;
-
-    // 1. parse command-line arguments
+    /* 1. parse command-line arguments */
     std::shared_ptr<Arguments> user_args(new Arguments);
 
     for(int i=0; i<MAX_FUSE_ARGS; ++i){
-        // libfuse expects NULL args
+        /* libfuse expects NULL args */
         user_args->fuse_argv[i] = NULL;
     }
 
@@ -51,10 +48,14 @@ int main (int argc, char *argv[]){
         return EXIT_FAILURE;
     }
 
+    for(int i=0; i<user_args->fuse_argc; ++i){
+        std::cerr << user_args->fuse_argv[i] << "\n";
+    }
+
     fuse_operations efsng_ops;
     memset(&efsng_ops, 0, sizeof(fuse_operations));
     
-    // start the filesystem
+    /* start the filesystem */
     int res = fuse_main(user_args->fuse_argc, 
                         const_cast<char **>(user_args->fuse_argv), 
                         &efsng_ops, 

@@ -2,7 +2,7 @@
 #  (C) Copyright 2016 Barcelona Supercomputing Center                     #
 #                     Centro Nacional de Supercomputacion                 #
 #                                                                         #
-#  This file is part of the Echo Filesystem.                              #
+#  This file is part of the Echo Filesystem NG.                           #
 #                                                                         #
 #  See AUTHORS file in the top level directory for information            #
 #  regarding developers and contributors.                                 #
@@ -24,7 +24,7 @@
 #  Cambridge, MA 02139, USA.                                              #
 ###########################################################################
 
-AC_INIT([Echo Filesystem (NEXTGenIO)],
+AC_INIT([Echo Filesystem NG],
         [0.1.0],
         [alberto.miranda@bsc.es],
         [efs-ng])
@@ -33,7 +33,7 @@ AC_PREREQ([2.59])
 AC_CONFIG_SRCDIR([src/efs-ng.cpp])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([build-aux])
-AC_CONFIG_HEADERS([build-aux/config.h])
+AC_CONFIG_HEADERS([src/config.h])
 
 AM_INIT_AUTOMAKE([1.9 dist-bzip2 dist-zip foreign subdir-objects])
 AC_PROG_CC
