@@ -30,9 +30,397 @@
 #include <cstring>
 #include <iostream>
 
+#include "config.h"
 #include "command-line.h"
 
-// main entry point
+static int efsng_getattr(const char* pathname, struct stat* stbuf){
+
+    if(lstat(pathname, stbuf) == -1){
+        return -errno;
+    }
+
+    return 0;
+}
+
+static int efsng_readlink(const char* pathname, char* buf, size_t bufsiz){
+
+    (void) pathname;
+    (void) buf;
+    (void) bufsiz;
+
+    return 0;
+}
+
+static int efsng_getdir(const char* pathname, fuse_dirh_t handle, fuse_dirfil_t filler){
+
+    (void) pathname;
+    (void) handle;
+    (void) filler;
+
+    return 0;
+}
+
+static int efsng_mknod(const char* pathname, mode_t mode, dev_t dev){
+
+    (void) pathname;
+    (void) mode;
+    (void) dev;
+
+    return 0;
+}
+
+static int efsng_mkdir(const char* pathname, mode_t mode){
+
+    (void) pathname;
+    (void) mode;
+
+    return 0;
+}
+
+static int efsng_unlink(const char* pathname){
+
+    (void) pathname;
+
+    return 0;
+}
+
+static int efsng_rmdir(const char* pathname){
+
+    (void) pathname;
+
+    return 0;
+}
+
+static int efsng_symlink(const char* oldpath, const char* newpath){
+
+    (void) oldpath;
+    (void) newpath;
+
+    return 0;
+}
+
+static int efsng_rename(const char* oldpath, const char* newpath){
+
+    (void) oldpath;
+    (void) newpath;
+
+    return 0;
+}
+
+static int efsng_link(const char* oldpath, const char* newpath){
+
+    (void) oldpath;
+    (void) newpath;
+
+    return 0;
+}
+
+static int efsng_chmod(const char* pathname, mode_t mode){
+
+    (void) pathname;
+    (void) mode;
+
+    return 0;
+}
+
+static int efsng_chown(const char* pathname, uid_t owner, gid_t group){
+
+    (void) pathname;
+    (void) owner;
+    (void) group;
+
+    return 0;
+}
+
+static int efsng_truncate(const char* pathname, off_t length){
+
+    (void) pathname;
+    (void) length;
+
+    return 0;
+}
+
+static int efsng_utime(const char* pathname, struct utimbuf* times){
+
+    (void) pathname;
+    (void) times;
+
+    return 0;
+}
+
+static int efsng_open(const char* pathname, struct fuse_file_info* file_info){
+
+    (void) pathname;
+    (void) file_info;
+
+    return 0;
+}
+
+static int efsng_read(const char* pathname, char* buf, size_t count, off_t offset, struct fuse_file_info* file_info){
+
+    (void) pathname;
+    (void) buf;
+    (void) count;
+    (void) offset;
+    (void) file_info;
+
+    return 0;
+}
+
+static int efsng_write(const char* pathname, const char* buf, size_t count, off_t offset, struct fuse_file_info* file_info){
+
+    (void) pathname;
+    (void) buf;
+    (void) count;
+    (void) offset;
+    (void) file_info;
+
+    return 0;
+}
+
+static int efsng_statfs(const char* pathname, struct statvfs* buf){
+
+    (void) pathname;
+    (void) buf;
+
+    return 0;
+}
+
+static int efsng_flush(const char* pathname, struct fuse_file_info* file_info){
+
+    (void) pathname;
+    (void) file_info;
+
+    return 0;
+}
+
+static int efsng_release(const char* pathname, struct fuse_file_info* file_info){
+
+    (void) pathname;
+    (void) file_info;
+
+    return 0;
+}
+
+static int efsng_fsync(const char* pathname, int datasync, struct fuse_file_info* file_info){
+
+    (void) pathname;
+    (void) datasync;
+    (void) file_info;
+
+    return 0;
+}
+
+#ifdef HAVE_XATTR
+static int efsng_setxattr(const char* pathname, const char* name, const char* value, size_t size, int flags){
+
+    (void) pathname;
+    (void) name;
+    (void) value;
+    (void) size;
+    (void) flags;
+
+    return 0;
+}
+
+static int efsng_getxattr(const char* pathname, const char* name, char* value, size_t size){
+
+    (void) pathname;
+    (void) name;
+    (void) value;
+    (void) size;
+
+    return 0;
+}
+
+static int efsng_listxattr(const char* pathname, char* name, size_t size){
+
+    (void) pathname;
+    (void) name;
+    (void) size;
+
+    return 0;
+}
+
+static int efsng_removexattr(const char* pathname, const char* name){
+
+    (void) pathname;
+    (void) name;
+
+    return 0;
+}
+#endif /* HAVE_XATTR */
+
+static int efsng_opendir(const char* pathname, struct fuse_file_info* file_info){
+
+    (void) pathname;
+    (void) file_info;
+
+    return 0;
+}
+
+static int efsng_readdir(const char* pathname, void* buf, fuse_fill_dir_t filler, off_t offset, 
+                         struct fuse_file_info* file_info){
+
+    (void) pathname;
+    (void) buf;
+    (void) filler;
+    (void) offset;
+    (void) file_info;
+
+    return 0;
+}
+
+static int efsng_releasedir(const char* pathname, struct fuse_file_info* file_info){
+
+    (void) pathname;
+    (void) file_info;
+
+    return 0;
+}
+
+static int efsng_fsyncdir(const char* pathname, int, struct fuse_file_info* file_info){
+
+    (void) pathname;
+    (void) file_info;
+
+    return 0;
+}
+
+static void* efsng_init(struct fuse_conn_info *conn){
+
+    (void) conn;
+
+    return 0;
+}
+
+static void efsng_destroy(void *){
+}
+
+static int efsng_access(const char* pathname, int mode){
+
+    (void) pathname;
+    (void) mode;
+
+    return 0;
+}
+
+static int efsng_create(const char* pathname, mode_t mode, struct fuse_file_info* file_info){
+
+    (void) pathname;
+    (void) mode;
+    (void) file_info;
+
+    return 0;
+}
+
+static int efsng_ftruncate(const char* pathname, off_t offset, struct fuse_file_info* file_info){
+
+    (void) pathname;
+    (void) offset;
+    (void) file_info;
+
+    return 0;
+}
+
+static int efsng_fgetattr(const char* pathname, struct stat*, struct fuse_file_info* file_info){
+
+    (void) pathname;
+    (void) file_info;
+
+    return 0;
+}
+
+static int efsng_lock(const char* pathname, struct fuse_file_info* file_info, int cmd, struct flock* flock){
+
+    (void) pathname;
+    (void) file_info;
+    (void) cmd;
+    (void) flock;
+
+    return 0;
+}
+
+static int efsng_utimens(const char* pathname, const struct timespec tv[2]){
+
+    (void) pathname;
+    (void) tv;
+
+    return 0;
+}
+
+static int efsng_bmap(const char* pathname, size_t blocksize, uint64_t* idx){
+
+    (void) pathname;
+    (void) blocksize;
+    (void) idx;
+
+    return 0;
+}
+
+static int efsng_ioctl(const char* pathname, int cmd, void* arg, struct fuse_file_info* file_info, unsigned int flags, void* data){
+
+    (void) pathname;
+    (void) cmd;
+    (void) arg;
+    (void) file_info;
+    (void) flags;
+    (void) data;
+
+    return 0;
+}
+
+static int efsng_poll(const char* pathname, struct fuse_file_info* file_info, struct fuse_pollhandle* ph, unsigned* reventsp){
+
+    (void) pathname;
+    (void) file_info;
+    (void) ph;
+    (void) reventsp;
+
+    return 0;
+}
+
+static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t off, struct fuse_file_info* file_info){
+
+    (void) pathname;
+    (void) buf;
+    (void) off;
+    (void) file_info;
+
+    return 0;
+}
+
+static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_t size, off_t off, struct fuse_file_info* file_info){
+
+    (void) pathname;
+    (void) bufp;
+    (void) size;
+    (void) off;
+    (void) file_info;
+
+    return 0;
+}
+
+static int efsng_flock(const char* pathname, struct fuse_file_info* file_info, int op){
+
+    (void) pathname;
+    (void) file_info;
+    (void) op;
+
+    return 0;
+}
+
+static int efsng_fallocate(const char* pathname, int, off_t, off_t, struct fuse_file_info* file_info){
+
+    (void) pathname;
+    (void) file_info;
+
+    return 0;
+}
+
+/*********************************************************************************************************************/
+/*  main point of entry                                                                                              */
+/*********************************************************************************************************************/
 int main (int argc, char *argv[]){
 
     /* 1. parse command-line arguments */
@@ -52,10 +440,58 @@ int main (int argc, char *argv[]){
         std::cerr << user_args->fuse_argv[i] << "\n";
     }
 
+    /* 2. prepare operations */
     fuse_operations efsng_ops;
     memset(&efsng_ops, 0, sizeof(fuse_operations));
-    
-    /* start the filesystem */
+
+    efsng_ops.getattr = efsng_getattr;
+    efsng_ops.readlink = efsng_readlink;
+    efsng_ops.getdir = efsng_getdir; /* deprecated */
+    efsng_ops.mknod = efsng_mknod;
+    efsng_ops.mkdir = efsng_mkdir;
+    efsng_ops.unlink = efsng_unlink;
+    efsng_ops.rmdir = efsng_rmdir;
+    efsng_ops.symlink = efsng_symlink;
+    efsng_ops.rename = efsng_rename;
+    efsng_ops.link = efsng_link;
+    efsng_ops.chmod = efsng_chmod;
+    efsng_ops.chown = efsng_chown;
+    efsng_ops.truncate = efsng_truncate;
+    efsng_ops.utime = efsng_utime;
+    efsng_ops.open = efsng_open;
+    efsng_ops.read = efsng_read;
+    efsng_ops.write = efsng_write;
+    efsng_ops.statfs = efsng_statfs;
+    efsng_ops.flush = efsng_flush;
+    efsng_ops.release = efsng_release;
+    efsng_ops.fsync = efsng_fsync;
+#ifdef HAVE_XATTR
+    efsng_ops.setxattr = efsng_setxattr;
+    efsng_ops.getxattr = efsng_getxattr;
+    efsng_ops.listxattr = efsng_listxattr;
+    efsng_ops.removexattr = efsng_removexattr;
+#endif /* HAVE_XATTR */
+    efsng_ops.opendir = efsng_opendir;
+    efsng_ops.readdir = efsng_readdir;
+    efsng_ops.releasedir = efsng_releasedir;
+    efsng_ops.fsyncdir = efsng_fsyncdir;
+    efsng_ops.init = efsng_init;
+    efsng_ops.destroy = efsng_destroy;
+    efsng_ops.access = efsng_access;
+    efsng_ops.create = efsng_create;
+    efsng_ops.ftruncate = efsng_ftruncate;
+    efsng_ops.fgetattr = efsng_fgetattr;
+    efsng_ops.lock = efsng_lock;
+    efsng_ops.utimens = efsng_utimens;
+    efsng_ops.bmap = efsng_bmap;
+    efsng_ops.ioctl = efsng_ioctl;
+    efsng_ops.poll = efsng_poll;
+    efsng_ops.write_buf = efsng_write_buf;
+    efsng_ops.read_buf = efsng_read_buf;
+    efsng_ops.flock = efsng_flock;
+    efsng_ops.fallocate = efsng_fallocate;
+
+    /* 3. start the filesystem */
     int res = fuse_main(user_args->fuse_argc, 
                         const_cast<char **>(user_args->fuse_argv), 
                         &efsng_ops, 
