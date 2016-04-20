@@ -24,43 +24,29 @@
  * Cambridge, MA 02139, USA.                                             *
  *************************************************************************/
 
-#define FUSE_USE_VERSION 26
-#include <fuse.h>
+#ifndef __COMMAND_LINE_H__
+#define __COMMAND_LINE_H__
+
 #include <memory>
-#include <cstring>
-#include <iostream>
+#include <boost/filesystem.hpp>
 
-#include "command-line.h"
+namespace bfs = boost::filesystem;
 
-// main entry point
-int main (int argc, char *argv[]){
 
-    (void) argc;
-    (void) argv;
+// Maximum number of arguments that are passed to FUSE
+const int MAX_FUSE_ARGS = 32;
 
-    // 1. parse command-line arguments
-    std::shared_ptr<Arguments> user_args(new Arguments);
+// Arguments stores the parsed command-line arguments
+struct Arguments{
 
-    for(int i=0; i<MAX_FUSE_ARGS; ++i){
-        // libfuse expects NULL args
-        user_args->fuse_argv[i] = NULL;
-    }
+    bfs::path root_dir;
+    bfs::path mount_point;
 
-    if(argc == 1 || !process_args(argc, argv, user_args)){
-        usage(argv[0]);
-        return EXIT_FAILURE;
-    }
+    int fuse_argc;
+    const char* fuse_argv[MAX_FUSE_ARGS];
+};
 
-    fuse_operations efsng_ops;
-    memset(&efsng_ops, 0, sizeof(fuse_operations));
-    
-    // start the filesystem
-    int res = fuse_main(user_args->fuse_argc, 
-                        const_cast<char **>(user_args->fuse_argv), 
-                        &efsng_ops, 
-                        (void*) NULL);
+void usage(const char* name);
+bool process_args(int argc, char* argv[], const std::shared_ptr<Arguments>& out);
 
-    std::cout << "(" << res << ") Bye!\n";
-
-    return 0;
-}
+#endif /* __COMMAND_LINE_H__ */
