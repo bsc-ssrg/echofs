@@ -37,7 +37,8 @@ src_efs_ng_CXXFLAGS =       \
 src_efs_ng_LDFLAGS =    \
     $(FUSE_LIBS)        \
     -lboost_filesystem  \
-    -lboost_system
+    -lboost_system		\
+    $(END)
 
 # source files in alphabetical order
 src_efs_ng_SOURCES =        \

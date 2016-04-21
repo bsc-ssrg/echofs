@@ -33,7 +33,9 @@
 #include <fuse.h>
 
 #ifdef HAVE_LIBULOCKMGR
+extern "C" {
 #include <ulockmgr.h>
+}
 #endif /* HAVE_LIBULOCKMGR */
 
 #include <memory>
@@ -720,14 +722,15 @@ static int efsng_fgetattr(const char* pathname, struct stat* stbuf, struct fuse_
 static int efsng_lock(const char* pathname, struct fuse_file_info* file_info, int cmd, struct flock* flock){
 
     (void) pathname;
-    (void) file_info;
-    (void) cmd;
-    (void) flock;
 
-    /* make sure we notice if this is ever used */
-    assert(false);
+    auto file_record = (efsng::File*) file_info->fh;
 
-    return 0;
+    int fd = file_record->get_fd();
+
+    int res = ulockmgr_op(fd, cmd, flock, &file_info->lock_owner, sizeof(file_info->lock_owner));
+
+    /* ulockmgr_op returns 0 on success and -errno on error */
+    return res;
 }
 #endif /* HAVE_LIBULOCKMGR */
 

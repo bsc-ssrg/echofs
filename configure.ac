@@ -54,6 +54,8 @@ PKG_CHECK_MODULES([FUSE], [fuse >= 2.6])
 AC_CHECK_FUNCS(setxattr fdatasync utimensat)
 AC_CHECK_FUNCS([posix_fallocate])
 AC_CHECK_LIB(ulockmgr, ulockmgr_op)
+FUSE_LIBS+=$LIBS
+LIBS=
 
 # check for some BOOST libraries
 AX_BOOST_BASE([1.54],, [
