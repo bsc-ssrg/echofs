@@ -35,4 +35,24 @@ Directory::Directory(DIR* dirp, struct dirent* entry, off_t offset)
 
 Directory::~Directory(){}
 
+DIR* Directory::get_dirp() const {
+    return dirp;
+}
+
+struct dirent* Directory::get_entry() const{
+    return entry;
+}
+
+off_t Directory::get_offset() const {
+    return offset;
+}
+
+void Directory::set_entry(struct dirent* entry){
+    this->entry = entry;
+}
+
+void Directory::set_offset(off_t offset){
+    this->offset = offset;
+}
+
 } // namespace efsng

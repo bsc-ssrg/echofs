@@ -39,6 +39,12 @@ public:
     Directory(DIR* dirp, struct dirent* entry, off_t offset);
     ~Directory();
 
+    DIR* get_dirp() const;
+    struct dirent* get_entry() const;
+    off_t get_offset() const;
+    void set_entry(dirent* entry);
+    void set_offset(off_t offset);
+
 private:
     /* directory stream */
     DIR* dirp;

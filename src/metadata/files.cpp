@@ -37,8 +37,16 @@ File::File(ino_t inode, int fd, mode_t mode)
 File::~File(){
 }
 
-int File::get_fd(){
+ino_t File::get_inode() const {
+    return inode;
+}
+
+int File::get_fd() const {
     return fd;
+}
+
+mode_t File::get_mode() const {
+    return mode;
 }
 
 } // namespace efsng

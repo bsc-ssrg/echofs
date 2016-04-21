@@ -37,7 +37,10 @@ class File{
 public:
     File(ino_t inode, int fd, mode_t mode);
     ~File();
-    int get_fd();
+
+    ino_t get_inode() const;
+    int get_fd() const;
+    mode_t get_mode() const;
 
 private:
     /* file's inode */
