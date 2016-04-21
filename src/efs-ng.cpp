@@ -427,13 +427,11 @@ static int efsng_setxattr(const char* pathname, const char* name, const char* va
 /** Get extended attributes */
 static int efsng_getxattr(const char* pathname, const char* name, char* value, size_t size){
 
-    (void) pathname;
-    (void) name;
-    (void) value;
-    (void) size;
+    int res = lgetxattr(pathname, name, value, size);
 
-    /* make sure we notice if this is ever used */
-    assert(false);
+    if(res == -1){
+        return -errno;
+    }
 
     return 0;
 }
