@@ -367,8 +367,8 @@ static int efsng_opendir(const char* pathname, struct fuse_file_info* file_info)
         return -errno;
     }
 
-    auto ptr = new efsng::Directory(dp, NULL, 0);
-    file_info->fh = (uint64_t) ptr;
+    auto dir_record = new efsng::Directory(dp, NULL, 0);
+    file_info->fh = (uint64_t) dir_record;
 
     return 0;
 }
@@ -378,21 +378,21 @@ static int efsng_readdir(const char* pathname, void* buf, fuse_fill_dir_t filler
 
     (void) pathname;
 
-    auto ptr = (efsng::Directory*) file_info->fh;
+    auto dir_record = (efsng::Directory*) file_info->fh;
 
-    if(offset != ptr->get_offset()){
-        seekdir(ptr->get_dirp(), offset);
-        ptr->set_entry(NULL);
-        ptr->set_offset(offset);
+    if(offset != dir_record->get_offset()){
+        seekdir(dir_record->get_dirp(), offset);
+        dir_record->set_entry(NULL);
+        dir_record->set_offset(offset);
     }
 
     while(true){
         struct stat st;
         off_t next_offset;
 
-        if(ptr->get_entry() == NULL){
-            struct dirent* dirent = readdir(ptr->get_dirp());
-            ptr->set_entry(dirent);
+        if(dir_record->get_entry() == NULL){
+            struct dirent* dirent = readdir(dir_record->get_dirp());
+            dir_record->set_entry(dirent);
 
             if(dirent == NULL){
                 break;
@@ -400,16 +400,16 @@ static int efsng_readdir(const char* pathname, void* buf, fuse_fill_dir_t filler
         }
 
         memset(&st, 0, sizeof(st));
-        st.st_ino = ptr->get_entry()->d_ino;
-        st.st_mode = ptr->get_entry()->d_type << 12;
-        next_offset = telldir(ptr->get_dirp());
+        st.st_ino = dir_record->get_entry()->d_ino;
+        st.st_mode = dir_record->get_entry()->d_type << 12;
+        next_offset = telldir(dir_record->get_dirp());
 
-        if(filler(buf, ptr->get_entry()->d_name, &st, next_offset) != 0){
+        if(filler(buf, dir_record->get_entry()->d_name, &st, next_offset) != 0){
             break;
         }
 
-        ptr->set_entry(NULL);
-        ptr->set_offset(0);
+        dir_record->set_entry(NULL);
+        dir_record->set_offset(0);
     }
 
     return 0;
@@ -419,13 +419,13 @@ static int efsng_releasedir(const char* pathname, struct fuse_file_info* file_in
 
     (void) pathname;
 
-    auto ptr = (efsng::Directory*) file_info->fh;
+    auto dir_record = (efsng::Directory*) file_info->fh;
 
-    if(closedir(ptr->get_dirp()) == -1){
+    if(closedir(dir_record->get_dirp()) == -1){
         return -errno;
     }
 
-    delete ptr;
+    delete dir_record;
 
     return 0;
 }
