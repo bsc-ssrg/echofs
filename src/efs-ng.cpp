@@ -415,14 +415,11 @@ static int efsng_fsync(const char* pathname, int datasync, struct fuse_file_info
 /** Set extended attributes */
 static int efsng_setxattr(const char* pathname, const char* name, const char* value, size_t size, int flags){
 
-    (void) pathname;
-    (void) name;
-    (void) value;
-    (void) size;
-    (void) flags;
+    int res = lsetxattr(pathname, name, value, size, flags);
 
-    /* make sure we notice if this is ever used */
-    assert(false);
+    if(res == -1){
+        return -errno;
+    }
 
     return 0;
 }
