@@ -117,8 +117,9 @@ static int efsng_symlink(const char* oldpath, const char* newpath){
 
 static int efsng_rename(const char* oldpath, const char* newpath){
 
-    (void) oldpath;
-    (void) newpath;
+    if(rename(oldpath, newpath) == -1){
+        return -errno;
+    }
 
     return 0;
 }
