@@ -135,8 +135,9 @@ static int efsng_link(const char* oldpath, const char* newpath){
 
 static int efsng_chmod(const char* pathname, mode_t mode){
 
-    (void) pathname;
-    (void) mode;
+    if(chmod(pathname, mode) == -1){
+        return -errno;
+    }
 
     return 0;
 }
