@@ -199,8 +199,8 @@ static int efsng_open(const char* pathname, struct fuse_file_info* file_info){
 
     // XXX this means that each "open()" creates a File record 
     // XXX WARNING: records ARE NOT protected by a mutex yet
-    auto ptr = new efsng::File(st.st_ino, fd, flags);
-    file_info->fh = (uint64_t) ptr;
+    auto file_record = new efsng::File(st.st_ino, fd, flags);
+    file_info->fh = (uint64_t) file_record;
 
     return 0;
 }
@@ -209,9 +209,9 @@ static int efsng_read(const char* pathname, char* buf, size_t count, off_t offse
 
     (void) pathname;
 
-    auto ptr = (efsng::File*) file_info->fh;
+    auto file_record = (efsng::File*) file_info->fh;
 
-    int fd = ptr->get_fd();
+    int fd = file_record->get_fd();
 
     int res = pread(fd, buf, count, offset);
 
@@ -226,9 +226,9 @@ static int efsng_write(const char* pathname, const char* buf, size_t count, off_
 
     (void) pathname;
 
-    auto ptr = (efsng::File*) file_info->fh;
+    auto file_record = (efsng::File*) file_info->fh;
 
-    int fd = ptr->get_fd();
+    int fd = file_record->get_fd();
 
     int res = pwrite(fd, buf, count, offset);
 
@@ -254,9 +254,9 @@ static int efsng_flush(const char* pathname, struct fuse_file_info* file_info){
 
     (void) pathname;
 
-    auto ptr = (efsng::File*) file_info->fh;
+    auto file_record = (efsng::File*) file_info->fh;
 
-    int fd = ptr->get_fd();
+    int fd = file_record->get_fd();
 
 	/* This is called from every close on an open file, so call the
 	   close on the underlying filesystem.	But since flush may be
@@ -276,15 +276,15 @@ static int efsng_release(const char* pathname, struct fuse_file_info* file_info)
 
     (void) pathname;
 
-    auto ptr = (efsng::File*) file_info->fh;
+    auto file_record = (efsng::File*) file_info->fh;
 
-    int fd = ptr->get_fd();
+    int fd = file_record->get_fd();
 
     if(close(fd) == -1){
         return -errno;
     }
 
-    delete ptr;
+    delete file_record;
 
     return 0;
 }
@@ -295,9 +295,9 @@ static int efsng_fsync(const char* pathname, int datasync, struct fuse_file_info
     (void) datasync;
     (void) file_info;
 
-    auto ptr = (efsng::File*) file_info->fh;
+    auto file_record = (efsng::File*) file_info->fh;
 
-    int fd = ptr->get_fd();
+    int fd = file_record->get_fd();
 
 	int res;
 
@@ -486,8 +486,8 @@ static int efsng_create(const char* pathname, mode_t mode, struct fuse_file_info
 
     // XXX this means that each "open()" creates a File record 
     // XXX WARNING: records ARE NOT protected by a mutex yet
-    auto ptr = new efsng::File(st.st_ino, fd, flags);
-    file_info->fh = (uint64_t) ptr;
+    auto file_record = new efsng::File(st.st_ino, fd, flags);
+    file_info->fh = (uint64_t) file_record;
 
     return 0;
 }
