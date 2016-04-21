@@ -44,8 +44,8 @@ src_efs_ng_SOURCES =        \
     src/command-line.cpp    \
     src/command-line.h      \
     src/efs-ng.cpp          \
-    src/metadata.cpp        \
-    src/metadata.h          \
+    src/metadata/files.cpp  \
+    src/metadata/files.h    \
     $(END)
 
 

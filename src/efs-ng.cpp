@@ -38,7 +38,7 @@
 #include <dirent.h>
 
 #include "config.h"
-#include "metadata.h"
+#include "metadata/files.h"
 #include "command-line.h"
 
 static int efsng_getattr(const char* pathname, struct stat* stbuf){
@@ -196,9 +196,9 @@ static int efsng_open(const char* pathname, struct fuse_file_info* file_info){
 	struct stat st;
 	fstat(fd, &st);
 
-    // XXX this means that each "open()" creates a File_record record 
+    // XXX this means that each "open()" creates a File record 
     // XXX WARNING: records ARE NOT protected by a mutex yet
-    auto ptr = new efsng::File_record(st.st_ino, fd, flags);
+    auto ptr = new efsng::File(st.st_ino, fd, flags);
     file_info->fh = (uint64_t) ptr;
 
     return 0;
@@ -208,7 +208,7 @@ static int efsng_read(const char* pathname, char* buf, size_t count, off_t offse
 
     (void) pathname;
 
-    auto ptr = (efsng::File_record*) file_info->fh;
+    auto ptr = (efsng::File*) file_info->fh;
 
     int fd = ptr->get_fd();
 
@@ -225,7 +225,7 @@ static int efsng_write(const char* pathname, const char* buf, size_t count, off_
 
     (void) pathname;
 
-    auto ptr = (efsng::File_record*) file_info->fh;
+    auto ptr = (efsng::File*) file_info->fh;
 
     int fd = ptr->get_fd();
 
@@ -253,7 +253,7 @@ static int efsng_flush(const char* pathname, struct fuse_file_info* file_info){
 
     (void) pathname;
 
-    auto ptr = (efsng::File_record*) file_info->fh;
+    auto ptr = (efsng::File*) file_info->fh;
 
     int fd = ptr->get_fd();
 
@@ -275,7 +275,7 @@ static int efsng_release(const char* pathname, struct fuse_file_info* file_info)
 
     (void) pathname;
 
-    auto ptr = (efsng::File_record*) file_info->fh;
+    auto ptr = (efsng::File*) file_info->fh;
 
     int fd = ptr->get_fd();
 
@@ -294,7 +294,7 @@ static int efsng_fsync(const char* pathname, int datasync, struct fuse_file_info
     (void) datasync;
     (void) file_info;
 
-    auto ptr = (efsng::File_record*) file_info->fh;
+    auto ptr = (efsng::File*) file_info->fh;
 
     int fd = ptr->get_fd();
 

@@ -24,29 +24,21 @@
  * Cambridge, MA 02139, USA.                                             *
  *************************************************************************/
 
-#ifndef __CONTEXT_H__
-#define  __CONTEXT_H__
-
-#include <sys/types.h>
+#include "files.h"
 
 namespace efsng{
 
-class File_record{
-public:
-    File_record(ino_t inode, int fd, mode_t mode);
-    ~File_record();
-    int get_fd();
+File::File(ino_t inode, int fd, mode_t mode)
+    : inode(inode),
+      fd(fd),
+      mode(mode){ 
+}
 
-private:
-    /* file's inode */
-    ino_t inode;
-    /* file's fd */
-    int fd;     
-    /* file's flags at open: O_RDONLY, O_WRONLY, O_RDWR */
-    mode_t mode;
-};
+File::~File(){
+}
+
+int File::get_fd(){
+    return fd;
+}
 
 } // namespace efsng
-
-
-#endif /* __CONTEXT_H__ */
