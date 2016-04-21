@@ -451,11 +451,11 @@ static int efsng_listxattr(const char* pathname, char* listbuf, size_t size){
 /** Remove extended attributes */
 static int efsng_removexattr(const char* pathname, const char* name){
 
-    (void) pathname;
-    (void) name;
+    int res = lremovexattr(pathname, name);
 
-    /* make sure we notice if this is ever used */
-    assert(false);
+    if(res == -1){
+        return -errno;
+    }
 
     return 0;
 }
