@@ -43,12 +43,26 @@ LT_INIT
 
 # check that c++11 is supported by the compiler
 AX_CHECK_COMPILE_FLAG([-std=c11], [CFLAGS+=" -std=c++11"], [
-  echo "C++ compiler cannot compile C++11 code"
-  exit -1
+    echo "C++ compiler cannot compile C++11 code"
+    exit -1
 ])
 
 # check that FUSE >= 2.6 is available
 PKG_CHECK_MODULES([FUSE], [fuse >= 2.6])
+
+# check for several functions and libraries that affect FUSE's behavior 
+AC_CHECK_FUNCS(setxattr fdatasync utimensat)
+AC_CHECK_FUNCS([posix_fallocate])
+AC_CHECK_LIB(ulockmgr, ulockmgr_op)
+
+# check for some BOOST libraries
+AX_BOOST_BASE([1.54],, [
+    AC_MSG_ERROR([
+        The Echo Filesystem NG needs BOOST >= 1.54, but it was not found in your system
+    ])
+])
+AX_BOOST_SYSTEM
+AX_BOOST_FILESYSTEM
 
 AC_CONFIG_FILES([
         Makefile

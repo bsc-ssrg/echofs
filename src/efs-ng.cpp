@@ -24,8 +24,18 @@
  * Cambridge, MA 02139, USA.                                             *
  *************************************************************************/
 
-#define FUSE_USE_VERSION 26
+#define FUSE_USE_VERSION 28
+
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
+
 #include <fuse.h>
+
+#ifdef HAVE_LIBULOCKMGR
+#include <ulockmgr.h>
+#endif /* HAVE_LIBULOCKMGR */
+
 #include <memory>
 #include <cstring>
 #include <iostream>
@@ -37,7 +47,11 @@
 #include <unistd.h>
 #include <dirent.h>
 
-#include "config.h"
+#ifdef HAVE_SETXATTR
+#include <sys/xattr.h>
+#endif /* HAVE_SETXATTR */
+
+
 #include "metadata/files.h"
 #include "metadata/dirs.h"
 #include "command-line.h"
@@ -380,7 +394,7 @@ static int efsng_fsync(const char* pathname, int datasync, struct fuse_file_info
     int res;
 
 #ifdef HAVE_FDATASYNC
-    if(isdatasync){
+    if(datasync){
         res = fdatasync(fd);
     }
     else{
@@ -397,7 +411,7 @@ static int efsng_fsync(const char* pathname, int datasync, struct fuse_file_info
     return 0;
 }
 
-#ifdef HAVE_XATTR
+#ifdef HAVE_SETXATTR
 /** Set extended attributes */
 static int efsng_setxattr(const char* pathname, const char* name, const char* value, size_t size, int flags){
 
@@ -451,7 +465,7 @@ static int efsng_removexattr(const char* pathname, const char* name){
 
     return 0;
 }
-#endif /* HAVE_XATTR */
+#endif /* HAVE_SETXATTR */
 
 /** 
  * Open directory
@@ -686,6 +700,7 @@ static int efsng_fgetattr(const char* pathname, struct stat* stbuf, struct fuse_
     return 0;
 }
 
+#ifdef HAVE_LIBULOCKMGR
 /**
  * Perform POSIX file locking operation
  *
@@ -720,7 +735,9 @@ static int efsng_lock(const char* pathname, struct fuse_file_info* file_info, in
 
     return 0;
 }
+#endif /* HAVE_LIBULOCKMGR */
 
+#ifdef HAVE_UTIMENSAT
 /**
  * Change the access and modification times of a file with nanosecond resolution
  *
@@ -738,6 +755,7 @@ static int efsng_utimens(const char* pathname, const struct timespec tv[2]){
 
     return 0;
 }
+#endif /* HAVE_UTIMENSAT */
 
 /**
  * Map block index within file to block index within device
@@ -891,6 +909,7 @@ static int efsng_flock(const char* pathname, struct fuse_file_info* file_info, i
     return 0;
 }
 
+#ifdef HAVE_POSIX_FALLOCATE
 /**
  * Allocates space for an open file
  *
@@ -908,6 +927,7 @@ static int efsng_fallocate(const char* pathname, int, off_t, off_t, struct fuse_
 
     return 0;
 }
+#endif /* HAVE_POSIX_FALLOCATE */
 
 /**********************************************************************************************************************/
 /*  main point of entry                                                                                               */
@@ -956,12 +976,14 @@ int main (int argc, char *argv[]){
     efsng_ops.flush = efsng_flush;
     efsng_ops.release = efsng_release;
     efsng_ops.fsync = efsng_fsync;
-#ifdef HAVE_XATTR
+
+#ifdef HAVE_SETXATTR
     efsng_ops.setxattr = efsng_setxattr;
     efsng_ops.getxattr = efsng_getxattr;
     efsng_ops.listxattr = efsng_listxattr;
     efsng_ops.removexattr = efsng_removexattr;
-#endif /* HAVE_XATTR */
+#endif /* HAVE_SETXATTR */
+
     efsng_ops.opendir = efsng_opendir;
     efsng_ops.readdir = efsng_readdir;
     efsng_ops.releasedir = efsng_releasedir;
@@ -972,15 +994,25 @@ int main (int argc, char *argv[]){
     efsng_ops.create = efsng_create;
     efsng_ops.ftruncate = efsng_ftruncate;
     efsng_ops.fgetattr = efsng_fgetattr;
+
+#ifdef HAVE_LIBULOCKMGR
     efsng_ops.lock = efsng_lock;
+#endif /* HAVE_LIBULOCKMGR */
+
+#ifdef HAVE_UTIMENSAT
     efsng_ops.utimens = efsng_utimens;
+#endif /* HAVE_UTIMENSAT */
+
     efsng_ops.bmap = efsng_bmap;
     efsng_ops.ioctl = efsng_ioctl;
     efsng_ops.poll = efsng_poll;
     efsng_ops.write_buf = efsng_write_buf;
     efsng_ops.read_buf = efsng_read_buf;
     efsng_ops.flock = efsng_flock;
+
+#ifdef HAVE_POSIX_FALLOCATE
     efsng_ops.fallocate = efsng_fallocate;
+#endif /* HAVE_POSIX_FALLOCATE */
 
     /* 3. start the filesystem */
     int res = fuse_main(user_args->fuse_argc, 
