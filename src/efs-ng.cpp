@@ -242,6 +242,12 @@ static int efsng_statfs(const char* pathname, struct statvfs* buf){
     (void) pathname;
     (void) buf;
 
+    int res = statvfs(pathname, buf);
+
+    if(res == -1){
+        return -errno;
+    }
+
     return 0;
 }
 
