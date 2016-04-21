@@ -1,0 +1,6 @@
+**********
+* efs-ng *
+**********
+
+- Check what happens if pread files while in efsng_read, should it be restarted?
+- Sanity checks on parameters passed

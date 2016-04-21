@@ -63,7 +63,7 @@ bool process_args(int argc, char* argv[],
 
     /* command line options */
     struct option long_options[] = {
-        {"cached-dir",      1, 0, 'c'}, /* directory to mirror */
+        {"root-dir",        1, 0, 'r'}, /* directory to mirror */
         {"mount-point",     1, 0, 'm'}, /* mount point */
         {"fuse-debug",      0, 0, 'd'}, /* FUSE debug mode */
         {"fuse-help",       0, 0, 'H'}, /* fuse_mount usage */
@@ -86,7 +86,7 @@ bool process_args(int argc, char* argv[],
     /* o: arguments directly passed to FUSE */
     opt_string += ("o:");
 
-    /* lambda function to safely add an argument to fuse_argv */
+    /* helper lambda function to safely add an argument to fuse_argv */
     auto push_arg = [&out](const char* arg){
         assert(out->fuse_argc < MAX_FUSE_ARGS);
         out->fuse_argv[out->fuse_argc++] = arg;
@@ -105,11 +105,12 @@ bool process_args(int argc, char* argv[],
 
         switch(rv){
             /* efs-ng options */
-            case 'c':
-                out->root_dir = optarg;
+            case 'r':
+                /* configure FUSE to prepend the root-dir to all paths */
+                out->root_dir = std::string(optarg);
                 break;
             case 'm':
-                out->mount_point = optarg;
+                out->mount_point = std::string(optarg);
                 break;
             case 'd':
                 push_arg("-d");
@@ -138,6 +139,13 @@ bool process_args(int argc, char* argv[],
             default:
                 break;
         }
+    }
+
+    if(out->root_dir != ""){
+        std::string option = "modules=subdir,subdir=";
+        option += out->root_dir.c_str();
+        push_arg("-o");
+        push_arg(option.c_str());
     }
 
     /* if there are still extra unparsed arguments, pass them onto FUSE */
