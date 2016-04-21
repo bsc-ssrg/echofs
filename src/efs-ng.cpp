@@ -144,9 +144,9 @@ static int efsng_chmod(const char* pathname, mode_t mode){
 
 static int efsng_chown(const char* pathname, uid_t owner, gid_t group){
 
-    (void) pathname;
-    (void) owner;
-    (void) group;
+    if(lchown(pathname, owner, group) == -1){
+        return -errno;
+    }
 
     return 0;
 }
