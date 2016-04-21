@@ -148,6 +148,15 @@ bool process_args(int argc, char* argv[],
         push_arg(option.c_str());
     }
 
+    /** 
+     * other default options for FUSE:
+     * - nonempty: needed to allow the filesystem to be mounted on top of non empty directories.
+     * - use_ino: needed to allow files to retain their original inode numbers.
+     * - attr_timeout=0: set cache timeout for names to 0s
+     */
+    push_arg("-o");
+    push_arg("nonempty,use_ino,attr_timeout=0");
+
     /* if there are still extra unparsed arguments, pass them onto FUSE */
     if(optind < argc){
         push_arg(argv[optind]);
