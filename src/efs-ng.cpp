@@ -437,14 +437,13 @@ static int efsng_getxattr(const char* pathname, const char* name, char* value, s
 }
 
 /** List extended attributes */
-static int efsng_listxattr(const char* pathname, char* name, size_t size){
+static int efsng_listxattr(const char* pathname, char* listbuf, size_t size){
 
-    (void) pathname;
-    (void) name;
-    (void) size;
+    int res = llistxattr(pathname, listbuf, size);
 
-    /* make sure we notice if this is ever used */
-    assert(false);
+    if(res == -1){
+        return -errno;
+    }
 
     return 0;
 }
