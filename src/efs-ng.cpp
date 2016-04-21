@@ -764,11 +764,14 @@ static int efsng_lock(const char* pathname, struct fuse_file_info* file_info, in
  */
 static int efsng_utimens(const char* pathname, const struct timespec tv[2]){
 
-    (void) pathname;
-    (void) tv;
+    int res;
 
-    /* make sure we notice if this is ever used */
-    assert(false);
+    /* don't use utime/utimens since they follow symlinks */
+    res = utimensat(0, pathname, tv, AT_SYMLINK_NOFOLLOW); 
+
+    if(res == -1){
+        return -errno;
+    }
 
     return 0;
 }
