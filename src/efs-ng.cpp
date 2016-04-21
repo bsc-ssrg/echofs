@@ -197,8 +197,8 @@ static int efsng_open(const char* pathname, struct fuse_file_info* file_info){
 
     // XXX this means that each "open()" creates a Metadata record 
     // XXX WARNING: records ARE NOT protected by a mutex yet
-    std::shared_ptr<efsng::Metadata> p(new efsng::Metadata(st.st_ino, fd, flags));
-    file_info->fh = (uint64_t)&p;
+    auto ptr = new efsng::Metadata(st.st_ino, fd, flags);
+    file_info->fh = (uint64_t) ptr;
 
     return 0;
 }
@@ -207,9 +207,9 @@ static int efsng_read(const char* pathname, char* buf, size_t count, off_t offse
 
     (void) pathname;
 
-    std::shared_ptr<efsng::Metadata>& p = *(std::shared_ptr<efsng::Metadata>*) file_info->fh;
+    auto ptr = (efsng::Metadata*) file_info->fh;
 
-    int fd = p->get_fd();
+    int fd = ptr->get_fd();
 
     int res = pread(fd, buf, count, offset);
 
@@ -224,9 +224,9 @@ static int efsng_write(const char* pathname, const char* buf, size_t count, off_
 
     (void) pathname;
 
-    std::shared_ptr<efsng::Metadata>& p = *(std::shared_ptr<efsng::Metadata>*) file_info->fh;
+    auto ptr = (efsng::Metadata*) file_info->fh;
 
-    int fd = p->get_fd();
+    int fd = ptr->get_fd();
 
     int res = pwrite(fd, buf, count, offset);
 
@@ -260,15 +260,15 @@ static int efsng_release(const char* pathname, struct fuse_file_info* file_info)
 
     (void) pathname;
 
-    std::shared_ptr<efsng::Metadata>& p = *(std::shared_ptr<efsng::Metadata>*) file_info->fh;
+    auto ptr = (efsng::Metadata*) file_info->fh;
 
-    int fd = p->get_fd();
+    int fd = ptr->get_fd();
 
     if(close(fd) == -1){
         return -errno;
     }
 
-    file_info->fh = (uint64_t) NULL;
+    delete ptr;
 
     return 0;
 }
