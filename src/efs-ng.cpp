@@ -108,8 +108,9 @@ static int efsng_rmdir(const char* pathname){
 
 static int efsng_symlink(const char* oldpath, const char* newpath){
 
-    (void) oldpath;
-    (void) newpath;
+    if(symlink(oldpath, newpath) == -1){
+        return -errno;
+    }
 
     return 0;
 }
