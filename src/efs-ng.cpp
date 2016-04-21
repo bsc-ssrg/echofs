@@ -31,6 +31,11 @@
 #include <iostream>
 #include <cerrno>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 #include "config.h"
 #include "command-line.h"
 
@@ -51,6 +56,8 @@ static int efsng_readlink(const char* pathname, char* buf, size_t bufsiz){
         return -errno;
     }
 
+    buf[res] = '\0';
+
     return 0;
 }
 
@@ -65,9 +72,9 @@ static int efsng_getdir(const char* pathname, fuse_dirh_t handle, fuse_dirfil_t 
 
 static int efsng_mknod(const char* pathname, mode_t mode, dev_t dev){
 
-    (void) pathname;
-    (void) mode;
-    (void) dev;
+    if(mknod(pathname, mode, dev) == -1){
+        return -errno;
+    }
 
     return 0;
 }
