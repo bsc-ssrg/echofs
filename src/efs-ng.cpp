@@ -407,6 +407,9 @@ static int efsng_setxattr(const char* pathname, const char* name, const char* va
     (void) size;
     (void) flags;
 
+    /* make sure we notice if this is ever used */
+    assert(false);
+
     return 0;
 }
 
@@ -418,6 +421,9 @@ static int efsng_getxattr(const char* pathname, const char* name, char* value, s
     (void) value;
     (void) size;
 
+    /* make sure we notice if this is ever used */
+    assert(false);
+
     return 0;
 }
 
@@ -428,6 +434,9 @@ static int efsng_listxattr(const char* pathname, char* name, size_t size){
     (void) name;
     (void) size;
 
+    /* make sure we notice if this is ever used */
+    assert(false);
+
     return 0;
 }
 
@@ -436,6 +445,9 @@ static int efsng_removexattr(const char* pathname, const char* name){
 
     (void) pathname;
     (void) name;
+
+    /* make sure we notice if this is ever used */
+    assert(false);
 
     return 0;
 }
@@ -542,6 +554,9 @@ static int efsng_fsyncdir(const char* pathname, int, struct fuse_file_info* file
 
     (void) pathname;
     (void) file_info;
+
+    /* make sure we notice if this is ever used */
+    assert(false);
 
     return 0;
 }
@@ -700,6 +715,9 @@ static int efsng_lock(const char* pathname, struct fuse_file_info* file_info, in
     (void) cmd;
     (void) flock;
 
+    /* make sure we notice if this is ever used */
+    assert(false);
+
     return 0;
 }
 
@@ -715,6 +733,9 @@ static int efsng_utimens(const char* pathname, const struct timespec tv[2]){
     (void) pathname;
     (void) tv;
 
+    /* make sure we notice if this is ever used */
+    assert(false);
+
     return 0;
 }
 
@@ -728,6 +749,9 @@ static int efsng_bmap(const char* pathname, size_t blocksize, uint64_t* idx){
     (void) pathname;
     (void) blocksize;
     (void) idx;
+
+    /* make sure we notice if this is ever used */
+    assert(false);
 
     return 0;
 }
@@ -748,6 +772,9 @@ static int efsng_ioctl(const char* pathname, int cmd, void* arg, struct fuse_fil
     (void) file_info;
     (void) flags;
     (void) data;
+
+    /* make sure we notice if this is ever used */
+    assert(false);
 
     return 0;
 }
@@ -770,6 +797,9 @@ static int efsng_poll(const char* pathname, struct fuse_file_info* file_info, st
     (void) file_info;
     (void) ph;
     (void) reventsp;
+
+    /* make sure we notice if this is ever used */
+    assert(false);
 
     return 0;
 }
@@ -855,6 +885,9 @@ static int efsng_flock(const char* pathname, struct fuse_file_info* file_info, i
     (void) file_info;
     (void) op;
 
+    /* make sure we notice if this is ever used */
+    assert(false);
+
     return 0;
 }
 
@@ -869,6 +902,9 @@ static int efsng_fallocate(const char* pathname, int, off_t, off_t, struct fuse_
 
     (void) pathname;
     (void) file_info;
+
+    /* make sure we notice if this is ever used */
+    assert(false);
 
     return 0;
 }
