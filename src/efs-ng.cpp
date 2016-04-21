@@ -90,7 +90,9 @@ static int efsng_mkdir(const char* pathname, mode_t mode){
 
 static int efsng_unlink(const char* pathname){
 
-    (void) pathname;
+    if(unlink(pathname) == -1){
+        return -errno;
+    }
 
     return 0;
 }
