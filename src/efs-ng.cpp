@@ -37,6 +37,7 @@
 #include <unistd.h>
 
 #include "config.h"
+#include "metadata.h"
 #include "command-line.h"
 
 static int efsng_getattr(const char* pathname, struct stat* stbuf){
@@ -153,8 +154,6 @@ static int efsng_chown(const char* pathname, uid_t owner, gid_t group){
 
 static int efsng_truncate(const char* pathname, off_t length){
 
-    (void) pathname;
-    (void) length;
     if(truncate(pathname, length) == -1){
         return -errno;
     }
@@ -172,8 +171,34 @@ static int efsng_utime(const char* pathname, struct utimbuf* times){
 
 static int efsng_open(const char* pathname, struct fuse_file_info* file_info){
 
-    (void) pathname;
-    (void) file_info;
+    int fd = open(pathname, file_info->flags);
+
+    if(fd == -1){
+        return -errno;
+    }
+
+    int flags = 0;
+
+    if(file_info->flags & O_RDONLY){
+        flags |= O_RDONLY;
+    }
+
+    if(file_info->flags & O_WRONLY){
+        flags |= O_WRONLY;
+    }
+
+    if(file_info->flags & O_RDWR){
+        flags |= O_RDWR;
+    }
+
+    /* cache the inode, fd, and flags to reuse them later */
+	struct stat st;
+	fstat(fd, &st);
+
+    // XXX this means that each "open()" creates a Metadata record 
+    // XXX WARNING: records ARE NOT protected by a mutex yet
+    std::shared_ptr<efsng::Metadata> p(new efsng::Metadata(st.st_ino, fd, flags));
+    file_info->fh = (uint64_t)&p;
 
     return 0;
 }
