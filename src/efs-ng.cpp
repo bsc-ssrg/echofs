@@ -252,7 +252,21 @@ static int efsng_statfs(const char* pathname, struct statvfs* buf){
 static int efsng_flush(const char* pathname, struct fuse_file_info* file_info){
 
     (void) pathname;
-    (void) file_info;
+
+    auto ptr = (efsng::Metadata*) file_info->fh;
+
+    int fd = ptr->get_fd();
+
+	/* This is called from every close on an open file, so call the
+	   close on the underlying filesystem.	But since flush may be
+	   called multiple times for an open file, this must not really
+	   close the file.  This is important if used on a network
+	   filesystem like NFS which flush the data/metadata on close() */
+	int res = close(dup(fd));
+
+	if (res == -1){
+		return -errno;
+    }
 
     return 0;
 }
