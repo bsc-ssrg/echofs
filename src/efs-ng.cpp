@@ -506,10 +506,16 @@ static int efsng_ftruncate(const char* pathname, off_t length, struct fuse_file_
     return 0;
 }
 
-static int efsng_fgetattr(const char* pathname, struct stat*, struct fuse_file_info* file_info){
+static int efsng_fgetattr(const char* pathname, struct stat* stbuf, struct fuse_file_info* file_info){
 
     (void) pathname;
-    (void) file_info;
+
+    auto file_record = (efsng::File*) file_info->fh;
+    int fd = file_record->get_fd();
+
+    if(fstat(fd, stbuf) == -1){
+        return -errno;
+    }
 
     return 0;
 }
