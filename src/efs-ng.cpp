@@ -126,8 +126,9 @@ static int efsng_rename(const char* oldpath, const char* newpath){
 
 static int efsng_link(const char* oldpath, const char* newpath){
 
-    (void) oldpath;
-    (void) newpath;
+    if(link(oldpath, newpath) == -1){
+        return -errno;
+    }
 
     return 0;
 }
