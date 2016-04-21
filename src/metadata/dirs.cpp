@@ -24,30 +24,15 @@
  * Cambridge, MA 02139, USA.                                             *
  *************************************************************************/
 
-#ifndef __FILES_H__
-#define __FILES_H__
-
-#include <sys/types.h>
+#include "dirs.h"
 
 namespace efsng{
 
-/* records metadata about an open file */
-class File{
+Directory::Directory(DIR* dirp, struct dirent* entry, off_t offset)
+    : dirp(dirp),
+      entry(entry),
+      offset(offset){ }
 
-public:
-    File(ino_t inode, int fd, mode_t mode);
-    ~File();
-    int get_fd();
-
-private:
-    /* file's inode */
-    ino_t inode;
-    /* file's fd */
-    int fd;     
-    /* file's flags at open: O_RDONLY, O_WRONLY, O_RDWR */
-    mode_t mode;
-};
+Directory::~Directory(){}
 
 } // namespace efsng
-
-#endif /* __FILES_H__ */

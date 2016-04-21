@@ -39,6 +39,7 @@
 
 #include "config.h"
 #include "metadata/files.h"
+#include "metadata/dirs.h"
 #include "command-line.h"
 
 static int efsng_getattr(const char* pathname, struct stat* stbuf){
@@ -366,8 +367,8 @@ static int efsng_opendir(const char* pathname, struct fuse_file_info* file_info)
         return -errno;
     }
 
-    // XXX
-    file_info->fh = (uint64_t)dp;
+    auto ptr = new efsng::Directory(dp, NULL, 0);
+    file_info->fh = (uint64_t) ptr;
 
     return 0;
 }

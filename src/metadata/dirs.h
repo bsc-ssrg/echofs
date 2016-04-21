@@ -24,30 +24,30 @@
  * Cambridge, MA 02139, USA.                                             *
  *************************************************************************/
 
-#ifndef __FILES_H__
-#define __FILES_H__
+#ifndef __DIRS_H__
+#define __DIRS_H__
 
+#include <dirent.h>
 #include <sys/types.h>
 
 namespace efsng{
 
-/* records metadata about an open file */
-class File{
+/* records metadata about open directory */
+class Directory{
 
 public:
-    File(ino_t inode, int fd, mode_t mode);
-    ~File();
-    int get_fd();
+    Directory(DIR* dirp, struct dirent* entry, off_t offset);
+    ~Directory();
 
 private:
-    /* file's inode */
-    ino_t inode;
-    /* file's fd */
-    int fd;     
-    /* file's flags at open: O_RDONLY, O_WRONLY, O_RDWR */
-    mode_t mode;
+    /* directory stream */
+    DIR* dirp;
+    /* buffer for next entry */
+    struct dirent* entry;
+    /* opaque offset (see NOTEs in readdir() man page */
+    off_t offset;
 };
 
 } // namespace efsng
 
-#endif /* __FILES_H__ */
+#endif /* __DIRS_H__ */
