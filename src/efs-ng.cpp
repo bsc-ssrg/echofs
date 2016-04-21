@@ -81,8 +81,9 @@ static int efsng_mknod(const char* pathname, mode_t mode, dev_t dev){
 
 static int efsng_mkdir(const char* pathname, mode_t mode){
 
-    (void) pathname;
-    (void) mode;
+    if(mkdir(pathname, mode) == -1){
+        return -errno;
+    }
 
     return 0;
 }
