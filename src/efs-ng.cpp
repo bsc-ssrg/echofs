@@ -377,14 +377,8 @@ static int efsng_readdir(const char* pathname, void* buf, fuse_fill_dir_t filler
                          struct fuse_file_info* file_info){
 
     (void) pathname;
-    (void) buf;
-    (void) filler;
-    (void) offset;
-    (void) file_info;
 
     auto ptr = (efsng::Directory*) file_info->fh;
-
-    std::cout << ptr << "\n";
 
     if(offset != ptr->get_offset()){
         seekdir(ptr->get_dirp(), offset);
@@ -424,7 +418,14 @@ static int efsng_readdir(const char* pathname, void* buf, fuse_fill_dir_t filler
 static int efsng_releasedir(const char* pathname, struct fuse_file_info* file_info){
 
     (void) pathname;
-    (void) file_info;
+
+    auto ptr = (efsng::Directory*) file_info->fh;
+
+    if(closedir(ptr->get_dirp()) == -1){
+        return -errno;
+    }
+
+    delete ptr;
 
     return 0;
 }
