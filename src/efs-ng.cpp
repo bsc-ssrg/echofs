@@ -155,6 +155,9 @@ static int efsng_truncate(const char* pathname, off_t length){
 
     (void) pathname;
     (void) length;
+    if(truncate(pathname, length) == -1){
+        return -errno;
+    }
 
     return 0;
 }
