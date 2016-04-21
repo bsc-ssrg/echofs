@@ -35,6 +35,7 @@ class Metadata{
 public:
     Metadata(ino_t inode, int fd, mode_t mode);
     ~Metadata();
+    int get_fd();
 
 private:
     /* file's inode */

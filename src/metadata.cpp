@@ -37,4 +37,8 @@ Metadata::Metadata(ino_t inode, int fd, mode_t mode)
 Metadata::~Metadata(){
 }
 
+int Metadata::get_fd(){
+    return fd;
+}
+
 } // namespace efsng

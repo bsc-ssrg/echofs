@@ -206,12 +206,18 @@ static int efsng_open(const char* pathname, struct fuse_file_info* file_info){
 static int efsng_read(const char* pathname, char* buf, size_t count, off_t offset, struct fuse_file_info* file_info){
 
     (void) pathname;
-    (void) buf;
-    (void) count;
-    (void) offset;
-    (void) file_info;
 
-    return 0;
+    std::shared_ptr<efsng::Metadata>& p = *(std::shared_ptr<efsng::Metadata>*) file_info->fh;
+
+    int fd = p->get_fd();
+
+    int res = pread(fd, buf, count, offset);
+
+    if(res == -1){
+        return -errno;
+    }
+
+    return res;
 }
 
 static int efsng_write(const char* pathname, const char* buf, size_t count, off_t offset, struct fuse_file_info* file_info){
