@@ -802,14 +802,28 @@ static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t 
  * The buffer must be allocated dynamically and stored at the location pointed to by bufp.  If the buffer contains
  * memory regions, they too must be allocated using malloc().  The allocated memory will be freed by the caller.
  */
-static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_t size, off_t off, 
+static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_t size, off_t offset, 
                           struct fuse_file_info* file_info){
 
     (void) pathname;
-    (void) bufp;
-    (void) size;
-    (void) off;
-    (void) file_info;
+
+    auto file_record = (efsng::File*) file_info->fh;
+
+    struct fuse_bufvec* src;
+
+    src = (struct fuse_bufvec*) malloc(sizeof(struct fuse_bufvec));
+
+    if(src == NULL){
+        return -ENOMEM;
+    }
+
+    *src = FUSE_BUFVEC_INIT(size);
+
+    src->buf[0].flags = (fuse_buf_flags) (FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
+    src->buf[0].fd = file_record->get_fd();
+    src->buf[0].pos = offset;
+
+    *bufp = src;
 
     return 0;
 }
