@@ -29,6 +29,7 @@
 #include <memory>
 #include <cstring>
 #include <iostream>
+#include <cerrno>
 
 #include "config.h"
 #include "command-line.h"
@@ -44,9 +45,11 @@ static int efsng_getattr(const char* pathname, struct stat* stbuf){
 
 static int efsng_readlink(const char* pathname, char* buf, size_t bufsiz){
 
-    (void) pathname;
-    (void) buf;
-    (void) bufsiz;
+    int res = readlink(pathname, buf, bufsiz - 1);
+
+    if(res == -1){
+        return -errno;
+    }
 
     return 0;
 }
