@@ -450,8 +450,9 @@ static void efsng_destroy(void *){
 
 static int efsng_access(const char* pathname, int mode){
 
-    (void) pathname;
-    (void) mode;
+    if(access(pathname, mode) == -1){
+        return -errno;
+    }
 
     return 0;
 }
