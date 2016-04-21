@@ -294,6 +294,27 @@ static int efsng_fsync(const char* pathname, int datasync, struct fuse_file_info
     (void) datasync;
     (void) file_info;
 
+    auto ptr = (efsng::Metadata*) file_info->fh;
+
+    int fd = ptr->get_fd();
+
+	int res;
+
+#ifdef HAVE_FDATASYNC
+	if(isdatasync){
+		res = fdatasync(fd);
+    }
+	else{
+		res = fsync(fd);
+    }
+#else
+    res = fsync(fd);
+#endif
+
+	if(res == -1){
+		return -errno;
+    }
+
     return 0;
 }
 
