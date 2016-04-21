@@ -28,16 +28,16 @@
 
 namespace efsng{
 
-Metadata::Metadata(ino_t inode, int fd, mode_t mode)
+File_record::File_record(ino_t inode, int fd, mode_t mode)
     : inode(inode),
       fd(fd),
       mode(mode){ 
 }
 
-Metadata::~Metadata(){
+File_record::~File_record(){
 }
 
-int Metadata::get_fd(){
+int File_record::get_fd(){
     return fd;
 }
 

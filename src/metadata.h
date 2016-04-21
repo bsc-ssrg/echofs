@@ -31,10 +31,10 @@
 
 namespace efsng{
 
-class Metadata{
+class File_record{
 public:
-    Metadata(ino_t inode, int fd, mode_t mode);
-    ~Metadata();
+    File_record(ino_t inode, int fd, mode_t mode);
+    ~File_record();
     int get_fd();
 
 private:
