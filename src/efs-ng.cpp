@@ -383,11 +383,10 @@ static int efsng_release(const char* pathname, struct fuse_file_info* file_info)
  *
  * If the datasync parameter is non-zero, then only the user data should be flushed, not the meta data.
  */
-static int efsng_fsync(const char* pathname, int datasync, struct fuse_file_info* file_info){
+static int efsng_fsync(const char* pathname, int is_datasync, struct fuse_file_info* file_info){
 
     (void) pathname;
-    (void) datasync;
-    (void) file_info;
+    (void) is_datasync;
 
     auto file_record = (efsng::File*) file_info->fh;
 
@@ -396,7 +395,7 @@ static int efsng_fsync(const char* pathname, int datasync, struct fuse_file_info
     int res;
 
 #ifdef HAVE_FDATASYNC
-    if(datasync){
+    if(is_datasync){
         res = fdatasync(fd);
     }
     else{
@@ -560,13 +559,34 @@ static int efsng_releasedir(const char* pathname, struct fuse_file_info* file_in
  *
  * If the datasync parameter is non-zero, then only the user data should be flushed, not the metadata
  */
-static int efsng_fsyncdir(const char* pathname, int, struct fuse_file_info* file_info){
+static int efsng_fsyncdir(const char* pathname, int is_datasync, struct fuse_file_info* file_info){
 
     (void) pathname;
-    (void) file_info;
+    (void) is_datasync;
 
-    /* make sure we notice if this is ever used */
-    assert(false);
+    auto dir_record = (efsng::Directory*) file_info->fh;
+    int dir_fd = dirfd(dir_record->get_dirp());
+
+    if(dir_fd == -1){
+        return -EBADF;
+    }
+
+    int res;
+
+#ifdef HAVE_FDATASYNC
+    if(is_datasync){
+        res = fdatasync(dir_fd);
+    }
+    else{
+        res = fsync(dir_fd);
+    }
+#else
+    res = fsync(dir_fd);
+#endif /* HAVE_FDATASYNC */
+
+    if(res == -1){
+        return -errno;
+    }
 
     return 0;
 }
