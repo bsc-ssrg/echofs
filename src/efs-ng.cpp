@@ -492,11 +492,16 @@ static int efsng_create(const char* pathname, mode_t mode, struct fuse_file_info
     return 0;
 }
 
-static int efsng_ftruncate(const char* pathname, off_t offset, struct fuse_file_info* file_info){
+static int efsng_ftruncate(const char* pathname, off_t length, struct fuse_file_info* file_info){
 
     (void) pathname;
-    (void) offset;
-    (void) file_info;
+
+    auto file_record = (efsng::File*) file_info->fh;
+    int fd = file_record->get_fd();
+
+    if(ftruncate(fd, length) == -1){
+        return -errno;
+    }
 
     return 0;
 }
