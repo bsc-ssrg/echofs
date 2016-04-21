@@ -781,14 +781,20 @@ static int efsng_poll(const char* pathname, struct fuse_file_info* file_info, st
  * Similar to the write() method, but data is supplied in a generic buffer. Use fuse_buf_copy() to transfer data to the
  * destination.
  */
-static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t off, struct fuse_file_info* file_info){
+static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t offset, 
+                           struct fuse_file_info* file_info){
 
     (void) pathname;
-    (void) buf;
-    (void) off;
-    (void) file_info;
 
-    return 0;
+    auto file_record = (efsng::File*) file_info->fh;
+
+    struct fuse_bufvec dst = FUSE_BUFVEC_INIT(fuse_buf_size(buf));
+
+	dst.buf[0].flags = (fuse_buf_flags) (FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
+	dst.buf[0].fd = file_record->get_fd();
+	dst.buf[0].pos = offset;
+
+	return fuse_buf_copy(&dst, buf, FUSE_BUF_SPLICE_NONBLOCK);
 }
 
 /** 
