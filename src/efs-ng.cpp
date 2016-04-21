@@ -459,9 +459,35 @@ static int efsng_access(const char* pathname, int mode){
 
 static int efsng_create(const char* pathname, mode_t mode, struct fuse_file_info* file_info){
 
-    (void) pathname;
-    (void) mode;
-    (void) file_info;
+    //XXX should we add O_CREAT|O_WRONLY|O_TRUNC ?
+    int fd = open(pathname, file_info->flags, mode);
+
+    if(fd == -1){
+        return -errno;
+    }
+
+    int flags = 0;
+
+    if(file_info->flags & O_RDONLY){
+        flags |= O_RDONLY;
+    }
+
+    if(file_info->flags & O_WRONLY){
+        flags |= O_WRONLY;
+    }
+
+    if(file_info->flags & O_RDWR){
+        flags |= O_RDWR;
+    }
+
+    /* cache the inode, fd, and flags to reuse them later */
+	struct stat st;
+	fstat(fd, &st);
+
+    // XXX this means that each "open()" creates a File record 
+    // XXX WARNING: records ARE NOT protected by a mutex yet
+    auto ptr = new efsng::File(st.st_ino, fd, flags);
+    file_info->fh = (uint64_t) ptr;
 
     return 0;
 }
