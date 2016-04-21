@@ -35,6 +35,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <dirent.h>
 
 #include "config.h"
 #include "metadata.h"
@@ -324,8 +325,14 @@ static int efsng_removexattr(const char* pathname, const char* name){
 
 static int efsng_opendir(const char* pathname, struct fuse_file_info* file_info){
 
-    (void) pathname;
-    (void) file_info;
+    DIR* dp = opendir(pathname);
+
+    if(dp == NULL){
+        return -errno;
+    }
+
+    // XXX
+    file_info->fh = (uint64_t)dp;
 
     return 0;
 }
