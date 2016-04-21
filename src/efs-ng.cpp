@@ -45,6 +45,7 @@ extern "C" {
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/file.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <dirent.h>
@@ -920,11 +921,16 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
 static int efsng_flock(const char* pathname, struct fuse_file_info* file_info, int op){
 
     (void) pathname;
-    (void) file_info;
-    (void) op;
 
-    /* make sure we notice if this is ever used */
-    assert(false);
+    auto file_record = (efsng::File*) file_info->fh;
+
+    int fd = file_record->get_fd();
+
+    int res = flock(fd, op);
+    
+    if(res == -1){
+        return -errno;
+    }
 
     return 0;
 }
