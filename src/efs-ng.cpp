@@ -239,9 +239,6 @@ static int efsng_write(const char* pathname, const char* buf, size_t count, off_
 
 static int efsng_statfs(const char* pathname, struct statvfs* buf){
 
-    (void) pathname;
-    (void) buf;
-
     int res = statvfs(pathname, buf);
 
     if(res == -1){
@@ -262,7 +259,16 @@ static int efsng_flush(const char* pathname, struct fuse_file_info* file_info){
 static int efsng_release(const char* pathname, struct fuse_file_info* file_info){
 
     (void) pathname;
-    (void) file_info;
+
+    std::shared_ptr<efsng::Metadata>& p = *(std::shared_ptr<efsng::Metadata>*) file_info->fh;
+
+    int fd = p->get_fd();
+
+    if(close(fd) == -1){
+        return -errno;
+    }
+
+    file_info->fh = (uint64_t) NULL;
 
     return 0;
 }
