@@ -99,7 +99,9 @@ static int efsng_unlink(const char* pathname){
 
 static int efsng_rmdir(const char* pathname){
 
-    (void) pathname;
+    if(rmdir(pathname) == -1){
+        return -errno;
+    }
 
     return 0;
 }
