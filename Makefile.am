@@ -26,13 +26,17 @@
 
 ACLOCAL_AMFLAGS = -I m4
 
+SUBDIRS = tests
+
+DIST_SUBDIRS = tests
+
 END=
 
 bin_PROGRAMS = src/efs-ng
 
 src_efs_ng_CXXFLAGS =       \
     $(FUSE_CFLAGS)          \
-    -Wall -Wextra -std=c++11
+    -Wall -Wextra
 
 src_efs_ng_LDFLAGS =    \
     $(FUSE_LIBS)        \
