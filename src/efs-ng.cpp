@@ -26,6 +26,7 @@
 
 #define FUSE_USE_VERSION 28
 
+/* C includes */
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
@@ -37,11 +38,6 @@ extern "C" {
 #include <ulockmgr.h>
 }
 #endif /* HAVE_LIBULOCKMGR */
-
-#include <memory>
-#include <cstring>
-#include <iostream>
-#include <cerrno>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -55,6 +51,13 @@ extern "C" {
 #include <sys/xattr.h>
 #endif /* HAVE_SETXATTR */
 
+/* C++ includes */
+#include <memory>
+#include <cstring>
+#include <iostream>
+#include <cerrno>
+
+/* project includes */
 #include "metadata/files.h"
 #include "metadata/dirs.h"
 #include "command-line.h"
@@ -1065,11 +1068,6 @@ int main (int argc, char *argv[]){
 
     /* 1. parse command-line arguments */
     std::shared_ptr<Arguments> user_args(new Arguments);
-
-    for(int i=0; i<MAX_FUSE_ARGS; ++i){
-        /* libfuse expects NULL args */
-        user_args->fuse_argv[i] = NULL;
-    }
 
     if(argc == 1 || !process_args(argc, argv, user_args)){
         usage(argv[0]);

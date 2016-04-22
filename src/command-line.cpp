@@ -24,11 +24,20 @@
  * Cambridge, MA 02139, USA.                                             *
  *************************************************************************/
 
-#define FUSE_USE_VERSION 26
+#define FUSE_USE_VERSION 28
+
+/* C includes */
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
+
 #include <fuse.h>
-#include <boost/filesystem.hpp>
 #include <getopt.h>
-#include "config.h"
+
+/* C++ includes */
+#include <boost/filesystem.hpp>
+
+/* project includes */
 #include "command-line.h"
 
 namespace bfs = boost::filesystem;
@@ -52,8 +61,9 @@ static void fuse_usage(const char* name){
 bool process_args(int argc, char* argv[], 
                   const std::shared_ptr<Arguments>& out){
 
-    /* pass through executable name */
-    bfs::path exec_name = bfs::basename(argv[0]);
+    /* pass through (and remember) executable name */
+    std::string exec_name = bfs::basename(argv[0]);
+    out->exec_name = exec_name;
     out->fuse_argv[0] = exec_name.c_str();
     ++out->fuse_argc;
 
@@ -89,7 +99,10 @@ bool process_args(int argc, char* argv[],
     /* helper lambda function to safely add an argument to fuse_argv */
     auto push_arg = [&out](const char* arg){
         assert(out->fuse_argc < MAX_FUSE_ARGS);
-        out->fuse_argv[out->fuse_argc++] = arg;
+        size_t n = strlen(arg);
+        char* arg_copy = strndup(arg, n+1);
+        arg_copy[n] = '\0';
+        out->fuse_argv[out->fuse_argc++] = arg_copy;
     };
 
     /* process the options */

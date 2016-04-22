@@ -39,8 +39,13 @@ const int MAX_FUSE_ARGS = 32;
 // Arguments stores the parsed command-line arguments
 struct Arguments{
 
+    std::string exec_name;
     bfs::path root_dir;
     bfs::path mount_point;
+
+    Arguments() :
+        fuse_argc(0),
+        fuse_argv() { }
 
     int fuse_argc;
     const char* fuse_argv[MAX_FUSE_ARGS];

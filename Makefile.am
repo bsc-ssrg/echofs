@@ -30,14 +30,23 @@ END=
 
 bin_PROGRAMS = src/efs-ng
 
+# we need -DBOOST_ALL_DYN_LINK to correctly link boost::log 
+src_efs_ng_CPPFLAGS =		\
+	@FUSE_CFLAGS@			\
+	@BOOST_CPPFLAGS@		\
+	-DBOOST_ALL_DYN_LINK	\
+	$(END)
+
 src_efs_ng_CXXFLAGS =       \
-    $(FUSE_CFLAGS)          \
+    @FUSE_CFLAGS@			\
     -Wall -Wextra -std=c++11
 
-src_efs_ng_LDFLAGS =    \
-    $(FUSE_LIBS)        \
-    -lboost_filesystem  \
-    -lboost_system		\
+src_efs_ng_LDFLAGS =		\
+    @FUSE_LIBS@				\
+    @BOOST_LDFLAGS@			\
+    @BOOST_SYSTEM_LIB@		\
+    @BOOST_FILESYSTEM_LIB@	\
+    @BOOST_LOG_LIB@			\
     $(END)
 
 # source files in alphabetical order
