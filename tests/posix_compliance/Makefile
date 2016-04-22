@@ -5,12 +5,13 @@
 #CFLAGS+=-DHAS_LCHFLAGS
 #CFLAGS+=-DHAS_TRUNCATE64
 #CFLAGS+=-DHAS_STAT64
-CFLAGS+=-DHAS_ACL -lacl
+CFLAGS+=-DHAS_ACL
+LIBS+=-lacl
 
 all:	fstest
 
 fstest:	fstest.c
-	gcc -Wall ${CFLAGS} fstest.c -o fstest
+	gcc -Wall ${CFLAGS} fstest.c -o fstest ${LIBS}
 
 clean:
 	rm -f fstest
