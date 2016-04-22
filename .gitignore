@@ -1,3 +1,4 @@
+#files to ignore
 build
 build-aux
 .dirstamp
@@ -33,3 +34,5 @@ config.h.in~
 Makefile
 .deps/
 .libs/
+# include everything in tests/posix_compliance/*
+!tests/posix_compliance/*

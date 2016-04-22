@@ -24,46 +24,4 @@
 #  Cambridge, MA 02139, USA.                                              #
 ###########################################################################
 
-ACLOCAL_AMFLAGS = -I m4
-
-SUBDIRS = tests
-
-DIST_SUBDIRS = tests
-
-END=
-
-bin_PROGRAMS = src/efs-ng
-
-# we need -DBOOST_ALL_DYN_LINK to correctly link boost::log 
-src_efs_ng_CPPFLAGS =		\
-	@FUSE_CFLAGS@			\
-	@BOOST_CPPFLAGS@		\
-	-DFUSE_USE_VERSION=28	\
-	-DBOOST_ALL_DYN_LINK	\
-	$(END)
-
-src_efs_ng_CXXFLAGS =       \
-    @FUSE_CFLAGS@			\
-    -Wall -Wextra
-
-src_efs_ng_LDFLAGS =		\
-    @FUSE_LIBS@				\
-    @BOOST_LDFLAGS@			\
-    @BOOST_SYSTEM_LIB@		\
-    @BOOST_FILESYSTEM_LIB@	\
-    @BOOST_LOG_LIB@			\
-    $(END)
-
-# source files in alphabetical order
-src_efs_ng_SOURCES =        \
-    src/command-line.cpp    \
-    src/command-line.h      \
-    src/efs-ng.cpp          \
-    src/metadata/dirs.cpp   \
-    src/metadata/dirs.h     \
-    src/metadata/files.cpp  \
-    src/metadata/files.h    \
-    src/usr-credentials.h   \
-    $(END)
-
-
+SUBDIRS = posix-compliance

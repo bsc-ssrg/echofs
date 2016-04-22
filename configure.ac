@@ -42,7 +42,7 @@ AC_LANG([C++])
 LT_INIT
 
 # check that c++11 is supported by the compiler
-AX_CHECK_COMPILE_FLAG([-std=c11], [CFLAGS+=" -std=c++11"], [
+AX_CHECK_COMPILE_FLAG([-std=c++11], [CXXFLAGS+=" -std=c++11"], [
     echo "C++ compiler cannot compile C++11 code"
     exit -1
 ])
@@ -67,8 +67,15 @@ AX_BOOST_SYSTEM
 AX_BOOST_FILESYSTEM
 AX_BOOST_LOG
 
+# for the POSIX compliance tests we need the tests definitions in
+# the build hierarchy. This is the easiest way
+AC_CONFIG_COMMANDS([posix-test-dependencies],
+                   [cp -pR "$srcdir"/tests/posix-compliance/tests tests/posix-compliance/tests])
+
 AC_CONFIG_FILES([
         Makefile
+        tests/Makefile
+        tests/posix-compliance/Makefile
 ])
 
 AC_OUTPUT
