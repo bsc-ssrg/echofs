@@ -66,6 +66,11 @@ AX_BOOST_BASE([1.54],, [
 AX_BOOST_SYSTEM
 AX_BOOST_FILESYSTEM
 
+# for the POSIX compliance tests we need the tests definitions in
+# the build hierarchy. This is the easiest way
+AC_CONFIG_COMMANDS([posix-test-dependencies],
+                   [cp -pR "$srcdir"/tests/posix-compliance/tests tests/posix-compliance/tests])
+
 AC_CONFIG_FILES([
         Makefile
         tests/Makefile

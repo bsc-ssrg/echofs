@@ -24,12 +24,16 @@
 #  Cambridge, MA 02139, USA.                                              #
 ###########################################################################
 
+TESTS = posix-compliance/test-driver.sh
+TEST_EXTENSIONS = .sh
+SH_LOG_COMPILER = $(BASH)
+
+
 END=
 
 bin_PROGRAMS = 				\
 	posix-compliance/fstest	\
 	$(END)
-
 
 ###########################################################################
 # posix compliance
