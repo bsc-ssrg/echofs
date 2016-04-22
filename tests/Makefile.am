@@ -24,29 +24,4 @@
 #  Cambridge, MA 02139, USA.                                              #
 ###########################################################################
 
-TESTS = posix-compliance/test-driver.sh
-TEST_EXTENSIONS = .sh
-SH_LOG_COMPILER = $(BASH)
-
-
-END=
-
-bin_PROGRAMS = 				\
-	posix-compliance/fstest	\
-	$(END)
-
-###########################################################################
-# posix compliance
-###########################################################################
-
-posix_compliance_fstest_SOURCES = 	\
-	posix-compliance/fstest.c		\
-	$(END)
-
-posix_compliance_fstest_CFLAGS = 	\
-	-Wall -DHAS_ACL					\
-	$(END)
-
-posix_compliance_fstest_LDFLAGS = 	\
-	-lacl							\
-	$(END)
+SUBDIRS = posix-compliance

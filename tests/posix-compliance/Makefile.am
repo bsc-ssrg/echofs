@@ -24,57 +24,22 @@
 #  Cambridge, MA 02139, USA.                                              #
 ###########################################################################
 
-AC_INIT([Echo Filesystem NG],
-        [0.1.0],
-        [alberto.miranda@bsc.es],
-        [efs-ng])
+TESTS = test-driver.sh
+TEST_EXTENSIONS = .sh
+SH_LOG_COMPILER = $(BASH)
 
-AC_PREREQ([2.59])
-AC_CONFIG_SRCDIR([src/efs-ng.cpp])
-AC_CONFIG_MACRO_DIR([m4])
-AC_CONFIG_AUX_DIR([build-aux])
-AC_CONFIG_HEADERS([src/config.h])
+END=
 
-AM_INIT_AUTOMAKE([1.9 dist-bzip2 dist-zip foreign subdir-objects])
-AC_PROG_CC
-AC_PROG_CXX
-AC_LANG([C++])
-LT_INIT
+check_PROGRAMS = fstest
 
-# check that c++11 is supported by the compiler
-AX_CHECK_COMPILE_FLAG([-std=c++11], [CXXFLAGS+=" -std=c++11"], [
-    echo "C++ compiler cannot compile C++11 code"
-    exit -1
-])
+fstest_SOURCES = \
+	fstest.c     \
+	$(END)
 
-# check that FUSE >= 2.6 is available
-PKG_CHECK_MODULES([FUSE], [fuse >= 2.6])
+fstest_CFLAGS =     \
+	-Wall -DHAS_ACL \
+	$(END)
 
-# check for several functions and libraries that affect FUSE's behavior 
-AC_CHECK_FUNCS(setxattr fdatasync utimensat)
-AC_CHECK_FUNCS([posix_fallocate])
-AC_CHECK_LIB(ulockmgr, ulockmgr_op)
-FUSE_LIBS+=$LIBS
-LIBS=
-
-# check for some BOOST libraries
-AX_BOOST_BASE([1.54],, [
-    AC_MSG_ERROR([
-        The Echo Filesystem NG needs BOOST >= 1.54, but it was not found in your system
-    ])
-])
-AX_BOOST_SYSTEM
-AX_BOOST_FILESYSTEM
-
-# for the POSIX compliance tests we need the tests definitions in
-# the build hierarchy. This is the easiest way
-AC_CONFIG_COMMANDS([posix-test-dependencies],
-                   [cp -pR "$srcdir"/tests/posix-compliance/tests tests/posix-compliance/tests])
-
-AC_CONFIG_FILES([
-        Makefile
-        tests/Makefile
-        tests/posix-compliance/Makefile
-])
-
-AC_OUTPUT
+fstest_LDFLAGS = \
+	-lacl        \
+	$(END)

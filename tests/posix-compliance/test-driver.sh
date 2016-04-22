@@ -22,8 +22,11 @@ do_retry()
 }
 
 tests_root=$PWD
-root_dir="$PWD/posix-compliance/root-dir"
-mnt_dir="$PWD/posix-compliance/mnt-dir"
+root_dir="$PWD/root-dir"
+mnt_dir="$PWD/mnt-dir"
+
+#echo "---> '" $srcdir "'"
+#echo "---> '" $builddir "'"
 
 # create the root dir for the test
 if [[ ! -e ${root_dir} ]]; then
@@ -43,7 +46,7 @@ fi
 
 # mount the efs-ng filesystem on top
 #sudo ../src/efs-ng -r ${mnt_dir} -m ${mnt_dir} -o allow_other,default_permissions,auto_unmount
-../src/efs-ng -r ${root_dir} -m ${mnt_dir} #-o default_permissions,auto_unmount
+../../src/efs-ng -r ${root_dir} -m ${mnt_dir} -o default_permissions,auto_unmount
 
 if [[ $? -ne 0 ]];
 then
@@ -52,7 +55,7 @@ fi
 
 # enter mount point and run the actual testsuite
 echo "Running test suite"
-(cd ${mnt_dir} && prove -r "${tests_root}")
+#(cd ${mnt_dir} && prove -r "${tests_root}")
 
 ret=$?
 
