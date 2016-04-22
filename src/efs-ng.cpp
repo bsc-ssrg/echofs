@@ -46,6 +46,7 @@ extern "C" {
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/file.h>
+#include <sys/fsuid.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <dirent.h>
@@ -54,10 +55,11 @@ extern "C" {
 #include <sys/xattr.h>
 #endif /* HAVE_SETXATTR */
 
-
 #include "metadata/files.h"
 #include "metadata/dirs.h"
 #include "command-line.h"
+#include "usr-credentials.h"
+
 
 /**********************************************************************************************************************/
 /*   Filesytem operations
@@ -80,7 +82,13 @@ extern "C" {
 /** Get file attributes. similar to stat() */
 static int efsng_getattr(const char* pathname, struct stat* stbuf){
 
-    if(lstat(pathname, stbuf) == -1){
+    auto old_credentials = efsng::assume_user_credentials();
+
+    int res = lstat(pathname, stbuf);
+
+    efsng::restore_credentials(old_credentials);
+
+    if(res == -1){
         return -errno;
     }
 
@@ -90,7 +98,11 @@ static int efsng_getattr(const char* pathname, struct stat* stbuf){
 /** Read the target of a symbolic link */
 static int efsng_readlink(const char* pathname, char* buf, size_t bufsiz){
 
+    auto old_credentials = efsng::assume_user_credentials();
+
     int res = readlink(pathname, buf, bufsiz - 1);
+
+    efsng::restore_credentials(old_credentials);
 
     if(res == -1){
         return -errno;
@@ -105,7 +117,13 @@ static int efsng_readlink(const char* pathname, char* buf, size_t bufsiz){
 /** Create a node for all non-directory, non-symlink nodes */
 static int efsng_mknod(const char* pathname, mode_t mode, dev_t dev){
 
-    if(mknod(pathname, mode, dev) == -1){
+    auto old_credentials = efsng::assume_user_credentials();
+
+    int res = mknod(pathname, mode, dev);
+
+    efsng::restore_credentials(old_credentials);
+
+    if(res == -1){
         return -errno;
     }
 
@@ -119,7 +137,14 @@ static int efsng_mkdir(const char* pathname, mode_t mode){
     if(!mode & S_IFDIR){
         mode |= S_IFDIR;
     }
-    if(mkdir(pathname, mode) == -1){
+
+    auto old_credentials = efsng::assume_user_credentials();
+
+    int res = mkdir(pathname, mode);
+
+    efsng::restore_credentials(old_credentials);
+
+    if(res == -1){
         return -errno;
     }
 
@@ -129,7 +154,13 @@ static int efsng_mkdir(const char* pathname, mode_t mode){
 /** Remove a file */
 static int efsng_unlink(const char* pathname){
 
-    if(unlink(pathname) == -1){
+    auto old_credentials = efsng::assume_user_credentials();
+
+    int res = unlink(pathname);
+
+    efsng::restore_credentials(old_credentials);
+
+    if(res == -1){
         return -errno;
     }
 
@@ -139,7 +170,13 @@ static int efsng_unlink(const char* pathname){
 /** Remove a directory */
 static int efsng_rmdir(const char* pathname){
 
-    if(rmdir(pathname) == -1){
+    auto old_credentials = efsng::assume_user_credentials();
+
+    int res = rmdir(pathname);
+
+    efsng::restore_credentials(old_credentials);
+
+    if(res == -1){
         return -errno;
     }
 
@@ -149,7 +186,13 @@ static int efsng_rmdir(const char* pathname){
 /** Create a symbolic link */
 static int efsng_symlink(const char* oldpath, const char* newpath){
 
-    if(symlink(oldpath, newpath) == -1){
+    auto old_credentials = efsng::assume_user_credentials();
+
+    int res = symlink(oldpath, newpath);
+
+    efsng::restore_credentials(old_credentials);
+
+    if(res == -1){
         return -errno;
     }
 
@@ -159,7 +202,13 @@ static int efsng_symlink(const char* oldpath, const char* newpath){
 /** Rename a file */
 static int efsng_rename(const char* oldpath, const char* newpath){
 
-    if(rename(oldpath, newpath) == -1){
+    auto old_credentials = efsng::assume_user_credentials();
+
+    int res = rename(oldpath, newpath);
+
+    efsng::restore_credentials(old_credentials);
+
+    if(res == -1){
         return -errno;
     }
 
@@ -169,7 +218,13 @@ static int efsng_rename(const char* oldpath, const char* newpath){
 /** Create a hard link to a file */
 static int efsng_link(const char* oldpath, const char* newpath){
 
-    if(link(oldpath, newpath) == -1){
+    auto old_credentials = efsng::assume_user_credentials();
+
+    int res = link(oldpath, newpath);
+
+    efsng::restore_credentials(old_credentials);
+
+    if(res == -1){
         return -errno;
     }
 
@@ -179,7 +234,13 @@ static int efsng_link(const char* oldpath, const char* newpath){
 /** Change the permissions bits of a file */
 static int efsng_chmod(const char* pathname, mode_t mode){
 
-    if(chmod(pathname, mode) == -1){
+    auto old_credentials = efsng::assume_user_credentials();
+
+    int res = chmod(pathname, mode);
+
+    efsng::restore_credentials(old_credentials);
+
+    if(res == -1){
         return -errno;
     }
 
@@ -189,7 +250,13 @@ static int efsng_chmod(const char* pathname, mode_t mode){
 /** Change the owner and group of a file */
 static int efsng_chown(const char* pathname, uid_t owner, gid_t group){
 
-    if(lchown(pathname, owner, group) == -1){
+    auto old_credentials = efsng::assume_user_credentials();
+
+    int res = lchown(pathname, owner, group);
+
+    efsng::restore_credentials(old_credentials);
+
+    if(res == -1){
         return -errno;
     }
 
@@ -199,7 +266,13 @@ static int efsng_chown(const char* pathname, uid_t owner, gid_t group){
 /** Change the size of a file */
 static int efsng_truncate(const char* pathname, off_t length){
 
-    if(truncate(pathname, length) == -1){
+    auto old_credentials = efsng::assume_user_credentials();
+
+    int res = truncate(pathname, length);
+
+    efsng::restore_credentials(old_credentials);
+
+    if(res == -1){
         return -errno;
     }
 
@@ -303,7 +376,11 @@ static int efsng_write(const char* pathname, const char* buf, size_t count, off_
 /** Get filesystem statistics */
 static int efsng_statfs(const char* pathname, struct statvfs* buf){
 
+    auto old_credentials = efsng::assume_user_credentials();
+
     int res = statvfs(pathname, buf);
+
+    efsng::restore_credentials(old_credentials);
 
     if(res == -1){
         return -errno;
@@ -417,7 +494,11 @@ static int efsng_fsync(const char* pathname, int is_datasync, struct fuse_file_i
 /** Set extended attributes */
 static int efsng_setxattr(const char* pathname, const char* name, const char* value, size_t size, int flags){
 
+    auto old_credentials = efsng::assume_user_credentials();
+
     int res = lsetxattr(pathname, name, value, size, flags);
+
+    efsng::restore_credentials(old_credentials);
 
     if(res == -1){
         return -errno;
@@ -429,7 +510,11 @@ static int efsng_setxattr(const char* pathname, const char* name, const char* va
 /** Get extended attributes */
 static int efsng_getxattr(const char* pathname, const char* name, char* value, size_t size){
 
+    auto old_credentials = efsng::assume_user_credentials();
+
     int res = lgetxattr(pathname, name, value, size);
+
+    efsng::restore_credentials(old_credentials);
 
     if(res == -1){
         return -errno;
@@ -441,7 +526,11 @@ static int efsng_getxattr(const char* pathname, const char* name, char* value, s
 /** List extended attributes */
 static int efsng_listxattr(const char* pathname, char* listbuf, size_t size){
 
+    auto old_credentials = efsng::assume_user_credentials();
+
     int res = llistxattr(pathname, listbuf, size);
+
+    efsng::restore_credentials(old_credentials);
 
     if(res == -1){
         return -errno;
@@ -453,7 +542,11 @@ static int efsng_listxattr(const char* pathname, char* listbuf, size_t size){
 /** Remove extended attributes */
 static int efsng_removexattr(const char* pathname, const char* name){
 
+    auto old_credentials = efsng::assume_user_credentials();
+
     int res = lremovexattr(pathname, name);
+
+    efsng::restore_credentials(old_credentials);
 
     if(res == -1){
         return -errno;
@@ -623,7 +716,13 @@ static void efsng_destroy(void *){
  */
 static int efsng_access(const char* pathname, int mode){
 
-    if(access(pathname, mode) == -1){
+    auto old_credentials = efsng::assume_user_credentials();
+
+    int res = access(pathname, mode);
+
+    efsng::restore_credentials(old_credentials);
+
+    if(res == -1){
         return -errno;
     }
 
@@ -708,9 +807,12 @@ static int efsng_fgetattr(const char* pathname, struct stat* stbuf, struct fuse_
     (void) pathname;
 
     auto file_record = (efsng::File*) file_info->fh;
+
     int fd = file_record->get_fd();
 
-    if(fstat(fd, stbuf) == -1){
+    int res = fstat(fd, stbuf);
+
+    if(res == -1){
         return -errno;
     }
 
@@ -765,10 +867,12 @@ static int efsng_lock(const char* pathname, struct fuse_file_info* file_info, in
  */
 static int efsng_utimens(const char* pathname, const struct timespec tv[2]){
 
-    int res;
+    auto old_credentials = efsng::assume_user_credentials();
 
     /* don't use utime/utimens since they follow symlinks */
-    res = utimensat(0, pathname, tv, AT_SYMLINK_NOFOLLOW); 
+    int res = utimensat(0, pathname, tv, AT_SYMLINK_NOFOLLOW); 
+
+    efsng::restore_credentials(old_credentials);
 
     if(res == -1){
         return -errno;
@@ -1040,7 +1144,10 @@ int main (int argc, char *argv[]){
     efsng_ops.fallocate = efsng_fallocate;
 #endif /* HAVE_POSIX_FALLOCATE */
 
-    /* 3. start the filesystem */
+    /* 3. set the umask */
+    umask(0);
+
+    /* 4. start the filesystem */
     int res = fuse_main(user_args->fuse_argc, 
                         const_cast<char **>(user_args->fuse_argv), 
                         &efsng_ops, 

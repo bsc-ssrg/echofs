@@ -49,6 +49,7 @@ src_efs_ng_SOURCES =        \
     src/metadata/dirs.h     \
     src/metadata/files.cpp  \
     src/metadata/files.h    \
+    src/usr-credentials.h   \
     $(END)
 
 
