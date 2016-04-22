@@ -893,10 +893,7 @@ static int efsng_bmap(const char* pathname, size_t blocksize, uint64_t* idx){
     (void) blocksize;
     (void) idx;
 
-    /* make sure we notice if this is ever used */
-    assert(false);
-
-    return 0;
+    return -EOPNOTSUPP;
 }
 
 /**
@@ -916,10 +913,7 @@ static int efsng_ioctl(const char* pathname, int cmd, void* arg, struct fuse_fil
     (void) flags;
     (void) data;
 
-    /* make sure we notice if this is ever used */
-    assert(false);
-
-    return 0;
+    return -EOPNOTSUPP;
 }
 
 /** 
@@ -941,10 +935,7 @@ static int efsng_poll(const char* pathname, struct fuse_file_info* file_info, st
     (void) ph;
     (void) reventsp;
 
-    /* make sure we notice if this is ever used */
-    assert(false);
-
-    return 0;
+    return -EOPNOTSUPP;
 }
 
 
@@ -1047,15 +1038,23 @@ static int efsng_flock(const char* pathname, struct fuse_file_info* file_info, i
  * subsequent write request to specified range is guaranteed not to fail because of lack of space on the file system
  * media.
  */
-static int efsng_fallocate(const char* pathname, int, off_t, off_t, struct fuse_file_info* file_info){
+static int efsng_fallocate(const char* pathname, int mode, off_t offset, off_t length, 
+                           struct fuse_file_info* file_info){
 
     (void) pathname;
-    (void) file_info;
 
-    /* make sure we notice if this is ever used */
-    assert(false);
+    /* only posix_fallocate is supported at the moment */
+    if(mode != 0){
+        return -EOPNOTSUPP;
+    }
 
-    return 0;
+    auto file_record = (efsng::File*) file_info->fh;
+
+    int fd = file_record->get_fd();
+
+    int res = posix_fallocate(fd, offset, length);
+
+    return -res;
 }
 #endif /* HAVE_POSIX_FALLOCATE */
 
