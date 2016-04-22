@@ -34,6 +34,7 @@ bin_PROGRAMS = src/efs-ng
 src_efs_ng_CPPFLAGS =		\
 	@FUSE_CFLAGS@			\
 	@BOOST_CPPFLAGS@		\
+	-DFUSE_USE_VERSION=28	\
 	-DBOOST_ALL_DYN_LINK	\
 	$(END)
 

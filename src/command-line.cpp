@@ -24,7 +24,6 @@
  * Cambridge, MA 02139, USA.                                             *
  *************************************************************************/
 
-#define FUSE_USE_VERSION 28
 
 /* C includes */
 #ifdef HAVE_CONFIG_H
@@ -35,22 +34,36 @@
 #include <getopt.h>
 
 /* C++ includes */
+#include <sstream>
 #include <boost/filesystem.hpp>
+#include <boost/log/trivial.hpp>
 
 /* project includes */
 #include "command-line.h"
 
 namespace bfs = boost::filesystem;
 
-void usage(const char* name){
+void usage(const char* name, bool is_error){
 
-    std::cerr << PACKAGE_NAME << " v" << VERSION << "\n\n"
-              << "Usage: " << name << " [options] root_dir mount_point [-- [FUSE Mount Options]]\n";
+    std::stringstream ss;  
+
+    if(!is_error){
+        ss << PACKAGE_NAME << " v" << VERSION << "\n\n";
+    }
+
+    ss << "Usage: " << name << " [options] root_dir mount_point [-- [FUSE Mount Options]]\n";
+
+    if(is_error){
+        std::cerr << ss.str();
+        return;
+    }
+
+    std::cout << ss.str();
 }
 
 static void fuse_usage(const char* name){
 
-    std::cerr << "Usage: " << name << " [options] root_dir mount_point [-- [FUSE Mount Options]]\n"
+    std::cout << "Usage: " << name << " [options] root_dir mount_point [-- [FUSE Mount Options]]\n"
               << "Valid FUSE Mount Options:\n\n";
 
     int argc = 2;
@@ -75,6 +88,8 @@ bool process_args(int argc, char* argv[],
     struct option long_options[] = {
         {"root-dir",        1, 0, 'r'}, /* directory to mirror */
         {"mount-point",     1, 0, 'm'}, /* mount point */
+        {"help",            0, 0, 'h'}, /* display usage */
+        {"foreground",      0, 0, 'f'}, /* foreground operation */
         {"fuse-debug",      0, 0, 'd'}, /* FUSE debug mode */
         {"fuse-help",       0, 0, 'H'}, /* fuse_mount usage */
         {"version",         0, 0, 'V'}, /* version information */
@@ -125,6 +140,14 @@ bool process_args(int argc, char* argv[],
             case 'm':
                 out->mount_point = std::string(optarg);
                 break;
+            case 'h':
+                usage(exec_name.c_str());
+                exit(EXIT_SUCCESS);
+                break;
+            case 'f':
+                /* prevent that FUSE starts as a daemon */
+                push_arg("-f");
+                break;
             case 'd':
                 push_arg("-d");
                 break;
@@ -133,7 +156,7 @@ bool process_args(int argc, char* argv[],
                 exit(EXIT_SUCCESS);
                 break;
             case 'V':
-                std::cerr << exec_name.c_str() << " version " << VERSION << "\n"
+                std::cout << exec_name.c_str() << " version " << VERSION << "\n"
                           << "Copyright (C) 2016 Barcelona Supercomputing Center (BSC-CNS)\n" 
                           << "This is free software; see the source for copying conditions. There is NO\n"
                           << "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n";
@@ -145,10 +168,10 @@ bool process_args(int argc, char* argv[],
                 break;
             case '?':
                 /* invalid option */
-                break;
+                return false;
             case ':':
                 /* missing parameter for option */
-                break;
+                return false;
             default:
                 break;
         }

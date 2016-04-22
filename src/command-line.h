@@ -51,7 +51,7 @@ struct Arguments{
     const char* fuse_argv[MAX_FUSE_ARGS];
 };
 
-void usage(const char* name);
+void usage(const char* name, bool is_error=false);
 bool process_args(int argc, char* argv[], const std::shared_ptr<Arguments>& out);
 
 #endif /* __COMMAND_LINE_H__ */

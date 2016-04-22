@@ -24,7 +24,6 @@
  * Cambridge, MA 02139, USA.                                             *
  *************************************************************************/
 
-#define FUSE_USE_VERSION 28
 
 /* C includes */
 #ifdef HAVE_CONFIG_H
@@ -54,8 +53,8 @@ extern "C" {
 /* C++ includes */
 #include <memory>
 #include <cstring>
-#include <iostream>
 #include <cerrno>
+#include <boost/log/trivial.hpp>
 
 /* project includes */
 #include "metadata/files.h"
@@ -1070,12 +1069,14 @@ int main (int argc, char *argv[]){
     std::shared_ptr<Arguments> user_args(new Arguments);
 
     if(argc == 1 || !process_args(argc, argv, user_args)){
-        usage(argv[0]);
+        usage(argv[0], true);
         return EXIT_FAILURE;
     }
 
+    BOOST_LOG_TRIVIAL(info) << "Arguments received:";
+
     for(int i=0; i<user_args->fuse_argc; ++i){
-        std::cerr << user_args->fuse_argv[i] << "\n";
+        BOOST_LOG_TRIVIAL(info) << user_args->fuse_argv[i];
     }
 
     /* 2. prepare operations */
@@ -1150,7 +1151,7 @@ int main (int argc, char *argv[]){
                         &efsng_ops, 
                         (void*) NULL);
 
-    std::cout << "(" << res << ") Bye!\n";
+    BOOST_LOG_TRIVIAL(info) << "Bye! [status=" << res << "]";
 
     return 0;
 }

@@ -1,4 +1,5 @@
 build
+build-aux
 .dirstamp
 Makefile.in
 INSTALL
