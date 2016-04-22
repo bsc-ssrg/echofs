@@ -27,7 +27,7 @@
 END=
 
 bin_PROGRAMS = 				\
-	posix_compliance/fstest	\
+	posix-compliance/fstest	\
 	$(END)
 
 
@@ -36,7 +36,7 @@ bin_PROGRAMS = 				\
 ###########################################################################
 
 posix_compliance_fstest_SOURCES = 	\
-	posix_compliance/fstest.c		\
+	posix-compliance/fstest.c		\
 	$(END)
 
 posix_compliance_fstest_CFLAGS = 	\
