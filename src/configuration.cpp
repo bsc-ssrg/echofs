@@ -24,36 +24,63 @@
  * Cambridge, MA 02139, USA.                                             *
  *************************************************************************/
 
-#ifndef __COMMAND_LINE_H__
-#define __COMMAND_LINE_H__
-
+#include <fstream>
 #include <string>
-#include <set>
-#include <memory>
-#include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
+#include <boost/log/trivial.hpp>
+
+#include <libconfig.h++>
+
+#include "command-line.h"
+#include "configuration.h"
+
 
 namespace bfs = boost::filesystem;
 
-// Maximum number of arguments that are passed to FUSE
-const int MAX_FUSE_ARGS = 32;
+namespace efsng{
 
-// Arguments stores the parsed command-line arguments
-struct Arguments{
+bool Configuration::load(const bfs::path& config_file, const std::shared_ptr<Arguments>& out){
 
-    std::string             exec_name;
-    bfs::path               root_dir;
-    bfs::path               mount_point;
-    bfs::path               config_file;
-    std::set<bfs::path>     files_to_preload;
-    int                     fuse_argc;
-    const char*             fuse_argv[MAX_FUSE_ARGS];
+    libconfig::Config cfg;
 
-    Arguments() :
-        fuse_argc(0),
-        fuse_argv() { }
-};
+    try{
+        cfg.readFile(config_file.c_str());
+    }
+    catch(const libconfig::FileIOException& fioex){
+        BOOST_LOG_TRIVIAL(warning) << "An error happened while reading the configuration file.";
+        return false;
+    }
+    catch(const libconfig::ParseException& pex){
+        BOOST_LOG_TRIVIAL(error) << "Parse error at " << pex.getFile() << ":" << pex.getLine() << " - " 
+                                 << pex.getError();
+        BOOST_LOG_TRIVIAL(error) << "The configuration file will be ignored";
+        return false;
+    }
 
-void usage(const char* name, bool is_error=false);
-bool process_args(int argc, char* argv[], const std::shared_ptr<Arguments>& out);
+    const libconfig::Setting& root = cfg.getRoot();
 
-#endif /* __COMMAND_LINE_H__ */
+    try{
+        const libconfig::Setting& files_to_preload = root["efs-ng"]["preload-files"];
+        int count = files_to_preload.getLength();
+
+        BOOST_LOG_TRIVIAL(debug) << "files_to_preload.getLength() = " << count;
+
+        for(int i=0; i<count; ++i){
+
+            const std::string filename = files_to_preload[i];
+
+            out->files_to_preload.insert(filename);
+
+            BOOST_LOG_TRIVIAL(debug) << "  \"" << filename << "\"";
+        }
+    }
+    catch(const libconfig::SettingNotFoundException& nfex){
+        // ignore
+        BOOST_LOG_TRIVIAL(warning) << "'preload-files' setting not found.";
+        return false;
+    }
+
+    return true;
+}
+
+} // namespace efsng

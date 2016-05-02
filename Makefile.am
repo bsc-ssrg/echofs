@@ -52,12 +52,15 @@ src_efs_ng_LDFLAGS =		\
     @BOOST_SYSTEM_LIB@		\
     @BOOST_FILESYSTEM_LIB@	\
     @BOOST_LOG_LIB@			\
+    @LIBCONFIGXX_LIBS@      \
     $(END)
 
 # source files in alphabetical order
 src_efs_ng_SOURCES =        \
     src/command-line.cpp    \
     src/command-line.h      \
+    src/configuration.cpp   \
+    src/configuration.h     \
     src/efs-ng.cpp          \
     src/metadata/dirs.cpp   \
     src/metadata/dirs.h     \

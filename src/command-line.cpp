@@ -40,6 +40,7 @@
 
 /* project includes */
 #include "command-line.h"
+#include "configuration.h"
 
 namespace bfs = boost::filesystem;
 
@@ -71,8 +72,7 @@ static void fuse_usage(const char* name){
     fuse_main(argc, const_cast<char**>(argv), (fuse_operations*) NULL, NULL);
 }
 
-bool process_args(int argc, char* argv[], 
-                  const std::shared_ptr<Arguments>& out){
+bool process_args(int argc, char* argv[], const std::shared_ptr<Arguments>& out){
 
     /* pass through (and remember) executable name */
     std::string exec_name = bfs::basename(argv[0]);
@@ -88,6 +88,7 @@ bool process_args(int argc, char* argv[],
     struct option long_options[] = {
         {"root-dir",        1, 0, 'r'}, /* directory to mirror */
         {"mount-point",     1, 0, 'm'}, /* mount point */
+        {"config-file",     1, 0, 'c'}, /* configuration file */
         {"help",            0, 0, 'h'}, /* display usage */
         {"foreground",      0, 0, 'f'}, /* foreground operation */
         {"fuse-debug",      0, 0, 'd'}, /* FUSE debug mode */
@@ -140,6 +141,9 @@ bool process_args(int argc, char* argv[],
             case 'm':
                 out->mount_point = std::string(optarg);
                 break;
+            case 'c':
+                out->config_file = std::string(optarg);
+                break;
             case 'h':
                 usage(exec_name.c_str());
                 exit(EXIT_SUCCESS);
@@ -177,11 +181,22 @@ bool process_args(int argc, char* argv[],
         }
     }
 
+    assert(out->root_dir != out->mount_point);
+
     if(out->root_dir != ""){
         std::string option = "modules=subdir,subdir=";
         option += out->root_dir.c_str();
         push_arg("-o");
         push_arg(option.c_str());
+    }
+
+    if(out->config_file != ""){
+        BOOST_LOG_TRIVIAL(info) << "Reading configuration file " << out->config_file;
+
+        if(!efsng::Configuration::load(out->config_file, out)){
+            BOOST_LOG_TRIVIAL(warning) << "\tErrors occurred when reading the configuration file. "
+                                       << "Any of its contents will be ignored.";
+        }
     }
 
     /** 

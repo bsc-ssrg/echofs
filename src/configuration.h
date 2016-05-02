@@ -24,36 +24,21 @@
  * Cambridge, MA 02139, USA.                                             *
  *************************************************************************/
 
-#ifndef __COMMAND_LINE_H__
-#define __COMMAND_LINE_H__
+#ifndef __CONFIGURATION_H__
+#define __CONFIGURATION_H__
 
-#include <string>
-#include <set>
-#include <memory>
 #include <boost/filesystem.hpp>
-
 namespace bfs = boost::filesystem;
 
-// Maximum number of arguments that are passed to FUSE
-const int MAX_FUSE_ARGS = 32;
+class Arguments;
 
-// Arguments stores the parsed command-line arguments
-struct Arguments{
+namespace efsng{
 
-    std::string             exec_name;
-    bfs::path               root_dir;
-    bfs::path               mount_point;
-    bfs::path               config_file;
-    std::set<bfs::path>     files_to_preload;
-    int                     fuse_argc;
-    const char*             fuse_argv[MAX_FUSE_ARGS];
+class Configuration{
+public:
+    static bool load(const bfs::path& config_file, const std::shared_ptr<Arguments>& out);
+}; // class Config_reader
 
-    Arguments() :
-        fuse_argc(0),
-        fuse_argv() { }
-};
+} // namespace efsng
 
-void usage(const char* name, bool is_error=false);
-bool process_args(int argc, char* argv[], const std::shared_ptr<Arguments>& out);
-
-#endif /* __COMMAND_LINE_H__ */
+#endif /* __CONFIGURATION_H__ */

@@ -54,6 +54,8 @@ extern "C" {
 #include <memory>
 #include <cstring>
 #include <cerrno>
+#include <string>
+#include <sstream>
 #include <boost/log/trivial.hpp>
 
 /* project includes */
@@ -1073,11 +1075,14 @@ int main (int argc, char *argv[]){
         return EXIT_FAILURE;
     }
 
-    BOOST_LOG_TRIVIAL(info) << "Arguments received:";
+    BOOST_LOG_TRIVIAL(info) << "Command line passed to FUSE:";
 
+    std::stringstream ss;
     for(int i=0; i<user_args->fuse_argc; ++i){
-        BOOST_LOG_TRIVIAL(info) << user_args->fuse_argv[i];
+        ss << user_args->fuse_argv[i] << " ";
     }
+
+    BOOST_LOG_TRIVIAL(debug) << "  " << ss.str();
 
     /* 2. prepare operations */
     fuse_operations efsng_ops;

@@ -67,6 +67,12 @@ AX_BOOST_SYSTEM
 AX_BOOST_FILESYSTEM
 AX_BOOST_LOG
 
+# check for the presence of libconfig++
+PKG_CHECK_MODULES([LIBCONFIGXX], [libconfig++ >= 1.4],,
+                  AC_MSG_ERROR([libconfig++ 1.4 or newer not found.])
+)
+
+
 # for the POSIX compliance tests we need the tests definitions in
 # the build hierarchy. This is the easiest way
 AC_CONFIG_COMMANDS([posix-test-dependencies],

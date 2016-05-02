@@ -5,3 +5,4 @@
 - Check what happens if pread files while in efsng_read, should it be restarted?
 - Sanity checks on parameters passed
 - Check the effect of FUSE flags defined in fuse.h
+- Remove dependency with boost::filesystem if we only use it for baseline()
