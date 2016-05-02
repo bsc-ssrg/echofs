@@ -1067,6 +1067,11 @@ static int efsng_fallocate(const char* pathname, int mode, off_t offset, off_t l
 /**********************************************************************************************************************/
 int main (int argc, char *argv[]){
 
+    BOOST_LOG_TRIVIAL(info) << "==============================================";
+    BOOST_LOG_TRIVIAL(info) << "=== Echo Filesystem (NG) v" << VERSION << "            ===";
+    BOOST_LOG_TRIVIAL(info) << "==============================================";
+    BOOST_LOG_TRIVIAL(info) << "";
+
     /* 1. parse command-line arguments */
     std::shared_ptr<efsng::Arguments> user_args(new efsng::Arguments);
 

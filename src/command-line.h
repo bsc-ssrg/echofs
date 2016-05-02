@@ -51,8 +51,27 @@ struct Arguments{
     const char*             fuse_argv[MAX_FUSE_ARGS];
 
     Arguments() :
+        exec_name("none"),
+        root_dir("none"),
+        mount_point("none"),
+        config_file("none"),
         fuse_argc(0),
         fuse_argv() { }
+
+    Arguments(const Arguments& args) :
+        exec_name(args.exec_name),
+        root_dir(args.root_dir),
+        mount_point(args.mount_point),
+        config_file(args.config_file),
+        files_to_preload(args.files_to_preload),
+        fuse_argc(args.fuse_argc){
+
+        for(int i=0; i<MAX_FUSE_ARGS; ++i){
+            this->fuse_argv[i] = args.fuse_argv[i];
+        }
+    }
+
+
 }; // struct Arguments
 
 void usage(const char* name, bool is_error=false);

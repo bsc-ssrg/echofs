@@ -183,6 +183,15 @@ bool process_args(int argc, char* argv[], const std::shared_ptr<Arguments>& out)
         }
     }
 
+    if(out->config_file != ""){
+        BOOST_LOG_TRIVIAL(info) << "Reading configuration file " << out->config_file;
+
+        if(!efsng::Configuration::load(out->config_file, out)){
+            BOOST_LOG_TRIVIAL(warning) << "  Errors occurred when reading the configuration file. "
+                                       << "Any of its contents will be ignored.";
+        }
+    }
+
     assert(out->root_dir != out->mount_point);
 
     if(out->root_dir != ""){
@@ -192,14 +201,6 @@ bool process_args(int argc, char* argv[], const std::shared_ptr<Arguments>& out)
         push_arg(option.c_str());
     }
 
-    if(out->config_file != ""){
-        BOOST_LOG_TRIVIAL(info) << "Reading configuration file " << out->config_file;
-
-        if(!efsng::Configuration::load(out->config_file, out)){
-            BOOST_LOG_TRIVIAL(warning) << "\tErrors occurred when reading the configuration file. "
-                                       << "Any of its contents will be ignored.";
-        }
-    }
 
     /** 
      * other default options for FUSE:

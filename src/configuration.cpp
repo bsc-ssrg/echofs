@@ -41,6 +41,8 @@ namespace efsng{
 
 bool Configuration::load(const bfs::path& config_file, const std::shared_ptr<Arguments>& out){
 
+    Arguments out_backup(*out);
+
     libconfig::Config cfg;
 
     try{
@@ -59,6 +61,41 @@ bool Configuration::load(const bfs::path& config_file, const std::shared_ptr<Arg
 
     const libconfig::Setting& root = cfg.getRoot();
 
+    /* parse 'root-dir' */
+    try{
+        const libconfig::Setting& cfg_root_dir = root["efs-ng"]["root-dir"];
+        std::string optval = cfg_root_dir;
+
+        /* command-line arguments override the options passed in the configuration file. 
+         * Thus, if 'root_dir' already has a value different from the default one, ignore the passed cfg_value */
+        if(out->root_dir == "none"){
+            out->root_dir = std::string(optval);
+
+            BOOST_LOG_TRIVIAL(debug) << " * root-dir = " << out->root_dir;
+        }
+    }
+    catch(const libconfig::SettingNotFoundException& nfex){
+        /* ignore */
+    }
+
+    /* parse 'mount-point' */
+    try{
+        const libconfig::Setting& cfg_mount_point = root["efs-ng"]["mount-point"];
+        std::string optval = cfg_mount_point;
+
+        /* command-line arguments override the options passed in the configuration file. 
+         * Thus, if 'root_dir' already has a value different from the default one, ignore the passed cfg_value */
+        if(out->mount_point == "none"){
+            out->mount_point = std::string(optval);
+
+            BOOST_LOG_TRIVIAL(debug) << " * mount-point = " << optval;
+        }
+    }
+    catch(const libconfig::SettingNotFoundException& nfex){
+        /* ignore */
+    }
+
+    /* parse 'preload-files' */
     try{
         const libconfig::Setting& files_to_preload = root["efs-ng"]["preload-files"];
         int count = files_to_preload.getLength();
