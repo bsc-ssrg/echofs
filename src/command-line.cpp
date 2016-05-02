@@ -44,6 +44,8 @@
 
 namespace bfs = boost::filesystem;
 
+namespace efsng {
+
 void usage(const char* name, bool is_error){
 
     std::stringstream ss;  
@@ -219,3 +221,5 @@ bool process_args(int argc, char* argv[], const std::shared_ptr<Arguments>& out)
 
     return true;
 }
+
+} // namespace efsng

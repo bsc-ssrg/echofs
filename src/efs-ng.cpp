@@ -1068,10 +1068,10 @@ static int efsng_fallocate(const char* pathname, int mode, off_t offset, off_t l
 int main (int argc, char *argv[]){
 
     /* 1. parse command-line arguments */
-    std::shared_ptr<Arguments> user_args(new Arguments);
+    std::shared_ptr<efsng::Arguments> user_args(new efsng::Arguments);
 
     if(argc == 1 || !process_args(argc, argv, user_args)){
-        usage(argv[0], true);
+        efsng::usage(argv[0], true);
         return EXIT_FAILURE;
     }
 

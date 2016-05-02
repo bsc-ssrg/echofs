@@ -34,10 +34,12 @@
 
 namespace bfs = boost::filesystem;
 
-// Maximum number of arguments that are passed to FUSE
+namespace efsng{
+
+/* Maximum number of arguments that are passed to FUSE */
 const int MAX_FUSE_ARGS = 32;
 
-// Arguments stores the parsed command-line arguments
+/* Arguments stores command-line arguments and options from the configuration file */
 struct Arguments{
 
     std::string             exec_name;
@@ -51,9 +53,11 @@ struct Arguments{
     Arguments() :
         fuse_argc(0),
         fuse_argv() { }
-};
+}; // struct Arguments
 
 void usage(const char* name, bool is_error=false);
 bool process_args(int argc, char* argv[], const std::shared_ptr<Arguments>& out);
+
+} //namespace efsng
 
 #endif /* __COMMAND_LINE_H__ */
