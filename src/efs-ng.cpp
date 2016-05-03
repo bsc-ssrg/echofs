@@ -61,8 +61,9 @@ extern "C" {
 /* project includes */
 #include "metadata/files.h"
 #include "metadata/dirs.h"
-#include "command-line.h"
 #include "usr-credentials.h"
+#include "command-line.h"
+#include "preloader.h"
 
 
 /**********************************************************************************************************************/
@@ -1151,11 +1152,17 @@ int main (int argc, char *argv[]){
 #ifdef HAVE_POSIX_FALLOCATE
     efsng_ops.fallocate = efsng_fallocate;
 #endif /* HAVE_POSIX_FALLOCATE */
+    
+    /* 3. Preload the files requested by the user */
+    for(const auto& filename: user_args->files_to_preload){
+        efsng::Preloader::preload_file(filename);
+    }
 
-    /* 3. set the umask */
+
+    /* 4. set the umask */
     umask(0);
 
-    /* 4. start the filesystem */
+    /* 5. start the filesystem */
     int res = fuse_main(user_args->fuse_argc, 
                         const_cast<char **>(user_args->fuse_argv), 
                         &efsng_ops, 
