@@ -62,6 +62,8 @@ src_efs_ng_SOURCES =        \
     src/configuration.cpp   \
     src/configuration.h     \
     src/efs-ng.cpp          \
+    src/efs-ng.h          	\
+    src/logging.h          	\
     src/metadata/dirs.cpp   \
     src/metadata/dirs.h     \
     src/metadata/files.cpp  \
@@ -70,5 +72,3 @@ src_efs_ng_SOURCES =        \
     src/preloader.h         \
     src/usr-credentials.h   \
     $(END)
-
-

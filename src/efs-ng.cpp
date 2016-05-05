@@ -56,15 +56,15 @@ extern "C" {
 #include <cerrno>
 #include <string>
 #include <sstream>
-#include <boost/log/trivial.hpp>
 
-/* project includes */
+/* internal includes */
 #include "metadata/files.h"
 #include "metadata/dirs.h"
 #include "usr-credentials.h"
 #include "command-line.h"
 #include "preloader.h"
-
+#include "logging.h"
+#include "efs-ng.h"
 
 /**********************************************************************************************************************/
 /*   Filesytem operations
@@ -701,7 +701,21 @@ static void* efsng_init(struct fuse_conn_info *conn){
 
     (void) conn;
 
-    return 0;
+    efsng::Arguments* user_args = (efsng::Arguments*) fuse_get_context()->private_data;
+
+    /* create an Efsng object that maintains the internal state of the filesystem 
+     * so that it can be passed around to filesystem operations */
+    auto efsng_context = new efsng::Efsng();
+
+    efsng_context->user_args = user_args;
+
+    /* Preload the files requested by the user */
+    for(const auto& filename: user_args->files_to_preload){
+        efsng::Preloader::preload_file(filename);
+    }
+
+
+    return (void*) efsng_context;
 }
 
 /**
@@ -1074,7 +1088,7 @@ int main (int argc, char *argv[]){
     BOOST_LOG_TRIVIAL(info) << "";
 
     /* 1. parse command-line arguments */
-    std::shared_ptr<efsng::Arguments> user_args(new efsng::Arguments);
+    efsng::Arguments* user_args = new efsng::Arguments();
 
     if(argc == 1 || !process_args(argc, argv, user_args)){
         efsng::usage(argv[0], true);
@@ -1153,20 +1167,14 @@ int main (int argc, char *argv[]){
     efsng_ops.fallocate = efsng_fallocate;
 #endif /* HAVE_POSIX_FALLOCATE */
     
-    /* 3. Preload the files requested by the user */
-    for(const auto& filename: user_args->files_to_preload){
-        efsng::Preloader::preload_file(filename);
-    }
-
-
-    /* 4. set the umask */
+    /* 3. set the umask */
     umask(0);
 
-    /* 5. start the filesystem */
+    /* 4. start the FUSE filesystem and pass user_args to efsng_init() */
     int res = fuse_main(user_args->fuse_argc, 
                         const_cast<char **>(user_args->fuse_argv), 
                         &efsng_ops, 
-                        (void*) NULL);
+                        (void*) user_args);
 
     BOOST_LOG_TRIVIAL(info) << "Bye! [status=" << res << "]";
 

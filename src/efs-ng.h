@@ -1,5 +1,5 @@
 /*************************************************************************
- * (C) Copyright 2016 Barcelona Supercomputing Center                    * 
+ * (C) Copyright 2016 Barcelona Supercomputing Center                    *
  *                    Centro Nacional de Supercomputacion                *
  *                                                                       *
  * This file is part of the Echo Filesystem NG.                          *
@@ -12,33 +12,37 @@
  * License as published by the Free Software Foundation; either          *
  * version 3 of the License, or (at your option) any later version.      *
  *                                                                       *
- * Mercurium C/C++ source-to-source compiler is distributed in the hope  *
- * that it will be useful, but WITHOUT ANY WARRANTY; without even the    *
- * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR       *
+ * The Echo Filesystem NG is distributed in the hope that it will        *
+ * be useful, but WITHOUT ANY WARRANTY; without even the implied         *
+ * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR               *
  * PURPOSE.  See the GNU Lesser General Public License for more          *
  * details.                                                              *
  *                                                                       *
  * You should have received a copy of the GNU Lesser General Public      *
- * License along with Mercurium C/C++ source-to-source compiler; if      *
- * not, write to the Free Software Foundation, Inc., 675 Mass Ave,       *
- * Cambridge, MA 02139, USA.                                             *
+ * License along with Echo Filesystem NG; if not, write to the Free      *
+ * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.    *
  *************************************************************************/
 
-#ifndef __CONFIGURATION_H__
-#define __CONFIGURATION_H__
+#ifndef __EFS_NG_H__
+#define __EFS_NG_H__
 
-#include <boost/filesystem.hpp>
-namespace bfs = boost::filesystem;
+#include <memory>
 
-class Arguments;
+#include <fuse.h>
 
 namespace efsng{
 
-class Configuration{
-public:
-    static bool load(const bfs::path& config_file, Arguments* out);
-}; // class Config_reader
+/* forward declarations */
+struct Arguments;
+
+/* internal state of the filesystem */
+struct Efsng{
+
+    /** configuration options passed by the user */
+    Arguments* user_args;
+
+}; // struct Efsng
 
 } // namespace efsng
 
-#endif /* __CONFIGURATION_H__ */
+#endif /* __EFS_NG_H__ */

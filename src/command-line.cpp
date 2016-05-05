@@ -74,7 +74,7 @@ static void fuse_usage(const char* name){
     fuse_main(argc, const_cast<char**>(argv), (fuse_operations*) NULL, NULL);
 }
 
-bool process_args(int argc, char* argv[], const std::shared_ptr<Arguments>& out){
+bool process_args(int argc, char* argv[], Arguments* out){
 
     /* pass through (and remember) executable name */
     std::string exec_name = bfs::basename(argv[0]);

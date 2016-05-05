@@ -39,7 +39,7 @@ namespace bfs = boost::filesystem;
 
 namespace efsng{
 
-bool Configuration::load(const bfs::path& config_file, const std::shared_ptr<Arguments>& out){
+bool Configuration::load(const bfs::path& config_file, Arguments* out){
 
     Arguments out_backup(*out);
 

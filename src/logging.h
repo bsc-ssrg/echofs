@@ -24,59 +24,9 @@
  * Cambridge, MA 02139, USA.                                             *
  *************************************************************************/
 
-#ifndef __COMMAND_LINE_H__
-#define __COMMAND_LINE_H__
+#ifndef __LOGGING_H__
+#define __LOGGING_H__
 
-#include <string>
-#include <set>
-#include <memory>
-#include <boost/filesystem.hpp>
+#include <boost/log/trivial.hpp>
 
-namespace bfs = boost::filesystem;
-
-namespace efsng{
-
-/* Maximum number of arguments that are passed to FUSE */
-const int MAX_FUSE_ARGS = 32;
-
-/* Arguments stores command-line arguments and options from the configuration file */
-struct Arguments{
-
-    std::string             exec_name;
-    bfs::path               root_dir;
-    bfs::path               mount_point;
-    bfs::path               config_file;
-    std::set<bfs::path>     files_to_preload;
-    int                     fuse_argc;
-    const char*             fuse_argv[MAX_FUSE_ARGS];
-
-    Arguments() :
-        exec_name("none"),
-        root_dir("none"),
-        mount_point("none"),
-        config_file("none"),
-        fuse_argc(0),
-        fuse_argv() { }
-
-    Arguments(const Arguments& args) :
-        exec_name(args.exec_name),
-        root_dir(args.root_dir),
-        mount_point(args.mount_point),
-        config_file(args.config_file),
-        files_to_preload(args.files_to_preload),
-        fuse_argc(args.fuse_argc){
-
-        for(int i=0; i<MAX_FUSE_ARGS; ++i){
-            this->fuse_argv[i] = args.fuse_argv[i];
-        }
-    }
-
-
-}; // struct Arguments
-
-void usage(const char* name, bool is_error=false);
-bool process_args(int argc, char* argv[], Arguments* out);
-
-} //namespace efsng
-
-#endif /* __COMMAND_LINE_H__ */
+#endif /* __LOGGING_H__ */
