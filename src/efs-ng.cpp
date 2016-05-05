@@ -705,17 +705,25 @@ static void* efsng_init(struct fuse_conn_info *conn){
 
     /* create an Efsng object that maintains the internal state of the filesystem 
      * so that it can be passed around to filesystem operations */
-    auto efsng_context = new efsng::Efsng();
+    auto efsng_ctx = new efsng::Efsng();
 
-    efsng_context->user_args = user_args;
+    /* remember user_args */
+    efsng_ctx->user_args = user_args;
 
     /* Preload the files requested by the user */
     for(const auto& filename: user_args->files_to_preload){
-        efsng::Preloader::preload_file(filename);
+        void* buf_addr = nullptr;
+
+        efsng::Preloader::preload_file(filename, buf_addr);
+        //efsng_ctx->add_open_file(filename);
+        
+        BOOST_LOG_TRIVIAL(debug) << "Inserting {" << filename << ", " << buf_addr << "}";
+
+        efsng_ctx->ram_cache.insert({filename.c_str(), buf_addr});
     }
 
 
-    return (void*) efsng_context;
+    return (void*) efsng_ctx;
 }
 
 /**
@@ -994,6 +1002,8 @@ static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t 
 static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_t size, off_t offset, 
                           struct fuse_file_info* file_info){
 
+    BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << "(pathname=\"" << pathname << "\", ...)";
+
     (void) pathname;
 
     auto file_record = (efsng::File*) file_info->fh;
@@ -1006,11 +1016,40 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
         return -ENOMEM;
     }
 
+    efsng::Efsng* efsng_ctx = (efsng::Efsng*) fuse_get_context()->private_data;
+
     *src = FUSE_BUFVEC_INIT(size);
 
-    src->buf[0].flags = (fuse_buf_flags) (FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
-    src->buf[0].fd = file_record->get_fd();
-    src->buf[0].pos = offset;
+    BOOST_LOG_TRIVIAL(debug) << "Searching preloaded data for \"" << pathname << "\"";
+    auto it = efsng_ctx->ram_cache.find(pathname);
+
+    if(it == efsng_ctx->ram_cache.end()){
+
+        BOOST_LOG_TRIVIAL(debug) << "Preloaded data not found";
+
+        src->buf[0].flags = (fuse_buf_flags) (FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
+        src->buf[0].fd = file_record->get_fd();
+        src->buf[0].pos = offset;
+    }
+    else{
+        void* cache_buffer = it->second;
+
+        BOOST_LOG_TRIVIAL(debug) << "Preloaded data found at:" << cache_buffer;
+
+        /* the FUSE interface forces us to allocate a buffer using malloc() and memcpy() the requested data 
+         * in order to return it back to the user. meh */
+        void* data_chunk = (void*) malloc(size);
+
+        if(data_chunk == NULL){
+            return -errno;
+        }
+
+        memcpy(data_chunk, ((uint8_t*)cache_buffer) + offset, size);
+
+        src->buf[0].flags = (fuse_buf_flags) (~FUSE_BUF_IS_FD);
+        src->buf[0].mem = data_chunk;
+        src->buf[0].size = size;
+    }
 
     *bufp = src;
 

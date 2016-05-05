@@ -31,7 +31,8 @@ namespace efsng{
 File::File(ino_t inode, int fd, mode_t mode)
     : inode(inode),
       fd(fd),
-      mode(mode){ 
+      mode(mode),
+      data(nullptr){ 
 }
 
 File::~File(){

@@ -1,5 +1,5 @@
 /*************************************************************************
- * (C) Copyright 2016 Barcelona Supercomputing Center                    * 
+ * (C) Copyright 2016 Barcelona Supercomputing Center                    *
  *                    Centro Nacional de Supercomputacion                *
  *                                                                       *
  * This file is part of the Echo Filesystem NG.                          *
@@ -12,16 +12,15 @@
  * License as published by the Free Software Foundation; either          *
  * version 3 of the License, or (at your option) any later version.      *
  *                                                                       *
- * Mercurium C/C++ source-to-source compiler is distributed in the hope  *
- * that it will be useful, but WITHOUT ANY WARRANTY; without even the    *
- * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR       *
+ * The Echo Filesystem NG is distributed in the hope that it will        *
+ * be useful, but WITHOUT ANY WARRANTY; without even the implied         *
+ * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR               *
  * PURPOSE.  See the GNU Lesser General Public License for more          *
  * details.                                                              *
  *                                                                       *
  * You should have received a copy of the GNU Lesser General Public      *
- * License along with Mercurium C/C++ source-to-source compiler; if      *
- * not, write to the Free Software Foundation, Inc., 675 Mass Ave,       *
- * Cambridge, MA 02139, USA.                                             *
+ * License along with Echo Filesystem NG; if not, write to the Free      *
+ * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.    *
  *************************************************************************/
 
 /* C includes */
@@ -42,7 +41,7 @@ namespace bfs = boost::filesystem;
 namespace efsng{
 
 /* manage the preload of the requested files */
-void Preloader::preload_file(const bfs::path& filename){
+void Preloader::preload_file(const bfs::path& filename, void*& buf_addr){
     BOOST_LOG_TRIVIAL(debug) << "Preloading file " << filename;
 
     /* open the file */
@@ -74,6 +73,8 @@ void Preloader::preload_file(const bfs::path& filename){
         BOOST_LOG_TRIVIAL(error) << "Unable to close file descriptor for " << filename << ": " << strerror(errno);
         return;
     }
+    
+    buf_addr = addr;
 }
 
 } // namespace efsng

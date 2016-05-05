@@ -27,19 +27,35 @@
 #define __EFS_NG_H__
 
 #include <memory>
-
-#include <fuse.h>
+#include <unordered_map>
+#include <boost/filesystem.hpp>
+namespace bfs = boost::filesystem;
 
 namespace efsng{
 
 /* forward declarations */
 struct Arguments;
+struct File;
 
 /* internal state of the filesystem */
-struct Efsng{
+struct Efsng {
+
+    // void add_open_file(const bfs::path& filename){
+
+    //     auto record = std::unique_ptr<File>(new File(-1,-1,-1));
+    //     open_files.insert(std::make_pair(
+    //                         filename.c_str(), 
+    //                         std::move(record)));
+    // }
 
     /** configuration options passed by the user */
     Arguments* user_args;
+
+    /** */
+    //std::unordered_map<const char*, std::unique_ptr<File>> open_files;
+    /** */
+    //std::unordered_map<const char*, void*> ram_cache; // encapsulate
+    std::unordered_map<std::string, void*> ram_cache; // encapsulate
 
 }; // struct Efsng
 

@@ -37,7 +37,7 @@ namespace efsng{
 /* manage the preload of the requested files */
 class Preloader{
 public:
-    static void preload_file(const bfs::path& filename);
+    static void preload_file(const bfs::path& filename, void*& buf_addr);
 
 }; // class Preloader
 

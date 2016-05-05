@@ -49,6 +49,8 @@ private:
     int fd;     
     /* file's flags at open: O_RDONLY, O_WRONLY, O_RDWR */
     mode_t mode;
+    /* pointer to the file's data (if available) */
+    void* data;
 };
 
 } // namespace efsng
