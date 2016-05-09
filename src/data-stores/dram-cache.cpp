@@ -23,32 +23,46 @@
  * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.    *
  *                                                                       *
  *************************************************************************/
+
 /* C includes */
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <fcntl.h>
 
-/* C++ includes */
-#include <boost/filesystem.hpp>
-#include <boost/log/trivial.hpp>
+/* internal includes */
+#include "../logging.h"
+#include "dram-cache.h"
 
-/* project includes */
-#include "preloader.h"
+namespace efsng {
 
-namespace bfs = boost::filesystem;
+/** lookup an entry */
+bool DRAM_cache::lookup(const char* pathname, void*& data_addr) const {
 
-namespace efsng{
+    auto it = entries.find(pathname);
 
-/* manage the preload of the requested files */
-void Preloader::preload_file(const bfs::path& filename, void*& buf_addr){
-    BOOST_LOG_TRIVIAL(debug) << "Preloading file " << filename;
+    if(it == entries.end()){
+        BOOST_LOG_TRIVIAL(debug) << "Prefetched data not found";
+        return false;
+    }
+
+    BOOST_LOG_TRIVIAL(debug) << "Prefetched data found at:" << it->second;
+
+    data_addr = it->second;
+
+    return true;
+}
+
+/** start the prefetch process of a file requested by the user */
+void DRAM_cache::prefetch(const bfs::path& pathname){
+
+    BOOST_LOG_TRIVIAL(debug) << "Prefetching file " << pathname;
 
     /* open the file */
-    int fd = open(filename.c_str(), O_RDONLY);
+    int fd = open(pathname.c_str(), O_RDONLY);
 
     if(fd == -1){
-        BOOST_LOG_TRIVIAL(error) << "Unable to preload file " << filename << ": " << strerror(errno);
+        BOOST_LOG_TRIVIAL(error) << "Unable to preload file " << pathname << ": " << strerror(errno);
         return;
     }
 
@@ -56,12 +70,19 @@ void Preloader::preload_file(const bfs::path& filename, void*& buf_addr){
     struct stat stbuf;
 
     if(fstat(fd, &stbuf) == -1){
-        BOOST_LOG_TRIVIAL(error) << "Unable to determine the size of file " << filename << ": " << strerror(errno);
+        BOOST_LOG_TRIVIAL(error) << "Unable to determine the size of file " << pathname << ": " << strerror(errno);
         return;
     }
 
-    /* XXX in this first version, we are preloading the whole file as is */
-    //void* addr = mmap(NULL, stbuf.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    /* XXX in this first version, we are prefetching the whole file as is */
+    void* addr = mmap(NULL, stbuf.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+
+    if(addr == MAP_FAILED){
+        BOOST_LOG_TRIVIAL(error) << "Unable to preload the file " << pathname << ": " << strerror(errno);
+        return;
+    }
+
+#if 0 /* read()-based full file prefetching */
     void* addr = (void*) malloc(stbuf.st_size);
 
     assert(addr);
@@ -77,20 +98,20 @@ void Preloader::preload_file(const bfs::path& filename, void*& buf_addr){
             break;
 
         nread += res;
-    }
+    }*/
+#endif
 
-    // if(addr == MAP_FAILED){
-    //     BOOST_LOG_TRIVIAL(error) << "Unable to preload the file " << filename << ": " << strerror(errno);
-    //     return;
-    // }
+    BOOST_LOG_TRIVIAL(debug) << "Inserting {" << pathname << ", " << addr << "}";
 
-    /* we can safely close the fd */
+    entries.insert({pathname.c_str(), addr});
+
+    /* the fd can be closed safely */
     if(close(fd) == -1){
-        BOOST_LOG_TRIVIAL(error) << "Unable to close file descriptor for " << filename << ": " << strerror(errno);
+        BOOST_LOG_TRIVIAL(error) << "Unable to close file descriptor for " << pathname << ": " << strerror(errno);
         return;
     }
     
-    buf_addr = addr;
+    //buf_addr = addr;
 }
 
-} // namespace efsng
+} //namespace efsng

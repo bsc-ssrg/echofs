@@ -21,8 +21,8 @@
  * You should have received a copy of the GNU Lesser General Public      *
  * License along with Echo Filesystem NG; if not, write to the Free      *
  * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.    *
+ *                                                                       *
  *************************************************************************/
-
 #ifndef __EFS_NG_H__
 #define __EFS_NG_H__
 
@@ -56,6 +56,7 @@ struct Efsng {
     /** */
     //std::unordered_map<const char*, void*> ram_cache; // encapsulate
     std::unordered_map<std::string, void*> ram_cache; // encapsulate
+    DRAM_cache dram_cache;
 
 }; // struct Efsng
 

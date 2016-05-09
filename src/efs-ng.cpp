@@ -1,5 +1,5 @@
 /*************************************************************************
- * (C) Copyright 2016 Barcelona Supercomputing Center                    * 
+ * (C) Copyright 2016 Barcelona Supercomputing Center                    *
  *                    Centro Nacional de Supercomputacion                *
  *                                                                       *
  * This file is part of the Echo Filesystem NG.                          *
@@ -12,16 +12,16 @@
  * License as published by the Free Software Foundation; either          *
  * version 3 of the License, or (at your option) any later version.      *
  *                                                                       *
- * Mercurium C/C++ source-to-source compiler is distributed in the hope  *
- * that it will be useful, but WITHOUT ANY WARRANTY; without even the    *
- * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR       *
+ * The Echo Filesystem NG is distributed in the hope that it will        *
+ * be useful, but WITHOUT ANY WARRANTY; without even the implied         *
+ * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR               *
  * PURPOSE.  See the GNU Lesser General Public License for more          *
  * details.                                                              *
  *                                                                       *
  * You should have received a copy of the GNU Lesser General Public      *
- * License along with Mercurium C/C++ source-to-source compiler; if      *
- * not, write to the Free Software Foundation, Inc., 675 Mass Ave,       *
- * Cambridge, MA 02139, USA.                                             *
+ * License along with Echo Filesystem NG; if not, write to the Free      *
+ * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.    *
+ *                                                                       *
  *************************************************************************/
 
 
@@ -63,6 +63,7 @@ extern "C" {
 #include "usr-credentials.h"
 #include "command-line.h"
 #include "preloader.h"
+#include "data-stores/dram-cache.h"
 #include "logging.h"
 #include "efs-ng.h"
 
@@ -711,15 +712,17 @@ static void* efsng_init(struct fuse_conn_info *conn){
     efsng_ctx->user_args = user_args;
 
     /* Preload the files requested by the user */
-    for(const auto& filename: user_args->files_to_preload){
-        void* buf_addr = nullptr;
+    for(const auto& pathname: user_args->files_to_preload){
+        //void* buf_addr = nullptr;
 
-        efsng::Preloader::preload_file(filename, buf_addr);
-        //efsng_ctx->add_open_file(filename);
+        //efsng::Preloader::preload_file(pathname, buf_addr);
+        //efsng_ctx->add_open_file(pathname);
         
-        BOOST_LOG_TRIVIAL(debug) << "Inserting {" << filename << ", " << buf_addr << "}";
+        //BOOST_LOG_TRIVIAL(debug) << "Inserting {" << pathname << ", " << buf_addr << "}";
 
-        efsng_ctx->ram_cache.insert({filename.c_str(), buf_addr});
+        //efsng_ctx->ram_cache.insert({pathname.c_str(), buf_addr});
+
+        efsng_ctx->dram_cache.prefetch(pathname);
     }
 
 
@@ -1021,21 +1024,15 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
     *src = FUSE_BUFVEC_INIT(size);
 
     BOOST_LOG_TRIVIAL(debug) << "Searching preloaded data for \"" << pathname << "\"";
-    auto it = efsng_ctx->ram_cache.find(pathname);
 
-    if(it == efsng_ctx->ram_cache.end()){
+    void* cache_buffer = nullptr;
 
-        BOOST_LOG_TRIVIAL(debug) << "Preloaded data not found";
-
+    if(!efsng_ctx->dram_cache.lookup(pathname, cache_buffer)){
         src->buf[0].flags = (fuse_buf_flags) (FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
         src->buf[0].fd = file_record->get_fd();
         src->buf[0].pos = offset;
     }
     else{
-        void* cache_buffer = it->second;
-
-        BOOST_LOG_TRIVIAL(debug) << "Preloaded data found at:" << cache_buffer;
-
         /* the FUSE interface forces us to allocate a buffer using malloc() and memcpy() the requested data 
          * in order to return it back to the user. meh */
         void* data_chunk = (void*) malloc(size);
