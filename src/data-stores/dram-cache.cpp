@@ -30,6 +30,9 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 
+
+#include <boost/filesystem/fstream.hpp>
+
 /* internal includes */
 #include "../logging.h"
 #include "dram-cache.h"
@@ -74,32 +77,38 @@ void DRAM_cache::prefetch(const bfs::path& pathname){
         return;
     }
 
-    /* XXX in this first version, we are prefetching the whole file as is */
-    void* addr = mmap(NULL, stbuf.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    void* addr = (void*) malloc(stbuf.st_size);
 
-    if(addr == MAP_FAILED){
-        BOOST_LOG_TRIVIAL(error) << "Unable to preload the file " << pathname << ": " << strerror(errno);
+    if(addr == NULL){
+        BOOST_LOG_TRIVIAL(error) << "Unable to allocate buffer for prefetched data";
         return;
     }
 
-#if 0 /* read()-based full file prefetching */
-    void* addr = (void*) malloc(stbuf.st_size);
+    bool eof = false;
+    ssize_t byte_count = 0; 
+    size_t total = stbuf.st_size;
 
-    assert(addr);
+    do{
+        ssize_t rv = read(fd, (uint8_t*)addr + byte_count, total - byte_count);
 
-    ssize_t nread = 0;
-    ssize_t res = 0;
-
-    while(1){
-        //res = read(fd, addr+nread, stbuf.st_size-nread);
-        res = read(fd, addr, stbuf.st_size/2);
-
-        if(res <= 0)
+        if(rv == -1){
+            if(errno == EINTR){
+                /* rerun the iteration */
+                continue;
+            }
+            BOOST_LOG_TRIVIAL(error) << "read() error: " << strerror(errno);
             break;
+        }
 
-        nread += res;
-    }*/
-#endif
+        if(rv != 0){
+            byte_count += rv;
+            continue;
+        }
+
+        eof = true;
+    }while(!eof);
+
+    BOOST_LOG_TRIVIAL(debug) << "Prefetching finished: read " << byte_count << "/" << total << " bytes";
 
     BOOST_LOG_TRIVIAL(debug) << "Inserting {" << pathname << ", " << addr << "}";
 

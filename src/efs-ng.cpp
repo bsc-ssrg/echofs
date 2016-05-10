@@ -1005,7 +1005,7 @@ static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t 
 static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_t size, off_t offset, 
                           struct fuse_file_info* file_info){
 
-    BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << "(pathname=\"" << pathname << "\", ...)";
+    BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << "(pathname=\"" << pathname << "\", size=" << size << ", offset=" << offset << ")";
 
     (void) pathname;
 
@@ -1041,6 +1041,13 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
             return -errno;
         }
 
+        BOOST_LOG_TRIVIAL(debug) << "malloc(" << size << ") = " << data_chunk;
+
+        BOOST_LOG_TRIVIAL(debug) << "memcpy(dest=" << data_chunk << ", src=" << (void*)((uint8_t*)cache_buffer + offset) << ", n=" << size << ")";
+
+        BOOST_LOG_TRIVIAL(debug) << "endpos = " << offset + size << " bytes";
+
+        //memcpy(data_chunk, ((uint8_t*)cache_buffer) + offset, size);
         memcpy(data_chunk, ((uint8_t*)cache_buffer) + offset, size);
 
         src->buf[0].flags = (fuse_buf_flags) (~FUSE_BUF_IS_FD);

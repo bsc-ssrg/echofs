@@ -88,14 +88,16 @@ bool process_args(int argc, char* argv[], Arguments* out){
 
     /* command line options */
     struct option long_options[] = {
-        {"root-dir",        1, 0, 'r'}, /* directory to mirror */
-        {"mount-point",     1, 0, 'm'}, /* mount point */
-        {"config-file",     1, 0, 'c'}, /* configuration file */
-        {"help",            0, 0, 'h'}, /* display usage */
-        {"foreground",      0, 0, 'f'}, /* foreground operation */
-        {"fuse-debug",      0, 0, 'd'}, /* FUSE debug mode */
-        {"fuse-help",       0, 0, 'H'}, /* fuse_mount usage */
-        {"version",         0, 0, 'V'}, /* version information */
+        {"root-dir",            1, 0, 'r'}, /* directory to mirror */
+        {"mount-point",         1, 0, 'm'}, /* mount point */
+        {"config-file",         1, 0, 'c'}, /* configuration file */
+        {"help",                0, 0, 'h'}, /* display usage */
+        {"foreground",          0, 0, 'f'}, /* foreground operation */
+        {"debug",               0, 0, 'd'}, /* enfs-ng debug mode */
+        {"fuse-debug",          0, 0, 'D'}, /* FUSE debug mode */
+        {"fuse-single-thread",  0, 0, 'S'}, /* FUSE debug mode */
+        {"fuse-help",           0, 0, 'H'}, /* fuse_mount usage */
+        {"version",             0, 0, 'V'}, /* version information */
         {0, 0, 0, 0}
     };
 
@@ -155,7 +157,15 @@ bool process_args(int argc, char* argv[], Arguments* out){
                 push_arg("-f");
                 break;
             case 'd':
+                /* enable debug mode */
+                break;
+            case 'D':
+                /* FUSE debug mode */
                 push_arg("-d");
+                break;
+            case 'S':
+                /* FUSE single thread mode */
+                push_arg("-s");
                 break;
             case 'H':
                 fuse_usage(exec_name.c_str());
