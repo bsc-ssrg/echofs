@@ -39,23 +39,6 @@
 
 namespace efsng {
 
-/** lookup an entry */
-bool DRAM_cache::lookup(const char* pathname, void*& data_addr) const {
-
-    auto it = entries.find(pathname);
-
-    if(it == entries.end()){
-        BOOST_LOG_TRIVIAL(debug) << "Prefetched data not found";
-        return false;
-    }
-
-    BOOST_LOG_TRIVIAL(debug) << "Prefetched data found at:" << it->second;
-
-    data_addr = it->second;
-
-    return true;
-}
-
 /** start the prefetch process of a file requested by the user */
 void DRAM_cache::prefetch(const bfs::path& pathname){
 
@@ -78,6 +61,9 @@ void DRAM_cache::prefetch(const bfs::path& pathname){
     }
 
     void* addr = (void*) malloc(stbuf.st_size);
+
+    BOOST_LOG_TRIVIAL(debug) << "XXX Allocated buffer of 0x" << std::hex << stbuf.st_size << " bytes @{" << addr << "-" << (void*)((uint8_t*)addr + stbuf.st_size) << "}";
+    BOOST_LOG_TRIVIAL(debug) << "XXX Allocated buffer of " << std::dec << stbuf.st_size << " bytes @{" << (uint64_t)addr << "-" << (uint64_t) ((char*)addr + stbuf.st_size) << "}";
 
     if(addr == NULL){
         BOOST_LOG_TRIVIAL(error) << "Unable to allocate buffer for prefetched data";
@@ -112,15 +98,35 @@ void DRAM_cache::prefetch(const bfs::path& pathname){
 
     BOOST_LOG_TRIVIAL(debug) << "Inserting {" << pathname << ", " << addr << "}";
 
-    entries.insert({pathname.c_str(), addr});
+    entries.insert({
+            pathname.c_str(), 
+            std::move(chunk(addr, byte_count))
+    });
 
     /* the fd can be closed safely */
     if(close(fd) == -1){
         BOOST_LOG_TRIVIAL(error) << "Unable to close file descriptor for " << pathname << ": " << strerror(errno);
         return;
     }
-    
-    //buf_addr = addr;
 }
+
+/** lookup an entry */
+bool DRAM_cache::lookup(const char* pathname, void*& data_addr, size_t& size) const {
+
+    auto it = entries.find(pathname);
+
+    if(it == entries.end()){
+        BOOST_LOG_TRIVIAL(debug) << "Prefetched data not found";
+        return false;
+    }
+
+    BOOST_LOG_TRIVIAL(debug) << "Prefetched data found at:" << it->second.data;
+
+    data_addr = it->second.data;
+    size = it->second.size;
+
+    return true;
+}
+
 
 } //namespace efsng

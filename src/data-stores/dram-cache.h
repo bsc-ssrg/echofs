@@ -35,18 +35,30 @@ namespace bfs = boost::filesystem;
 
 namespace efsng {
 
+typedef void* data_ptr_t;
+
+/* a data chunk */
+struct chunk{
+    chunk(const data_ptr_t data, const size_t size)
+        : data(data),
+          size(size){ }
+
+    data_ptr_t  data;
+    size_t      size;
+}; // struct chunk
+
 /* class to manage file allocations in DRAM */
 class DRAM_cache{
 
 public:
     void prefetch(const bfs::path& pathname);
-    bool lookup(const char* pathname, void*& data_addr) const;
+    bool lookup(const char* pathname, void*& data_addr, size_t& size) const;
 
 
 
 private:
     /* filename -> data */
-    std::unordered_map<std::string, void*> entries;
+    std::unordered_map<std::string, chunk> entries;
 }; // DRAM_cache
 
 } // namespace efsng

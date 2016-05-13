@@ -713,18 +713,8 @@ static void* efsng_init(struct fuse_conn_info *conn){
 
     /* Preload the files requested by the user */
     for(const auto& pathname: user_args->files_to_preload){
-        //void* buf_addr = nullptr;
-
-        //efsng::Preloader::preload_file(pathname, buf_addr);
-        //efsng_ctx->add_open_file(pathname);
-        
-        //BOOST_LOG_TRIVIAL(debug) << "Inserting {" << pathname << ", " << buf_addr << "}";
-
-        //efsng_ctx->ram_cache.insert({pathname.c_str(), buf_addr});
-
         efsng_ctx->dram_cache.prefetch(pathname);
     }
-
 
     return (void*) efsng_ctx;
 }
@@ -1023,36 +1013,41 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
 
     *src = FUSE_BUFVEC_INIT(size);
 
-    BOOST_LOG_TRIVIAL(debug) << "Searching preloaded data for \"" << pathname << "\"";
+    BOOST_LOG_TRIVIAL(debug) << "  Searching preloaded data for \"" << pathname << "\"";
 
-    void* cache_buffer = nullptr;
+    void* chunk_data = nullptr;
+    size_t chunk_size = 0;
 
-    if(!efsng_ctx->dram_cache.lookup(pathname, cache_buffer)){
+    if(!efsng_ctx->dram_cache.lookup(pathname, chunk_data, chunk_size)){
         src->buf[0].flags = (fuse_buf_flags) (FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
         src->buf[0].fd = file_record->get_fd();
         src->buf[0].pos = offset;
     }
     else{
-        /* the FUSE interface forces us to allocate a buffer using malloc() and memcpy() the requested data 
-         * in order to return it back to the user. meh */
-        void* data_chunk = (void*) malloc(size);
 
-        if(data_chunk == NULL){
-            return -errno;
+        size_t available_bytes = std::min(size, chunk_size - offset);
+
+        if(available_bytes <= 0){
+            src->buf[0].flags = (fuse_buf_flags) (~FUSE_BUF_IS_FD);
+            src->buf[0].mem = NULL;
+            src->buf[0].size = 0;
         }
+        else{
 
-        BOOST_LOG_TRIVIAL(debug) << "malloc(" << size << ") = " << data_chunk;
+            /* the FUSE interface forces us to allocate a buffer using malloc() and memcpy() the requested data 
+            * in order to return it back to the user. meh */
+            void* req_data = (void*) malloc(available_bytes);
 
-        BOOST_LOG_TRIVIAL(debug) << "memcpy(dest=" << data_chunk << ", src=" << (void*)((uint8_t*)cache_buffer + offset) << ", n=" << size << ")";
+            if(req_data == NULL){
+                return -errno;
+            }
 
-        BOOST_LOG_TRIVIAL(debug) << "endpos = " << offset + size << " bytes";
+            memcpy(req_data, ((uint8_t*)chunk_data) + offset, available_bytes);
 
-        //memcpy(data_chunk, ((uint8_t*)cache_buffer) + offset, size);
-        memcpy(data_chunk, ((uint8_t*)cache_buffer) + offset, size);
-
-        src->buf[0].flags = (fuse_buf_flags) (~FUSE_BUF_IS_FD);
-        src->buf[0].mem = data_chunk;
-        src->buf[0].size = size;
+            src->buf[0].flags = (fuse_buf_flags) (~FUSE_BUF_IS_FD);
+            src->buf[0].mem = req_data;
+            src->buf[0].size = available_bytes;
+        }
     }
 
     *bufp = src;
@@ -1125,11 +1120,6 @@ static int efsng_fallocate(const char* pathname, int mode, off_t offset, off_t l
 /**********************************************************************************************************************/
 int main (int argc, char *argv[]){
 
-    BOOST_LOG_TRIVIAL(info) << "==============================================";
-    BOOST_LOG_TRIVIAL(info) << "=== Echo Filesystem (NG) v" << VERSION << "            ===";
-    BOOST_LOG_TRIVIAL(info) << "==============================================";
-    BOOST_LOG_TRIVIAL(info) << "";
-
     /* 1. parse command-line arguments */
     efsng::Arguments* user_args = new efsng::Arguments();
 
@@ -1137,6 +1127,12 @@ int main (int argc, char *argv[]){
         efsng::usage(argv[0], true);
         return EXIT_FAILURE;
     }
+
+    BOOST_LOG_TRIVIAL(info) << "==============================================";
+    BOOST_LOG_TRIVIAL(info) << "=== Echo Filesystem (NG) v" << VERSION << "            ===";
+    BOOST_LOG_TRIVIAL(info) << "==============================================";
+    BOOST_LOG_TRIVIAL(info) << "";
+
 
     BOOST_LOG_TRIVIAL(info) << "Command line passed to FUSE:";
 
