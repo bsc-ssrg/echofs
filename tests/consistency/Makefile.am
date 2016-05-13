@@ -24,4 +24,10 @@
 #                                                                         #
 ###########################################################################
 
-SUBDIRS = posix-compliance consistency
+TESTS = $(EFSNG_READ_TESTS)
+
+AM_TESTS_ENVIRONMENT = \
+	TOP_BUILD_DIR='${top_builddir}'; \
+	export TOP_BUILD_DIR;
+TEST_EXTENSIONS = .test
+TEST_LOG_COMPILER = prove

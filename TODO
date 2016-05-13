@@ -6,3 +6,7 @@
 - Sanity checks on parameters passed
 - Check the effect of FUSE flags defined in fuse.h
 - Remove dependency with boost::filesystem if we only use it for baseline()
+- check XFS tests
+
+- OPTIMIZATION: avoid DRAM_cache lookups in repeated operations by recording
+the data buffer into fi->fh

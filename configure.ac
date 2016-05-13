@@ -76,12 +76,24 @@ PKG_CHECK_MODULES([LIBCONFIGXX], [libconfig++ >= 1.4],,
 # for the POSIX compliance tests we need the tests definitions in
 # the build hierarchy. This is the easiest way
 AC_CONFIG_COMMANDS([posix-test-dependencies],
-                   [cp -pR "$srcdir"/tests/posix-compliance/tests tests/posix-compliance/tests])
+                   [cp -pR "$srcdir"/tests/posix-compliance/tests tests/posix-compliance/])
+
+# likewise for consistency tests
+AC_CONFIG_COMMANDS([consistency-tests-dependencies],
+                   [cp -pR "$srcdir"/tests/consistency tests/])
+
+# automatically find all read tests and put them in a EFSNG_READ_TESTS variable
+# that can be easily used from Makefile.am
+if test -d "$srcdir"/tests/consistency; then
+    EFSNG_READ_TESTS=`cd ${srcdir}/tests/consistency/ && find read -name '*.test' -print0 | sort -z | xargs -0`
+    AC_SUBST([EFSNG_READ_TESTS])
+fi
 
 AC_CONFIG_FILES([
         Makefile
         tests/Makefile
         tests/posix-compliance/Makefile
+        tests/consistency/Makefile
 ])
 
 AC_OUTPUT
