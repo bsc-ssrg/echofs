@@ -34,6 +34,28 @@
 #include "command-line.h"
 #include "configuration.h"
 
+/** 
+ * Sample configuration file for reference:
+ *
+ * efs-ng:
+ * {
+ *     # root directory to mirror (mandatory)
+ *     root-dir    =   "path/to/a_root/";
+ *
+ *     # mount point of efs-ng (mandatory)
+ *     mount-point =   "path/to/a_mnt/";
+ *
+ *     # logfile (optional)
+ *     log-file    = "path/to/a_logfile";
+ * 
+ *     # files to prefetch (optional)
+ *     preload-files:
+ *     (
+ *         "path/to/file1",
+ *         "path/to/file2"
+ *     );
+ * };
+ */
 
 namespace bfs = boost::filesystem;
 
@@ -95,16 +117,33 @@ bool Configuration::load(const bfs::path& config_file, Arguments* out){
         /* ignore */
     }
 
+    /* parser 'log-file' */
+    try{
+        const libconfig::Setting& cfg_logfile = root["efs-ng"]["log-file"];
+        std::string optval = cfg_logfile;
+
+        /* command-line arguments override the options passed in the configuration file. 
+         * Thus, if 'log_file' already has a value different from the default one, ignore the passed cfg_value */
+        if(out->log_file == "none"){
+            out->log_file = std::string(optval);
+
+            BOOST_LOG_TRIVIAL(debug) << " * log-file: " << optval;
+        }
+    }
+    catch(const libconfig::SettingNotFoundException& nfex){
+        /* ignore */
+    }
+
     /* parse 'preload-files' */
     try{
-        const libconfig::Setting& files_to_preload = root["efs-ng"]["preload-files"];
-        int count = files_to_preload.getLength();
+        const libconfig::Setting& cfg_files_to_preload = root["efs-ng"]["preload-files"];
+        int count = cfg_files_to_preload.getLength();
 
-        BOOST_LOG_TRIVIAL(debug) << "files_to_preload.getLength() = " << count;
+        BOOST_LOG_TRIVIAL(debug) << "cfg_files_to_preload.getLength() = " << count;
 
         for(int i=0; i<count; ++i){
 
-            const std::string filename = files_to_preload[i];
+            const std::string filename = cfg_files_to_preload[i];
 
             out->files_to_preload.insert(filename);
 
@@ -112,9 +151,9 @@ bool Configuration::load(const bfs::path& config_file, Arguments* out){
         }
     }
     catch(const libconfig::SettingNotFoundException& nfex){
-        // ignore
-        BOOST_LOG_TRIVIAL(warning) << "'preload-files' setting not found.";
-        return false;
+        /* ignore */
+        //BOOST_LOG_TRIVIAL(warning) << "'preload-files' setting not found.";
+        //return false;
     }
 
     return true;

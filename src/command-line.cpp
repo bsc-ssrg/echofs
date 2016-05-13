@@ -36,11 +36,11 @@
 /* C++ includes */
 #include <sstream>
 #include <boost/filesystem.hpp>
-#include <boost/log/trivial.hpp>
 
 /* project includes */
 #include "command-line.h"
 #include "configuration.h"
+#include "logging.h"
 
 namespace bfs = boost::filesystem;
 
@@ -94,6 +94,7 @@ bool process_args(int argc, char* argv[], Arguments* out){
         {"help",                0, 0, 'h'}, /* display usage */
         {"foreground",          0, 0, 'f'}, /* foreground operation */
         {"debug",               0, 0, 'd'}, /* enfs-ng debug mode */
+        {"log-file",            1, 0, 'l'}, /* log to file */
         {"fuse-debug",          0, 0, 'D'}, /* FUSE debug mode */
         {"fuse-single-thread",  0, 0, 'S'}, /* FUSE debug mode */
         {"fuse-help",           0, 0, 'H'}, /* fuse_mount usage */
@@ -159,6 +160,10 @@ bool process_args(int argc, char* argv[], Arguments* out){
             case 'd':
                 /* enable debug mode */
                 break;
+            case 'l':
+                /* log to file */
+                out->log_file = std::string(optarg);
+                break;
             case 'D':
                 /* FUSE debug mode */
                 push_arg("-d");
@@ -194,11 +199,9 @@ bool process_args(int argc, char* argv[], Arguments* out){
     }
 
     if(out->config_file != ""){
-        BOOST_LOG_TRIVIAL(info) << "Reading configuration file " << out->config_file;
-
         if(!efsng::Configuration::load(out->config_file, out)){
-            BOOST_LOG_TRIVIAL(warning) << "  Errors occurred when reading the configuration file. "
-                                       << "Any of its contents will be ignored.";
+            std::cerr << "  Errors occurred when reading the configuration file. "
+                      << "All of its contents will be ignored.";
         }
     }
 
@@ -211,6 +214,9 @@ bool process_args(int argc, char* argv[], Arguments* out){
         push_arg(option.c_str());
     }
 
+    if(out->log_file != "none"){
+        init_logger(out->log_file);
+    }
 
     /** 
      * other default options for FUSE:

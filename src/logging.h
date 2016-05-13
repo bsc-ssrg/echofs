@@ -27,6 +27,17 @@
 #ifndef __LOGGING_H__
 #define __LOGGING_H__
 
+#include <boost/filesystem.hpp>
+
 #include <boost/log/trivial.hpp>
+
+namespace bfs = boost::filesystem;
+
+namespace efsng{
+
+void init_logger();
+void init_logger(const bfs::path& log_file);
+
+} // namespace efsng
 
 #endif /* __LOGGING_H__ */

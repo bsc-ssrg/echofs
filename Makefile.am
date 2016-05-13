@@ -44,14 +44,17 @@ src_efs_ng_CPPFLAGS =		\
 
 src_efs_ng_CXXFLAGS =       \
     @FUSE_CFLAGS@			\
-    -Wall -Wextra
+    -Wall -Wextra			\
+	$(END)
 
 src_efs_ng_LDFLAGS =		\
     @FUSE_LIBS@				\
     @BOOST_LDFLAGS@			\
     @BOOST_SYSTEM_LIB@		\
     @BOOST_FILESYSTEM_LIB@	\
+    -lboost_log_setup       \
     @BOOST_LOG_LIB@			\
+    -lboost_thread       	\
     @LIBCONFIGXX_LIBS@      \
     $(END)
 
@@ -65,6 +68,7 @@ src_efs_ng_SOURCES =        		\
 	src/data-stores/dram-cache.h	\
     src/efs-ng.cpp          		\
     src/efs-ng.h          			\
+    src/logging.cpp        			\
     src/logging.h          			\
     src/metadata/dirs.cpp   		\
     src/metadata/dirs.h     		\

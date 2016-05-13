@@ -46,6 +46,7 @@ struct Arguments{
     bfs::path               root_dir;
     bfs::path               mount_point;
     bfs::path               config_file;
+    bfs::path               log_file;
     std::set<bfs::path>     files_to_preload;
     int                     fuse_argc;
     const char*             fuse_argv[MAX_FUSE_ARGS];
@@ -55,6 +56,7 @@ struct Arguments{
         root_dir("none"),
         mount_point("none"),
         config_file("none"),
+        log_file("none"),
         fuse_argc(0),
         fuse_argv() { }
 
@@ -63,6 +65,7 @@ struct Arguments{
         root_dir(args.root_dir),
         mount_point(args.mount_point),
         config_file(args.config_file),
+        log_file(args.log_file),
         files_to_preload(args.files_to_preload),
         fuse_argc(args.fuse_argc){
 
