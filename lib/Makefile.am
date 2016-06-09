@@ -26,13 +26,13 @@
 
 lib_LTLIBRARIES = libefs-ng.la
 
-include_HEADERS = $(top_srcdir)/include/efs-ng.h
+include_HEADERS = $(top_srcdir)/include/libefs-ng.h
 
 AM_CPPFLAGS = -I$(top_srcdir)/include
 
 libefs_ng_la_SOURCES =	\
 	libefs-ng.c			\
-	$(top_srcdir)/include/efs-ng.h
+	$(top_srcdir)/include/libefs-ng.h
 
 libefs_ng_CFLAGS = \
 	-Wall -Wextra

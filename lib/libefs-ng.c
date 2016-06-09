@@ -24,11 +24,20 @@
  *                                                                       *
  *************************************************************************/
 
+#include <libefs-ng.h>
 #include <string.h>
 #include <stdio.h>
-#include <efs-ng.h>
+#include <errno.h>
 
 void init(const char* mount_point) {
 
     fprintf(stdout, "Hello Library World!\n");
+
+    const char* list = (const char*) malloc(5000);
+
+    if(listxattr(mount_point, list, 5000) == -1){
+        fprintf(stderr, "ERROR: listxattr: %s\n", strerror(errno));
+    }
+
+    fprintf(stdout, "%s\n", list);
 }

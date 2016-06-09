@@ -24,7 +24,7 @@
  *                                                                       *
  *************************************************************************/
 
-#include <efs-ng.h>
+#include <libefs-ng.h>
 
 int main(int argc, char* argv[]){
 
