@@ -91,7 +91,9 @@ fi
 
 AC_CONFIG_FILES([
         Makefile
+        lib/Makefile
         tests/Makefile
+        tests/library/Makefile
         tests/posix-compliance/Makefile
         tests/consistency/Makefile
 ])

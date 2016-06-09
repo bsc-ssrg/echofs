@@ -26,9 +26,9 @@
 
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = tests
+SUBDIRS = lib tests
 
-DIST_SUBDIRS = tests
+DIST_SUBDIRS = lib tests
 
 END=
 

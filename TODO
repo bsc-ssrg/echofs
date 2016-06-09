@@ -7,6 +7,8 @@
 - Check the effect of FUSE flags defined in fuse.h
 - Remove dependency with boost::filesystem if we only use it for baseline()
 - check XFS tests
+- better integration with boost log (use custom LOG macros)
+- auto-remove LOG(debug) calls -> http://stackoverflow.com/questions/16027876/how-to-remove-log-debugging-statements-from-a-program
 
 - OPTIMIZATION: avoid DRAM_cache lookups in repeated operations by recording
 the data buffer into fi->fh

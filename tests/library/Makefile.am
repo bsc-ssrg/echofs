@@ -24,4 +24,17 @@
 #                                                                         #
 ###########################################################################
 
-SUBDIRS = posix-compliance consistency library
+TESTS = test
+
+check_PROGRAMS = test
+
+AM_CPPFLAGS = -I$(top_srcdir)/include
+
+END = 
+
+test_SOURCES = 	\
+	test.c		\
+	$(END)
+
+test_LDADD = \
+	../../lib/libefs-ng.la

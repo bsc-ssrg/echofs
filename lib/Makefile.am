@@ -24,4 +24,18 @@
 #                                                                         #
 ###########################################################################
 
-SUBDIRS = posix-compliance consistency library
+lib_LTLIBRARIES = libefs-ng.la
+
+include_HEADERS = $(top_srcdir)/include/efs-ng.h
+
+AM_CPPFLAGS = -I$(top_srcdir)/include
+
+libefs_ng_la_SOURCES =	\
+	libefs-ng.c			\
+	$(top_srcdir)/include/efs-ng.h
+
+libefs_ng_CFLAGS = \
+	-Wall -Wextra
+
+libefs_ng_la_LDFLAGS = -version-info 0:1:0
+
