@@ -72,6 +72,10 @@ PKG_CHECK_MODULES([LIBCONFIGXX], [libconfig++ >= 1.4],,
                   AC_MSG_ERROR([libconfig++ 1.4 or newer not found.])
 )
 
+# check for the presence of the NVML libraries
+PKG_CHECK_MODULES([LIBPMEM], [libpmem >= 1.1],,
+                  AC_MSG_ERROR(libpmem 1.1 or newer not found.)
+)
 
 # for the POSIX compliance tests we need the tests definitions in
 # the build hierarchy. This is the easiest way

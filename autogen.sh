@@ -45,3 +45,6 @@
   echo "from ftp://ftp.gnu.org/pub/gnu/."                                        
   exit 1
 }
+
+echo Running autoreconf --install --force                                                                                                             
+autoreconf --install --force
