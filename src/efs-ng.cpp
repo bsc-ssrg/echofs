@@ -64,6 +64,7 @@ extern "C" {
 #include "command-line.h"
 #include "preloader.h"
 #include "data-stores/dram-cache.h"
+#include "data-stores/nvram-cache.h"
 #include "logging.h"
 #include "efs-ng.h"
 

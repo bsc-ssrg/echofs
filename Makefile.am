@@ -56,6 +56,7 @@ src_efs_ng_LDFLAGS =		\
     @BOOST_LOG_LIB@			\
     -lboost_thread       	\
     @LIBCONFIGXX_LIBS@      \
+	@LIBPMEMOBJ_LIBS@       \
     $(END)
 
 # source files in alphabetical order
@@ -66,6 +67,8 @@ src_efs_ng_SOURCES =        		\
     src/configuration.h     		\
 	src/data-stores/dram-cache.cpp	\
 	src/data-stores/dram-cache.h	\
+	src/data-stores/nvram-cache.cpp	\
+	src/data-stores/nvram-cache.h	\
     src/efs-ng.cpp          		\
     src/efs-ng.h          			\
     src/logging.cpp        			\

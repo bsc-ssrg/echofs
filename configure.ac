@@ -76,6 +76,9 @@ PKG_CHECK_MODULES([LIBCONFIGXX], [libconfig++ >= 1.4],,
 PKG_CHECK_MODULES([LIBPMEM], [libpmem >= 1.1],,
                   AC_MSG_ERROR(libpmem 1.1 or newer not found.)
 )
+PKG_CHECK_MODULES([LIBPMEMOBJ], [libpmemobj >= 1.1],,
+                  AC_MSG_ERROR(libpmemobj 1.1 or newer not found.)
+)
 
 # for the POSIX compliance tests we need the tests definitions in
 # the build hierarchy. This is the easiest way

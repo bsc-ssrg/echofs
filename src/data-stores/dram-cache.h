@@ -37,18 +37,19 @@ namespace efsng {
 
 typedef void* data_ptr_t;
 
-/* a data chunk */
-struct chunk{
-    chunk(const data_ptr_t data, const size_t size)
-        : data(data),
-          size(size){ }
-
-    data_ptr_t  data;
-    size_t      size;
-}; // struct chunk
-
 /* class to manage file allocations in DRAM */
 class DRAM_cache{
+
+    /* a data chunk */
+    struct chunk{
+        chunk(const data_ptr_t data, const size_t size)
+            : data(data),
+            size(size){ }
+
+        data_ptr_t  data;
+        size_t      size;
+    }; // struct chunk
+
 
 public:
     void prefetch(const bfs::path& pathname);

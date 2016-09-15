@@ -57,6 +57,7 @@ struct Efsng {
     //std::unordered_map<const char*, void*> ram_cache; // encapsulate
     std::unordered_map<std::string, void*> ram_cache; // encapsulate
     DRAM_cache dram_cache;
+    NVRAM_cache nvram_cache;
 
 }; // struct Efsng
 
