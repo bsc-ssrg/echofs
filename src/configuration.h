@@ -37,8 +37,7 @@ namespace efsng{
 class Configuration{
 public:
     static bool load(const bfs::path& config_file, Arguments* out);
-private:
-    static int64_t parse_size(const std::string& str);
+
 }; // class Config_reader
 
 } // namespace efsng

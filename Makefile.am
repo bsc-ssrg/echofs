@@ -60,24 +60,26 @@ src_efs_ng_LDFLAGS =		\
     $(END)
 
 # source files in alphabetical order
-src_efs_ng_SOURCES =        		\
-    src/command-line.cpp    		\
-    src/command-line.h      		\
-    src/configuration.cpp   		\
-    src/configuration.h     		\
-	src/data-stores/dram-cache.cpp	\
-	src/data-stores/dram-cache.h	\
-	src/data-stores/nvram-cache.cpp	\
-	src/data-stores/nvram-cache.h	\
-    src/efs-ng.cpp          		\
-    src/efs-ng.h          			\
-    src/logging.cpp        			\
-    src/logging.h          			\
-    src/metadata/dirs.cpp   		\
-    src/metadata/dirs.h     		\
-    src/metadata/files.cpp  		\
-    src/metadata/files.h    		\
-    src/preloader.cpp       		\
-    src/preloader.h         		\
-    src/usr-credentials.h   		\
+src_efs_ng_SOURCES =        				\
+    src/command-line.cpp    				\
+    src/command-line.h      				\
+    src/configuration.cpp   				\
+    src/configuration.h     				\
+    src/backends/backend.h    				\
+    src/backends/backend.cpp    			\
+	src/backends/dram/dram-cache.cpp		\
+	src/backends/dram/dram-cache.h			\
+	src/backends/nvram-nvml/nvram-cache.cpp	\
+	src/backends/nvram-nvml/nvram-cache.h	\
+    src/efs-ng.cpp          				\
+    src/efs-ng.h          					\
+    src/logging.cpp        					\
+    src/logging.h          					\
+    src/metadata/dirs.cpp   				\
+    src/metadata/dirs.h     				\
+    src/metadata/files.cpp  				\
+    src/metadata/files.h    				\
+    src/preloader.cpp       				\
+    src/preloader.h         				\
+    src/usr-credentials.h   				\
     $(END)

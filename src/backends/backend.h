@@ -24,44 +24,53 @@
  *                                                                       *
  *************************************************************************/
 
-#ifndef __DRAM_CACHE_H__
-#define  __DRAM_CACHE_H__
+#ifndef __DATA_STORE_H__
+#define __DATA_STORE_H__
 
+#include <cstdint>
 #include <string>
-#include <unordered_map>
-#include <boost/filesystem.hpp>
 
-namespace bfs = boost::filesystem;
+#include "../command-line.h"
 
 namespace efsng {
 
-typedef void* data_ptr_t;
-
-/* class to manage file allocations in DRAM */
-class DRAM_cache{
-
-    /* a data chunk */
-    struct chunk{
-        chunk(const data_ptr_t data, const size_t size)
-            : data(data),
-            size(size){ }
-
-        data_ptr_t  data;
-        size_t      size;
-    }; // struct chunk
-
+/**
+ * Backend: A pure virtual class for manipulating a backend store
+ */
+class Backend {
 
 public:
-    void prefetch(const bfs::path& pathname);
-    bool lookup(const char* pathname, void*& data_addr, size_t& size) const;
+    enum Type {
+        UNKNOWN = -1,
+        DRAM = 0,
+        NVRAM_NVML,
 
+        /* add newly registered backend types ABOVE this line */
+        TOTAL_COUNT
+    };
 
+protected:
+    Backend(int64_t size)
+        : max_size(size) {}
+    virtual ~Backend() {}
+
+public:
+    static Type name_to_type(const std::string& name);
+    static Backend* backend_factory(const std::string& type, const kv_list& backend_opts);
+    virtual uint64_t get_size() const = 0;
+    virtual void prefetch(const bfs::path& pathname) = 0;
+    virtual bool lookup(const char* pathname, void*& data_addr, size_t& size) const = 0;
 
 private:
-    /* filename -> data */
-    std::unordered_map<std::string, chunk> entries;
-}; // DRAM_cache
+    static int64_t parse_size(const std::string& str);
+
+protected:
+    /* maximum allocatable size in bytes */
+    int64_t max_size;
+    
+
+}; // class Backend
 
 } // namespace efsng
 
-#endif /* __DRAM_CACHE_H__ */
+#endif /* __DATA_STORE_H__ */

@@ -23,45 +23,51 @@
  * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.    *
  *                                                                       *
  *************************************************************************/
-#ifndef __EFS_NG_H__
-#define __EFS_NG_H__
 
-#include <memory>
+#ifndef __DRAM_CACHE_H__
+#define  __DRAM_CACHE_H__
+
+#include <string>
 #include <unordered_map>
 #include <boost/filesystem.hpp>
+
+#include "../backend.h"
+
 namespace bfs = boost::filesystem;
 
-namespace efsng{
+namespace efsng {
 
-/* forward declarations */
-struct Arguments;
-struct File;
+typedef void* data_ptr_t;
 
-/* internal state of the filesystem */
-struct Efsng {
+/* class to manage file allocations in DRAM */
+class DRAM_cache : public Backend {
 
-    // void add_open_file(const bfs::path& filename){
+    /* a data chunk */
+    struct chunk{
+        chunk(const data_ptr_t data, const size_t size)
+            : data(data),
+            size(size){ }
 
-    //     auto record = std::unique_ptr<File>(new File(-1,-1,-1));
-    //     open_files.insert(std::make_pair(
-    //                         filename.c_str(), 
-    //                         std::move(record)));
-    // }
+        data_ptr_t  data;
+        size_t      size;
+    }; // struct chunk
 
-    /** configuration options passed by the user */
-    Arguments* user_args;
+public:
+    DRAM_cache() : Backend(0) {} // XXX for backwards compatibility, remove
 
-    /** */
-    //std::unordered_map<const char*, std::unique_ptr<File>> open_files;
-    /** */
-    //std::unordered_map<const char*, void*> ram_cache; // encapsulate
-    //std::unordered_map<std::string, void*> ram_cache; // encapsulate
-    //
+    DRAM_cache(int64_t size);
+    ~DRAM_cache();
 
-    Backend* backends[Backend::TOTAL_COUNT];
+    uint64_t get_size() const;
 
-}; // struct Efsng
+    void prefetch(const bfs::path& pathname);
+    bool lookup(const char* pathname, void*& data_addr, size_t& size) const;
+
+private:
+    /* filename -> data */
+    std::unordered_map<std::string, chunk> entries;
+}; // DRAM_cache
 
 } // namespace efsng
 
-#endif /* __EFS_NG_H__ */
+#endif /* __DRAM_CACHE_H__ */

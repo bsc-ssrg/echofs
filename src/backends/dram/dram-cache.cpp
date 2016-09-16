@@ -34,10 +34,21 @@
 #include <boost/filesystem/fstream.hpp>
 
 /* internal includes */
-#include "../logging.h"
+#include "../../logging.h"
 #include "dram-cache.h"
 
 namespace efsng {
+
+DRAM_cache::DRAM_cache(int64_t size)
+    : Backend(size){
+}
+
+DRAM_cache::~DRAM_cache(){
+}
+
+uint64_t DRAM_cache::get_size() const {
+    return max_size;
+}
 
 /** start the prefetch process of a file requested by the user */
 void DRAM_cache::prefetch(const bfs::path& pathname){

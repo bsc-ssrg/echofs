@@ -63,8 +63,7 @@ extern "C" {
 #include "usr-credentials.h"
 #include "command-line.h"
 #include "preloader.h"
-#include "data-stores/dram-cache.h"
-#include "data-stores/nvram-cache.h"
+#include "backends/backend.h"
 #include "logging.h"
 #include "efs-ng.h"
 
@@ -712,9 +711,38 @@ static void* efsng_init(struct fuse_conn_info *conn){
     /* remember user_args */
     efsng_ctx->user_args = user_args;
 
-    /* Preload the files requested by the user */
+    /* initialize the data stores */
+    /* nullptr would be better here, but memset does not accept it */
+    memset(efsng_ctx->backends, 0, efsng::Backend::TOTAL_COUNT);
+
+    for(const auto& kv : user_args->backend_opts){
+        efsng::Backend* bend = efsng::Backend::backend_factory(kv.first, kv.second);
+
+        if(bend == nullptr){
+            // FIXME: return with error
+        }
+
+        const auto& bend_type = efsng::Backend::name_to_type(kv.first);
+
+        if(bend_type == efsng::Backend::UNKNOWN){
+            // FIXME: return with error
+        }
+
+        if(efsng_ctx->backends[bend_type] != 0){
+            // FIXME: return with error. duplicate backend
+        }
+
+        efsng_ctx->backends[bend_type] = bend;
+    }
+
+    /* Preload the files requested by the user to DRAM */
+    //XXX FIXME: this will need to be extended to NVRAM as well
     for(const auto& pathname: user_args->files_to_preload){
-        efsng_ctx->dram_cache.prefetch(pathname);
+
+        efsng_ctx->backends[efsng::Backend::DRAM]->prefetch(pathname);
+
+
+        //efsng_ctx->dram_cache.prefetch(pathname);
     }
 
     return (void*) efsng_ctx;
@@ -1019,7 +1047,7 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
     void* chunk_data = nullptr;
     size_t chunk_size = 0;
 
-    if(!efsng_ctx->dram_cache.lookup(pathname, chunk_data, chunk_size)){
+    if(!efsng_ctx->backends[efsng::Backend::DRAM]->lookup(pathname, chunk_data, chunk_size)){
         src->buf[0].flags = (fuse_buf_flags) (FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
         src->buf[0].fd = file_record->get_fd();
         src->buf[0].pos = offset;
