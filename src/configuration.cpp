@@ -47,8 +47,8 @@
  *     # mount point of efs-ng (mandatory)
  *     mount-point =   "path/to/a_mnt/";
  *
- *     # data-stores (mandatory)
- *     data-stores:
+ *     # backends (mandatory)
+ *     backend-stores:
  *     (
  *         { 
  *             type = "DRAM";
@@ -153,7 +153,7 @@ bool Configuration::load(const bfs::path& config_file, Arguments* out){
 
     /* parse 'backend-stores' */
     try{
-        const libconfig::Setting& cfg_backend_stores = root["efs-ng"]["data-stores"];
+        const libconfig::Setting& cfg_backend_stores = root["efs-ng"]["backends"];
         int count = cfg_backend_stores.getLength();
 
         for(int i=0; i<count; ++i){
@@ -180,53 +180,6 @@ bool Configuration::load(const bfs::path& config_file, Arguments* out){
             if(bend_type != ""){
                 out->backend_opts.insert({bend_type, bend_opts});
             }
-
-
-
-
-//            std::string type;
-//            cfg_data_store.lookupValue("type", type);
-//
-//            if(type == "DRAM" || type == "NVRAM-NVML"){
-//
-//                std::string size;
-//
-//                /* find the size */
-//                if(!cfg_data_store.lookupValue("size", size)){
-//                    BOOST_LOG_TRIVIAL(error) << type << " data-store missing mandatory 'size' argument";
-//                    return false;
-//                }
-//
-//                int64_t value = parse_size(size);
-//
-//                if(value == -1){
-//                    BOOST_LOG_TRIVIAL(error) << "Unable to parse data-store size '" << size << "'";
-//                    return false;
-//                }
-//
-//                //ds_opts.size = value;
-//
-//            }
-//            else{
-//                BOOST_LOG_TRIVIAL(error) << "Unsupported data-store type '" << type << "'"; 
-//                return false;
-//            }
-//
-//            if(type == "NVRAM-NVML"){
-//                cfg_data_store.lookupValue("TYPE", type);
-//
-//                std::string dax_fs_path;
-//
-//                /* find the base-path of the DAX filesystem */
-//                if(!cfg_data_store.lookupValue("dax-fs-path", dax_fs_path)){
-//                    BOOST_LOG_TRIVIAL(error) << "NVRAM-NVML data-store missing mandatory 'dax-fs-path' argument";
-//                    return false;
-//                }
-//
-//                //ds_opts.base_path = dax_fs_path;
-//            }
-//
-//            //out->data_stores.insert({type, ds_opts});
         }
     }
     catch(const libconfig::SettingNotFoundException& nfex){
