@@ -66,7 +66,7 @@
  *
  * 
  *     # files to prefetch (optional)
- *     preload-files:
+ *     preload:
  *     (
  *         "path/to/file1",
  *         "path/to/file2"
@@ -153,7 +153,7 @@ bool Configuration::load(const bfs::path& config_file, Arguments* out){
 
     /* parse 'backend-stores' */
     try{
-        const libconfig::Setting& cfg_backend_stores = root["efs-ng"]["backends"];
+        const libconfig::Setting& cfg_backend_stores = root["efs-ng"]["backend-stores"];
         int count = cfg_backend_stores.getLength();
 
         for(int i=0; i<count; ++i){
@@ -172,8 +172,6 @@ bool Configuration::load(const bfs::path& config_file, Arguments* out){
                     bend_type = opt_value;
                 }
 
-                std::cerr << opt_name << " " << opt_value << "\n";
-
                 bend_opts.push_back({opt_name, opt_value});
             }
 
@@ -187,16 +185,47 @@ bool Configuration::load(const bfs::path& config_file, Arguments* out){
 
     /* parse 'preload-files' */
     try{
-        const libconfig::Setting& cfg_files_to_preload = root["efs-ng"]["preload-files"];
+        const libconfig::Setting& cfg_files_to_preload = root["efs-ng"]["preload"];
         int count = cfg_files_to_preload.getLength();
 
         BOOST_LOG_TRIVIAL(debug) << "cfg_files_to_preload.getLength() = " << count;
 
-        for(int i=0; i<count; ++i){
+        // for(int i=0; i<count; ++i){
 
-            const std::string filename = cfg_files_to_preload[i];
+        //     const std::string filename = cfg_files_to_preload[i];
 
-            out->files_to_preload.insert(filename);
+        //     out->files_to_preload.insert(filename);
+
+        //     BOOST_LOG_TRIVIAL(debug) << "  \"" << filename << "\"";
+        // }
+
+        for(int i=0; i<cfg_files_to_preload.getLength(); ++i){
+
+            const libconfig::Setting& filedef = cfg_files_to_preload[i];
+
+            bfs::path filename;
+            std::string backend;
+
+            for(int j=0; j<filedef.getLength(); ++j){
+
+                const libconfig::Setting& opt = filedef[j];
+
+                std::string opt_name = opt.getName();
+                std::string opt_value = opt;
+
+                if(opt_name == "path"){
+                    filename = opt_value;
+                }
+                else if(opt_name == "backend"){
+                    backend = opt_value;
+                }
+                else{
+                    BOOST_LOG_TRIVIAL(error) << "Unsupported parameter in configuration file '" << opt_name << "'";
+                    return false;
+                }
+            }
+
+            out->files_to_preload.insert({filename, backend});
 
             BOOST_LOG_TRIVIAL(debug) << "  \"" << filename << "\"";
         }

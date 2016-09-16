@@ -86,7 +86,7 @@ Backend* Backend::backend_factory(const std::string& type, const kv_list& backen
             BOOST_LOG_TRIVIAL(error) << "Mandatory arguments missing for " << type << " backend"; 
         }
 
-        //return new NVRAM_cache(bend_size);
+        return new NVRAM_cache(bend_size, dax_fs_path);
 
     }
 

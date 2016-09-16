@@ -711,38 +711,57 @@ static void* efsng_init(struct fuse_conn_info *conn){
     /* remember user_args */
     efsng_ctx->user_args = user_args;
 
-    /* initialize the data stores */
+    /* initialize the backends stores */
     /* nullptr would be better here, but memset does not accept it */
     memset(efsng_ctx->backends, 0, efsng::Backend::TOTAL_COUNT);
 
+    int backend_count = 0;
+
     for(const auto& kv : user_args->backend_opts){
+
         efsng::Backend* bend = efsng::Backend::backend_factory(kv.first, kv.second);
 
         if(bend == nullptr){
             // FIXME: return with error
+            BOOST_LOG_TRIVIAL(error) << "Unable to create backend of type '" << kv.first << "'";
+            abort();
         }
 
         const auto& bend_type = efsng::Backend::name_to_type(kv.first);
 
         if(bend_type == efsng::Backend::UNKNOWN){
             // FIXME: return with error
+            BOOST_LOG_TRIVIAL(error) << "Unknown backend of type '" << kv.first << "'";
+            abort();
         }
 
         if(efsng_ctx->backends[bend_type] != 0){
             // FIXME: return with error. duplicate backend
+            BOOST_LOG_TRIVIAL(error) << "Duplicate backend of type '" << kv.first << "'";
+            abort();
         }
 
         efsng_ctx->backends[bend_type] = bend;
+        ++backend_count;
+    }
+
+    /* check that there is at least one backend */
+    if(backend_count == 0){
+        // FIXME: return with error. No backends.
+        BOOST_LOG_TRIVIAL(error) << "No valid backends registered. Please, check configuration file.";
+        abort();
     }
 
     /* Preload the files requested by the user to DRAM */
     //XXX FIXME: this will need to be extended to NVRAM as well
-    for(const auto& pathname: user_args->files_to_preload){
+    for(const auto& kv: user_args->files_to_preload){
 
-        efsng_ctx->backends[efsng::Backend::DRAM]->prefetch(pathname);
+        const bfs::path& pathname = kv.first;
+        const std::string& backend = kv.second;
 
+        const auto& bend_type = efsng::Backend::name_to_type(backend);
 
-        //efsng_ctx->dram_cache.prefetch(pathname);
+        efsng_ctx->backends[bend_type]->prefetch(pathname);
     }
 
     return (void*) efsng_ctx;

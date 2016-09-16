@@ -45,15 +45,15 @@ typedef std::list<std::pair<std::string, std::string>> kv_list;
 /* Arguments stores command-line arguments and options from the configuration file */
 struct Arguments{
 
-    std::string                    exec_name;
-    bfs::path                      root_dir;
-    bfs::path                      mount_point;
-    bfs::path                      config_file;
-    bfs::path                      log_file;
-    std::map<std::string, kv_list> backend_opts;
-    std::set<bfs::path>            files_to_preload;
-    int                            fuse_argc;
-    const char*                    fuse_argv[MAX_FUSE_ARGS];
+    std::string                         exec_name;
+    bfs::path                           root_dir;
+    bfs::path                           mount_point;
+    bfs::path                           config_file;
+    bfs::path                           log_file;
+    std::map<std::string, kv_list>      backend_opts;
+    std::map<bfs::path, std::string>    files_to_preload;
+    int                                 fuse_argc;
+    const char*                         fuse_argv[MAX_FUSE_ARGS];
 
     Arguments() :
         exec_name("none"),
