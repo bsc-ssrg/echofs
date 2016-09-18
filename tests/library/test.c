@@ -24,13 +24,14 @@
  *                                                                       *
  *************************************************************************/
 
+#include <stdlib.h>
 #include <libefs-ng.h>
 
 int main(int argc, char* argv[]){
 
     const char* mount_point = "./mnt";
 
-    init(mount_point);
+    libefs_ng_init(mount_point);
 
     exit(0);
 }

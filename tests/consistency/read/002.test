@@ -61,7 +61,17 @@ actual="${TEST_MNT}/${TESTID}.tmp"
 # automatically! (At least in this version of efs-ng)
 dd if=/dev/urandom of=$expected bs=1MB count=1 > /dev/null 2>&1 
 
-PREFETCH_FILES+=($expected)
+# specify the backends to be used by the filesystem
+DRAM_BACKEND["type"]="DRAM"
+DRAM_BACKEND["size"]="1GiB"
+
+# NVRAM_BACKEND["type"]="NVRAM-NVML"
+# NVRAM_BACKEND["size"]="1.5GiB"
+# NVRAM_BACKEND["dax-fs-path"]="/foo/bar/baz"
+
+# specify the files to be preloaded on mount
+
+DRAM_PRELOAD_FILES+=($expected)
 
 # the test needs efs-ng to be mounted
 _require_efsng_mounted

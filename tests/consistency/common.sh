@@ -126,7 +126,7 @@ _generate_test_id(){
 }
 
 # generate a configuration file for efs-ng based on the values
-# stored in TEST_ROOT, TEST_MNT, and PREFETCH_FILES
+# stored in TEST_ROOT, TEST_MNT, and ???
 _generate_efsng_config(){
 
     if [[ ! -z "$TEST_SUBDIR" ]]; then
@@ -136,41 +136,97 @@ _generate_efsng_config(){
         EFSNG_CFG="${TESTID}.cfg"
         EFSNG_LOG="${TESTID}.log"
     fi
+
+    output=""
     
-
-    if [[ ${#PREFETCH_FILES[@]} -eq 0 ]]; then
-        printf -v output \
+    # generate header
+    printf -v header \
 "efs-ng:
 {
     root-dir = \"%s\";
     mount-point = \"%s\";
     log-file = \"%s\";
-};" \
-"$TEST_ROOT" \
-"$TEST_MNT" \
-"$EFSNG_LOG"
 
-    else
-        printf -v files "\"%s\",\n" "${PREFETCH_FILES[@]}"
-        files="${files%??}" # remove final ','
+" \
+    "$TEST_ROOT" \
+    "$TEST_MNT" \
+    "$EFSNG_LOG"
 
-        printf -v output \
-"efs-ng:
-{
-    root-dir = \"%s\";
-    mount-point = \"%s\";
-    log-file = \"%s\";
-    preload-files:
-    (
-%s
-    );
-};" \
-"$TEST_ROOT" \
-"$TEST_MNT" \
-"$EFSNG_LOG" \
-"$files"
+    # generate backends
+    backends="    backend-stores:\n    (\n"
 
+    if [ ${#DRAM_BACKEND[@]} -ne 0 ]; then
+
+        backends+="        {\n"
+
+        for k in "${!DRAM_BACKEND[@]}"
+        do
+            backends+="            $k = \"${DRAM_BACKEND[$k]}\";\n"
+        done
+
+        if [ ${#nvram_backend[@]} -ne 0 ]; then
+            backends+="        },\n"
+        else
+            backends+="        }\n"
+        fi
     fi
+
+    if [ ${#NVRAM_BACKEND[@]} -ne 0 ]; then
+
+        backends+="        {\n"
+
+        for k in "${!NVRAM_BACKEND[@]}"
+        do
+            backends+="            $k = \"${NVRAM_BACKEND[$k]}\";\n"
+        done
+
+        backends+="        }\n"
+    fi
+
+    backends+="    )\n"
+
+    # generate preloads
+    preloads="    preload:\n    (\n"
+
+    if [ ${#DRAM_PRELOAD_FILES[@]} -ne 0 ]; then
+        preloads+="        {\n"
+
+        for f in "${DRAM_PRELOAD_FILES[@]}"
+        do
+            preloads+="            path = \"$f\";\n"
+        done
+
+        preloads+="            backend = \"DRAM\";\n"
+
+        if [ ${#NVRAM_PRELOAD_FILES[@]} -ne 0 ]; then
+            preloads+="        },\n"
+        else
+            preloads+="        }\n"
+        fi
+    fi
+
+    if [ ${#NVRAM_PRELOAD_FILES[@]} -ne 0 ]; then
+        preloads+="        {\n"
+
+        for f in "${NVRAM_PRELOAD_FILES[@]}"
+        do
+            preloads+="            path = \"$f\";\n"
+        done
+
+        preloads+="            backend = \"NVRAM-NVML\";\n"
+        preloads+="        }\n"
+    fi
+
+    preloads+="    )\n"
+
+    # generate trailer
+    trailer="}"
+
+    # assemble and output
+    output+="$header"
+    output+="$backends"
+    output+="$preloads"
+    output+="$trailer"
 
     echo -e "$output" > "$EFSNG_CFG"
 

@@ -28,4 +28,8 @@
 
 EFSNG="${TESTS_BASE_DIR}/../../src/efs-ng"
 IO_RUNNER="${TESTS_BASE_DIR}/io-runner.py"
-declare -a PREFETCH_FILES
+
+declare -a DRAM_PRELOAD_FILES
+declare -a NVRAM_PRELOAD_FILES
+declare -A DRAM_BACKEND
+declare -A NVRAM_BACKEND

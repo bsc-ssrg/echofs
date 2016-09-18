@@ -31,7 +31,7 @@
 extern "C" {
 #endif
 
-void init(const  char* mount_point);
+void libefs_ng_init(const  char* mount_point);
 
 #ifdef __cplusplus
 }; // extern "C"
