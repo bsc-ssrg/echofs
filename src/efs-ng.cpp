@@ -1083,6 +1083,11 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
     /* FIXME it would be better to have this information already cached somewhere
      * IDEA: bloom filter? (see http://blog.michaelschmatz.com/2016/04/11/how-to-write-a-bloom-filter-cpp/) */
     for(const auto& bend: efsng_ctx->backends){
+
+        if(bend == NULL){
+            continue;
+        }
+
         if(bend->lookup(pathname, chunk_data, chunk_size)){
             file_cached = true;
             break;
