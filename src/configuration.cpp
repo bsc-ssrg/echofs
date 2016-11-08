@@ -68,8 +68,14 @@
  *     # files to prefetch (optional)
  *     preload:
  *     (
- *         "path/to/file1",
- *         "path/to/file2"
+ *         {
+ *             path = "path/to/file1";
+ *             backend = "DRAM;"
+ *         },
+ *         {
+ *             path = "path/to/file2";
+ *             backend = "NVRAM-NVML";
+ *         }
  *     );
  * };
  */

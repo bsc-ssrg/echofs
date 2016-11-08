@@ -719,7 +719,13 @@ static void* efsng_init(struct fuse_conn_info *conn){
 
     for(const auto& kv : user_args->backend_opts){
 
-        efsng::Backend* bend = efsng::Backend::backend_factory(kv.first, kv.second);
+        const auto& bend_key = kv.first;
+        efsng::kv_list& bend_opts = const_cast<efsng::kv_list&>(kv.second);
+
+        /* add root_dir as an option for those backends that may need it */
+        bend_opts.push_back({"root-dir", user_args->root_dir.string()});
+
+        efsng::Backend* bend = efsng::Backend::backend_factory(bend_key, bend_opts);
 
         if(bend == nullptr){
             // FIXME: return with error
@@ -760,6 +766,12 @@ static void* efsng_init(struct fuse_conn_info *conn){
         const std::string& backend = kv.second;
 
         const auto& bend_type = efsng::Backend::name_to_type(backend);
+
+        if(bend_type == efsng::Backend::UNKNOWN){
+            // FIXME: return with error
+            BOOST_LOG_TRIVIAL(error) << "Unknown backend of type '" << backend << "' for file '" << pathname << "'";
+            abort();
+        }
 
         efsng_ctx->backends[bend_type]->prefetch(pathname);
     }
@@ -1065,14 +1077,26 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
 
     void* chunk_data = nullptr;
     size_t chunk_size = 0;
+    bool file_cached = false;
 
-    if(!efsng_ctx->backends[efsng::Backend::DRAM]->lookup(pathname, chunk_data, chunk_size)){
+    /* search file in available backends */
+    /* FIXME it would be better to have this information already cached somewhere
+     * IDEA: bloom filter? (see http://blog.michaelschmatz.com/2016/04/11/how-to-write-a-bloom-filter-cpp/) */
+    for(const auto& bend: efsng_ctx->backends){
+        if(bend->lookup(pathname, chunk_data, chunk_size)){
+            file_cached = true;
+            break;
+        }
+    }
+
+    if(!file_cached){
+        /* not available in DRAM nor NVRAM, read directly from the filesystem */
         src->buf[0].flags = (fuse_buf_flags) (FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
         src->buf[0].fd = file_record->get_fd();
         src->buf[0].pos = offset;
     }
     else{
-
+        /* available in DRAM or NVRAM, read from chunk_data */
         size_t available_bytes = std::min(size, chunk_size - offset);
 
         if(available_bytes <= 0){

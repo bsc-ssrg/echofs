@@ -42,11 +42,13 @@ typedef void* data_ptr_t;
 /* class to manage file allocations in NVRAM */
 class NVRAM_cache : public Backend {
 
+    const uint64_t block_size = 4096;
+
     /* a data chunk */
     struct chunk{
         chunk(const data_ptr_t data, const size_t size)
             : data(data),
-            size(size){ }
+              size(size){ }
 
         data_ptr_t  data;
         size_t      size;
@@ -55,7 +57,7 @@ class NVRAM_cache : public Backend {
 public:
     NVRAM_cache() : Backend(0) {} // XXX for backwards compatibility, remove
 
-    NVRAM_cache(int64_t size, bfs::path dax_fs_base);
+    NVRAM_cache(int64_t size, bfs::path dax_fs_base, bfs::path root_dir);
     ~NVRAM_cache();
 
     uint64_t get_size() const;
@@ -64,10 +66,15 @@ public:
     bool lookup(const char* pathname, void*& data_addr, size_t& size) const;
 
 private:
+    ssize_t do_copy_to_pmem(char*, int);
+    ssize_t do_copy_to_non_pmem(char*, int);
+
+private:
     /* mount point of the DAX filesystem needed to access NVRAM */
     bfs::path dax_fs_base;
+    bfs::path root_dir;
     /* filename -> data */
-//    std::unordered_map<std::string, chunk> entries;
+    std::unordered_map<std::string, chunk> entries;
 }; // NVRAM_cache
 
 } // namespace efsng

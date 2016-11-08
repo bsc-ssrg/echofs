@@ -65,6 +65,7 @@ Backend* Backend::backend_factory(const std::string& type, const kv_list& backen
 
         int64_t bend_size = -1;
         bfs::path dax_fs_path;
+        bfs::path root_dir;
 
         /* parse the options provided by the user */
         for(const auto& kv : backend_opts){
@@ -80,13 +81,16 @@ Backend* Backend::backend_factory(const std::string& type, const kv_list& backen
             else if(kv.first == "dax-fs-path"){
                 dax_fs_path = kv.second;
             }
+            else if(kv.first == "root-dir"){
+                root_dir = kv.second;
+            }
         }
 
         if(bend_size == -1 || dax_fs_path == ""){
             BOOST_LOG_TRIVIAL(error) << "Mandatory arguments missing for " << type << " backend"; 
         }
 
-        return new NVRAM_cache(bend_size, dax_fs_path);
+        return new NVRAM_cache(bend_size, dax_fs_path, root_dir);
 
     }
 

@@ -159,6 +159,8 @@ bool process_args(int argc, char* argv[], Arguments* out){
                 break;
             case 'd':
                 /* enable debug mode */
+                /* prevent that FUSE starts as a daemon */
+                push_arg("-f");
                 break;
             case 'l':
                 /* log to file */
