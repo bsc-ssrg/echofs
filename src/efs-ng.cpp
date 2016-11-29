@@ -1034,11 +1034,50 @@ static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t 
 
     struct fuse_bufvec dst = FUSE_BUFVEC_INIT(fuse_buf_size(buf));
 
-	dst.buf[0].flags = (fuse_buf_flags) (FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
-	dst.buf[0].fd = file_record->get_fd();
-	dst.buf[0].pos = offset;
+    efsng::Efsng* efsng_ctx = (efsng::Efsng*) fuse_get_context()->private_data;
 
-	return fuse_buf_copy(&dst, buf, FUSE_BUF_SPLICE_NONBLOCK);
+    BOOST_LOG_TRIVIAL(debug) << "  Searching preloaded data for \"" << pathname << "\"";
+
+    void* chunk_data = nullptr;
+    size_t chunk_size = 0;
+    bool file_cached = false;
+
+    /* search file in available backends */
+    /* FIXME it would be better to have this information already cached somewhere
+     * IDEA: bloom filter? (see http://blog.michaelschmatz.com/2016/04/11/how-to-write-a-bloom-filter-cpp/) */
+    for(const auto& bend: efsng_ctx->backends){
+
+        if(bend == NULL){
+            continue;
+        }
+
+        if(bend->lookup(pathname, chunk_data, chunk_size)){
+            file_cached = true;
+            break;
+        }
+    }
+
+    if(!file_cached){
+        /* available in DRAM or NVRAM, write to chunk_data */
+        dst.buf[0].flags = (fuse_buf_flags) (~FUSE_BUF_IS_FD);
+        dst.buf[0].mem = (((uint8_t*)chunk_data) + offset);
+        dst.buf[0].size = fuse_buf_size(buf);
+
+        // fuse_buf_copy(dst, src, flags)
+        //   src = user provided buffer (passed as struct fuse_bufvec* buf)
+        //   dst = NVRAM/DRAM-allocated data_chunk
+        return fuse_buf_copy(&dst, buf, FUSE_BUF_SPLICE_MOVE);
+    }
+
+    /* not available in DRAM nor NVRAM, write directly to the underlying filesystem */
+    dst.buf[0].flags = (fuse_buf_flags) (FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
+    dst.buf[0].fd = file_record->get_fd();
+    dst.buf[0].pos = offset;
+
+    // fuse_buf_copy(dst, src, flags)
+    //   src = user provided buffer (passed as struct fuse_bufvec* buf)
+    //   dst = Underlying FS
+    return fuse_buf_copy(&dst, buf, FUSE_BUF_SPLICE_NONBLOCK);
 }
 
 /** 
@@ -1095,7 +1134,7 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
     }
 
     if(!file_cached){
-        /* not available in DRAM nor NVRAM, read directly from the filesystem */
+        /* not available in DRAM nor NVRAM, read directly from the underlying filesystem */
         src->buf[0].flags = (fuse_buf_flags) (FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
         src->buf[0].fd = file_record->get_fd();
         src->buf[0].pos = offset;
