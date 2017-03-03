@@ -86,7 +86,11 @@ extern "C" {
  **********************************************************************************************************************/
 
 /** Get file attributes. similar to stat() */
+#if FUSE_USE_VERSION < 30
 static int efsng_getattr(const char* pathname, struct stat* stbuf){
+#else
+static int efsng_getattr(const char* pathname, struct stat* stbuf, struct fuse_file_info* file_info){
+#endif
 
     auto old_credentials = efsng::assume_user_credentials();
 
@@ -206,9 +210,20 @@ static int efsng_symlink(const char* oldpath, const char* newpath){
 }
 
 /** Rename a file */
+#if FUSE_USE_VERSION < 30
 static int efsng_rename(const char* oldpath, const char* newpath){
+#else
+static int efsng_rename(const char* oldpath, const char* newpath, unsigned int flags){
+#endif
 
     auto old_credentials = efsng::assume_user_credentials();
+
+#if FUSE_USE_VERSION >= 30
+    /* When we have renameat2() in libc, then we can implement flags */
+    if(flags){
+        return -EINVAL;
+    }
+#endif
 
     int res = rename(oldpath, newpath);
 
@@ -238,7 +253,11 @@ static int efsng_link(const char* oldpath, const char* newpath){
 }
 
 /** Change the permissions bits of a file */
+#if FUSE_USE_VERSION < 30
 static int efsng_chmod(const char* pathname, mode_t mode){
+#else
+static int efsng_chmod(const char* pathname, mode_t mode, struct fuse_file_info* file_info){
+#endif
 
     auto old_credentials = efsng::assume_user_credentials();
 
@@ -254,7 +273,11 @@ static int efsng_chmod(const char* pathname, mode_t mode){
 }
 
 /** Change the owner and group of a file */
+#if FUSE_USE_VERSION < 30
 static int efsng_chown(const char* pathname, uid_t owner, gid_t group){
+#else
+static int efsng_chown(const char* pathname, uid_t owner, gid_t group, struct fuse_file_info* file_info){
+#endif
 
     auto old_credentials = efsng::assume_user_credentials();
 
@@ -270,13 +293,35 @@ static int efsng_chown(const char* pathname, uid_t owner, gid_t group){
 }
 
 /** Change the size of a file */
+#if FUSE_USE_VERSION < 30
 static int efsng_truncate(const char* pathname, off_t length){
+#else
+static int efsng_truncate(const char* pathname, off_t length, struct fuse_file_info* file_info){
+#endif
 
-    auto old_credentials = efsng::assume_user_credentials();
+    int res;
 
-    int res = truncate(pathname, length);
+#if FUSE_USE_VERSION >= 30
+    if(file_info != NULL){
+        auto file_record = (efsng::File*) file_info->fh;
+        int fd = file_record->get_fd();
 
-    efsng::restore_credentials(old_credentials);
+        if((res = ftruncate(fd, length)) == -1){
+            return -errno;
+        }
+    }
+    else{
+#endif
+
+        auto old_credentials = efsng::assume_user_credentials();
+
+        res = truncate(pathname, length);
+
+        efsng::restore_credentials(old_credentials);
+
+#if FUSE_USE_VERSION >= 30
+    }
+#endif
 
     if(res == -1){
         return -errno;
@@ -596,8 +641,14 @@ static int efsng_opendir(const char* pathname, struct fuse_file_info* file_info)
  * always passes non-zero offset to the filler function.  When the buffer is full (or an error happens) the filler
  * function will return '1'.
  */
+#if FUSE_USE_VERSION < 30
 static int efsng_readdir(const char* pathname, void* buf, fuse_fill_dir_t filler, off_t offset, 
                          struct fuse_file_info* file_info){
+#else
+static int efsng_readdir(const char* pathname, void* buf, fuse_fill_dir_t filler, off_t offset, 
+                         struct fuse_file_info* file_info,
+                         enum fuse_readdir_flags flags){
+#endif
 
     (void) pathname;
 
@@ -612,6 +663,9 @@ static int efsng_readdir(const char* pathname, void* buf, fuse_fill_dir_t filler
     while(true){
         struct stat st;
         off_t next_offset;
+#if FUSE_USE_VERSION >= 30
+        enum fuse_fill_dir_flags fill_flags = (enum fuse_fill_dir_flags) 0;
+#endif
 
         if(dir_record->get_entry() == NULL){
             struct dirent* dirent = readdir(dir_record->get_dirp());
@@ -622,14 +676,41 @@ static int efsng_readdir(const char* pathname, void* buf, fuse_fill_dir_t filler
             }
         }
 
+#if FUSE_USE_VERSION >= 30 && defined(HAVE_FSTATAT)
+        if(flags & FUSE_READDIR_PLUS){
+            int res;
+
+            res = fstatat(dirfd(dir_record->get_dirp()), dir_record->get_entry()->d_name , &st, AT_SYMLINK_NOFOLLOW);
+            
+            if(res != -1){
+                fill_flags = (fuse_fill_dir_flags) ((int) fill_flags | FUSE_FILL_DIR_PLUS);
+            }
+        }
+#endif
+
+#if FUSE_USE_VERSION >= 30
+        if(!((int) fill_flags & FUSE_FILL_DIR_PLUS)){
+#endif
+
         memset(&st, 0, sizeof(st));
         st.st_ino = dir_record->get_entry()->d_ino;
         st.st_mode = dir_record->get_entry()->d_type << 12;
+
+#if FUSE_USE_VERSION >= 30
+        }
+#endif
+
         next_offset = telldir(dir_record->get_dirp());
 
+#if FUSE_USE_VERSION < 30
         if(filler(buf, dir_record->get_entry()->d_name, &st, next_offset) != 0){
             break;
         }
+#else
+        if(filler(buf, dir_record->get_entry()->d_name, &st, next_offset, fill_flags) != 0){
+            break;
+        }
+#endif
 
         dir_record->set_entry(NULL);
         dir_record->set_offset(0);
@@ -698,9 +779,20 @@ static int efsng_fsyncdir(const char* pathname, int is_datasync, struct fuse_fil
  * fuse_context to all file operations and as a parameter to the
  * destroy() method.
  */
+#if FUSE_USE_VERSION < 30
 static void* efsng_init(struct fuse_conn_info *conn){
+#else
+static void* efsng_init(struct fuse_conn_info *conn, struct fuse_config* cfg){
+#endif
 
     (void) conn;
+
+#if FUSE_USE_VERSION >= 30
+
+    conn->want |= FUSE_CAP_WRITEBACK_CACHE;
+
+    cfg->use_ino = 1;
+#endif
 
     efsng::Arguments* user_args = (efsng::Arguments*) fuse_get_context()->private_data;
 
@@ -852,6 +944,7 @@ static int efsng_create(const char* pathname, mode_t mode, struct fuse_file_info
     return 0;
 }
 
+#if FUSE_USE_VERSION < 30
 /**
  * Change the size of an open file
  *
@@ -898,6 +991,7 @@ static int efsng_fgetattr(const char* pathname, struct stat* stbuf, struct fuse_
 
     return 0;
 }
+#endif /* FUSE_USE_VERSION < 30 */
 
 #ifdef HAVE_LIBULOCKMGR
 /**
@@ -945,7 +1039,11 @@ static int efsng_lock(const char* pathname, struct fuse_file_info* file_info, in
  *
  * See the utimensat(2) man page for details.
  */
+#if FUSE_USE_VERSION < 30
 static int efsng_utimens(const char* pathname, const struct timespec tv[2]){
+#else
+static int efsng_utimens(const char* pathname, const struct timespec tv[2], struct fuse_file_info* file_info){
+#endif
 
     auto old_credentials = efsng::assume_user_credentials();
 
@@ -1028,6 +1126,15 @@ static int efsng_poll(const char* pathname, struct fuse_file_info* file_info, st
 static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t offset, 
                            struct fuse_file_info* file_info){
 
+    BOOST_LOG_TRIVIAL(debug) << "efsng_write_buf(" << pathname << ", " << offset << ")";
+
+    //thread_local uint64_t idx = 0;
+
+    //char buffer[262144];
+
+    //memcpy(buffer, buf->buf[0].mem, fuse_buf_size(buf));
+    //return fuse_buf_size(buf);
+
     (void) pathname;
 
     auto file_record = (efsng::File*) file_info->fh;
@@ -1057,7 +1164,7 @@ static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t 
         }
     }
 
-    if(!file_cached){
+    if(file_cached){
         /* available in DRAM or NVRAM, write to chunk_data */
         dst.buf[0].flags = (fuse_buf_flags) (~FUSE_BUF_IS_FD);
         dst.buf[0].mem = (((uint8_t*)chunk_data) + offset);
@@ -1066,7 +1173,22 @@ static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t 
         // fuse_buf_copy(dst, src, flags)
         //   src = user provided buffer (passed as struct fuse_bufvec* buf)
         //   dst = NVRAM/DRAM-allocated data_chunk
+        
+#if 0
+
+#if 1
+        void* foo = malloc(fuse_buf_size(buf));
+
+        memcpy(foo, buf->buf[0].mem, fuse_buf_size(buf));
+#else
+        memcpy(dst.buf[0].mem, buf->buf[0].mem, fuse_buf_size(buf));
+#endif
+        return fuse_buf_size(buf);
+#else
+        BOOST_LOG_TRIVIAL(debug) << "FUSE_BUF_SPLICE_MOVE" << dst.buf[0].size;
+
         return fuse_buf_copy(&dst, buf, FUSE_BUF_SPLICE_MOVE);
+#endif
     }
 
     /* not available in DRAM nor NVRAM, write directly to the underlying filesystem */
@@ -1077,7 +1199,24 @@ static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t 
     // fuse_buf_copy(dst, src, flags)
     //   src = user provided buffer (passed as struct fuse_bufvec* buf)
     //   dst = Underlying FS
+    //BOOST_LOG_TRIVIAL(debug) << "FUSE_BUF_SPLICE_NONBLOCK";
     return fuse_buf_copy(&dst, buf, FUSE_BUF_SPLICE_NONBLOCK);
+
+
+
+/*
+    (void) pathname;
+
+    auto file_record = (efsng::File*) file_info->fh;
+
+    struct fuse_bufvec dst = FUSE_BUFVEC_INIT(fuse_buf_size(buf));
+
+	dst.buf[0].flags = (fuse_buf_flags) (FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
+	dst.buf[0].fd = file_record->get_fd();
+	dst.buf[0].pos = offset;
+
+	return fuse_buf_copy(&dst, buf, FUSE_BUF_SPLICE_NONBLOCK);
+*/
 }
 
 /** 
@@ -1300,8 +1439,11 @@ int main (int argc, char *argv[]){
     efsng_ops.destroy = efsng_destroy;
     efsng_ops.access = efsng_access;
     efsng_ops.create = efsng_create;
+
+#if FUSE_USE_VERSION < 30
     efsng_ops.ftruncate = efsng_ftruncate;
     efsng_ops.fgetattr = efsng_fgetattr;
+#endif
 
 #ifdef HAVE_LIBULOCKMGR
     efsng_ops.lock = efsng_lock;

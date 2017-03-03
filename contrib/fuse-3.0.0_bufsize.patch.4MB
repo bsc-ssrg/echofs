@@ -1,0 +1,13 @@
+diff --git a/lib/fuse_lowlevel.c b/lib/fuse_lowlevel.c
+index a960123..fda9b8b 100644
+--- a/lib/fuse_lowlevel.c
++++ b/lib/fuse_lowlevel.c
+@@ -2767,7 +2767,7 @@ restart:
+ 	return res;
+ }
+ 
+-#define MIN_BUFSIZE 0x21000
++#define MIN_BUFSIZE 0x401000
+ 
+ struct fuse_session *fuse_session_new(struct fuse_args *args,
+ 				      const struct fuse_lowlevel_ops *op,

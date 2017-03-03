@@ -227,7 +227,11 @@ bool process_args(int argc, char* argv[], Arguments* out){
      * - attr_timeout=0: set cache timeout for names to 0s
      */
     push_arg("-o");
-    push_arg("nonempty,use_ino,attr_timeout=0");
+#if FUSE_USE_VERSION < 30
+    push_arg("nonempty,use_ino,attr_timeout=0,big_writes");
+#else
+    push_arg("attr_timeout=0");
+#endif
 
     /* if there are still extra unparsed arguments, pass them onto FUSE */
     if(optind < argc){

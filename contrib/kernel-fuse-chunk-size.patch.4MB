@@ -1,0 +1,59 @@
+diff -Npru a/fs/fuse/cuse.c b/fs/fuse/cuse.c
+--- a/fs/fuse/cuse.c	2016-07-11 18:30:07.000000000 +0200
++++ b/fs/fuse/cuse.c	2017-02-14 18:35:58.811536147 +0100
+@@ -321,8 +321,8 @@ static void cuse_process_init_reply(stru
+ 	}
+ 
+ 	fc->minor = arg->minor;
+-	fc->max_read = max_t(unsigned, arg->max_read, 4096);
+-	fc->max_write = max_t(unsigned, arg->max_write, 4096);
++	fc->max_read = 4194304;
++	fc->max_write = 4194304;
+ 
+ 	/* parse init reply */
+ 	cc->unrestricted_ioctl = arg->flags & CUSE_UNRESTRICTED_IOCTL;
+diff -Npru a/fs/fuse/fuse_i.h b/fs/fuse/fuse_i.h
+--- a/fs/fuse/fuse_i.h	2016-07-11 18:30:07.000000000 +0200
++++ b/fs/fuse/fuse_i.h	2017-02-14 18:35:58.849536146 +0100
+@@ -25,7 +25,7 @@
+ #include <linux/kref.h>
+ 
+ /** Max number of pages that can be used in a single read request */
+-#define FUSE_MAX_PAGES_PER_REQ 32
++#define FUSE_MAX_PAGES_PER_REQ 1024
+ 
+ /** Bias for fi->writectr, meaning new writepages must not be sent */
+ #define FUSE_NOWRITE INT_MIN
+diff -Npru a/fs/fuse/inode.c b/fs/fuse/inode.c
+--- a/fs/fuse/inode.c	2016-07-11 18:30:07.000000000 +0200
++++ b/fs/fuse/inode.c	2017-02-14 18:35:58.850536146 +0100
+@@ -909,7 +909,7 @@ static void process_init_reply(struct fu
+ 		fc->bdi.ra_pages = min(fc->bdi.ra_pages, ra_pages);
+ 		fc->minor = arg->minor;
+ 		fc->max_write = arg->minor < 5 ? 4096 : arg->max_write;
+-		fc->max_write = max_t(unsigned, 4096, fc->max_write);
++		fc->max_write = 4194304;
+ 		fc->conn_init = 1;
+ 	}
+ 	fuse_set_initialized(fc);
+@@ -1099,7 +1099,7 @@ static int fuse_fill_super(struct super_
+ 	fc->flags = d.flags;
+ 	fc->user_id = d.user_id;
+ 	fc->group_id = d.group_id;
+-	fc->max_read = max_t(unsigned, 4096, d.max_read);
++	fc->max_read = 4194304;
+ 
+ 	/* Used by get_root_inode() */
+ 	sb->s_fs_info = fc;
+diff -Npru a/include/linux/mm.h b/include/linux/mm.h
+--- a/include/linux/mm.h	2016-07-11 18:30:07.000000000 +0200
++++ b/include/linux/mm.h	2017-02-14 18:35:58.851536146 +0100
+@@ -2083,7 +2083,7 @@ int write_one_page(struct page *page, in
+ void task_dirty_inc(struct task_struct *tsk);
+ 
+ /* readahead.c */
+-#define VM_MAX_READAHEAD	128	/* kbytes */
++#define VM_MAX_READAHEAD	4096	/* kbytes */
+ #define VM_MIN_READAHEAD	16	/* kbytes (includes current page) */
+ 
+ int force_page_cache_readahead(struct address_space *mapping, struct file *filp,

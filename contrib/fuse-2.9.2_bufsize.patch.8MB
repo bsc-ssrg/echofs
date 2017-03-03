@@ -1,0 +1,13 @@
+diff --git a/lib/fuse_kern_chan.c b/lib/fuse_kern_chan.c
+index 5f77bbf..6abe4a7 100644
+--- a/lib/fuse_kern_chan.c
++++ b/lib/fuse_kern_chan.c
+@@ -80,7 +80,7 @@ static void fuse_kern_chan_destroy(struct fuse_chan *ch)
+ 	close(fuse_chan_fd(ch));
+ }
+ 
+-#define MIN_BUFSIZE 0x21000
++#define MIN_BUFSIZE 0x801000
+ 
+ struct fuse_chan *fuse_kern_chan_new(int fd)
+ {

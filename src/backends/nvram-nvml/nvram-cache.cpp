@@ -158,6 +158,7 @@ void NVRAM_cache::prefetch(const bfs::path& pathname){
     }
     
     BOOST_LOG_TRIVIAL(debug) << "Prefetching finished: read " << byte_count << "/" << stbuf.st_size << " bytes";
+    BOOST_LOG_TRIVIAL(debug) << "File preloaded to " << dst_abs_path;
 
     BOOST_LOG_TRIVIAL(debug) << "Inserting {" << pathname << ", " << pmem_addr << "}";
 

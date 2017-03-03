@@ -32,23 +32,33 @@ DIST_SUBDIRS = lib tests
 
 END=
 
+if FUSE3_BUILD
+FUSEXX_CFLAGS=@FUSE3_CFLAGS@
+FUSEXX_CPPFLAGS="-DFUSE_USE_VERSION=30"
+FUSEXX_LIBS=@FUSE3_LIBS@
+else
+FUSEXX_CFLAGS=@FUSE_CFLAGS@
+FUSEXX_CPPFLAGS="-DFUSE_USE_VERSION=28"
+FUSEXX_LIBS=@FUSE_LIBS@
+endif
+
+
 bin_PROGRAMS = src/efs-ng
 
 # we need -DBOOST_ALL_DYN_LINK to correctly link boost::log 
 src_efs_ng_CPPFLAGS =		\
-	@FUSE_CFLAGS@			\
+	$(FUSEXX_CPPFLAGS)		\
 	@BOOST_CPPFLAGS@		\
-	-DFUSE_USE_VERSION=28	\
 	-DBOOST_ALL_DYN_LINK	\
 	$(END)
 
 src_efs_ng_CXXFLAGS =       \
-    @FUSE_CFLAGS@			\
+    $(FUSEXX_CFLAGS)		\
     -Wall -Wextra			\
 	$(END)
 
 src_efs_ng_LDFLAGS =		\
-    @FUSE_LIBS@				\
+    $(FUSEXX_LIBS)			\
     @BOOST_LDFLAGS@			\
     @BOOST_SYSTEM_LIB@		\
     @BOOST_FILESYSTEM_LIB@	\
