@@ -75,12 +75,14 @@ src_efs_ng_SOURCES =        				\
     src/command-line.h      				\
     src/configuration.cpp   				\
     src/configuration.h     				\
+    src/efs-common.h                        \
     src/backends/backend.h    				\
     src/backends/backend.cpp    			\
 	src/backends/dram/dram-cache.cpp		\
 	src/backends/dram/dram-cache.h			\
 	src/backends/nvram-nvml/nvram-cache.cpp	\
 	src/backends/nvram-nvml/nvram-cache.h	\
+	src/backends/nvram-nvml/nvm-open-file.h \
     src/efs-ng.cpp          				\
     src/efs-ng.h          					\
     src/logging.cpp        					\

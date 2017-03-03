@@ -1,6 +1,6 @@
 /*************************************************************************
- * (C) Copyright 2016 Barcelona Supercomputing Center                    *
- *                    Centro Nacional de Supercomputacion                *
+ * (C) Copyright 2016-2017 Barcelona Supercomputing Center               *
+ *                         Centro Nacional de Supercomputacion           *
  *                                                                       *
  * This file is part of the Echo Filesystem NG.                          *
  *                                                                       *
@@ -24,60 +24,32 @@
  *                                                                       *
  *************************************************************************/
 
-#ifndef __NVRAM_CACHE_H__
-#define  __NVRAM_CACHE_H__
+#ifndef __NVM_OPEN_FILE_H__
+#define __NVM_OPEN_FILE_H__
 
-#include <string>
-#include <unordered_map>
-#include <boost/filesystem.hpp>
+#include "../../efs-common.h"
 
-#include "../backend.h"
-#include "nvm-open-file.h"
+/* descriptor of an in-NVM mmap()-ed file */
+struct nvm_file_map {
+    data_ptr_t data; /* mapped data */
+    size_t     size; /* mapped size */
+};
 
-namespace bfs = boost::filesystem;
+/* copy of a data block */
+struct nvm_copy {
+    int        generation; /* generation number (1 == 1st copy, 2 == 2nd copy, ...) */
+    off_t      offset;     /* file offset where the block should go */
+    data_ptr_t data;       /* pointer to actual data */
+    int        refs;       /* number of current references to this block */
+};
 
-namespace efsng {
+/* descriptor for an nvm open file */
+struct nvm_open_file {
+    /* TODO skip lists might be a good choice here.
+     * e.g. see: https://github.com/khizmax/libcds 
+     *      for lock-free skip lists */
+    std::vector<nvm_file_map> nvm_maps;   /* list of mmap pools associated to the file */
+    std::vector<nvm_copy>     nvm_copies; /* list of copies */
+};
 
-typedef void* data_ptr_t;
-
-/* class to manage file allocations in NVRAM */
-class NVRAM_cache : public Backend {
-
-    const uint64_t block_size = 4096;
-
-    /* a data chunk */
-    struct chunk{
-        chunk(const data_ptr_t data, const size_t size)
-            : data(data),
-              size(size){ }
-
-        data_ptr_t  data;
-        size_t      size;
-    }; // struct chunk
-
-public:
-    NVRAM_cache() : Backend(0) {} // XXX for backwards compatibility, remove
-
-    NVRAM_cache(int64_t size, bfs::path dax_fs_base, bfs::path root_dir);
-    ~NVRAM_cache();
-
-    uint64_t get_size() const;
-
-    void prefetch(const bfs::path& pathname);
-    bool lookup(const char* pathname, void*& data_addr, size_t& size) const;
-
-private:
-    ssize_t do_copy_to_pmem(char*, int);
-    ssize_t do_copy_to_non_pmem(char*, int);
-
-private:
-    /* mount point of the DAX filesystem needed to access NVRAM */
-    bfs::path dax_fs_base;
-    bfs::path root_dir;
-    /* filename -> data */
-    std::unordered_map<std::string, chunk> entries;
-}; // NVRAM_cache
-
-} // namespace efsng
-
-#endif /* __NVRAM_CACHE_H__ */
+#endif /* __NVM_OPEN_FILE_H__ */

@@ -1,6 +1,6 @@
 /*************************************************************************
- * (C) Copyright 2016 Barcelona Supercomputing Center                    *
- *                    Centro Nacional de Supercomputacion                *
+ * (C) Copyright 2016-2017 Barcelona Supercomputing Center               *
+ *                         Centro Nacional de Supercomputacion           *
  *                                                                       *
  * This file is part of the Echo Filesystem NG.                          *
  *                                                                       *
@@ -24,60 +24,9 @@
  *                                                                       *
  *************************************************************************/
 
-#ifndef __NVRAM_CACHE_H__
-#define  __NVRAM_CACHE_H__
+#ifndef __EFS_COMMON_H__
+#define __EFS_COMMON_H__
 
-#include <string>
-#include <unordered_map>
-#include <boost/filesystem.hpp>
+typedef void* data_ptr_t; // XXX move to common header
 
-#include "../backend.h"
-#include "nvm-open-file.h"
-
-namespace bfs = boost::filesystem;
-
-namespace efsng {
-
-typedef void* data_ptr_t;
-
-/* class to manage file allocations in NVRAM */
-class NVRAM_cache : public Backend {
-
-    const uint64_t block_size = 4096;
-
-    /* a data chunk */
-    struct chunk{
-        chunk(const data_ptr_t data, const size_t size)
-            : data(data),
-              size(size){ }
-
-        data_ptr_t  data;
-        size_t      size;
-    }; // struct chunk
-
-public:
-    NVRAM_cache() : Backend(0) {} // XXX for backwards compatibility, remove
-
-    NVRAM_cache(int64_t size, bfs::path dax_fs_base, bfs::path root_dir);
-    ~NVRAM_cache();
-
-    uint64_t get_size() const;
-
-    void prefetch(const bfs::path& pathname);
-    bool lookup(const char* pathname, void*& data_addr, size_t& size) const;
-
-private:
-    ssize_t do_copy_to_pmem(char*, int);
-    ssize_t do_copy_to_non_pmem(char*, int);
-
-private:
-    /* mount point of the DAX filesystem needed to access NVRAM */
-    bfs::path dax_fs_base;
-    bfs::path root_dir;
-    /* filename -> data */
-    std::unordered_map<std::string, chunk> entries;
-}; // NVRAM_cache
-
-} // namespace efsng
-
-#endif /* __NVRAM_CACHE_H__ */
+#endif /* __EFS_COMMON_H__ */
