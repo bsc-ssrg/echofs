@@ -47,14 +47,68 @@ AX_CHECK_COMPILE_FLAG([-std=c++11], [CXXFLAGS+=" -std=c++11"], [
     exit -1
 ])
 
-# check that FUSE >= 2.6 is available
-PKG_CHECK_MODULES([FUSE], [fuse >= 2.6])
+# check for pkg-config
+PKG_PROG_PKG_CONFIG
+
+# check for fuse3
+AC_ARG_WITH([fuse3], 
+            AS_HELP_STRING([--with-fuse3 @<:@=ARG@:>@ ], 
+                           [Build the filesystem using the FUSE3 library [ARG=yes].
+                            (Note that you may need to specify the paths manually if the library is not installed in a standard locaiton.)])
+)
+
+# check whether FUSE (3.0 or 2.X >= 2.6) is available
+AS_IF([test "x$with_fuse3" = "xyes"], [PKG_CHECK_MODULES([FUSE3], [fuse3])],
+      [test "x$with_fuse3_4mb" = "xyes"], [PKG_CHECK_MODULES([FUSE3], [fuse3_4mb])],
+      [test "x$with_fuse3_8mb" = "xyes"], [PKG_CHECK_MODULES([FUSE3], [fuse3_8mb])],
+      [test "x$with_fuse3_12mb" = "xyes"], [PKG_CHECK_MODULES([FUSE3], [fuse3_12mb])],
+      [PKG_CHECK_MODULES([FUSE], [fuse >= 2.6])]
+)
+
+
+# WARNING: the following options are for testing purposes only and should
+# not be used in production
+AC_ARG_WITH([fuse3-4mb], 
+            AS_HELP_STRING([--with-fuse3-4mb @<:@=ARG@:>@ ], 
+                           [Build the filesystem using the FUSE3 library (4mb transfer size) [ARG=yes].
+                            (EXPERIMENTAL.)])
+)
+
+##
+AC_ARG_WITH([fuse3-8mb], 
+            AS_HELP_STRING([--with-fuse3-8mb @<:@=ARG@:>@ ], 
+                           [Build the filesystem using the FUSE3 library (8mb transfer size) [ARG=yes].
+                            (EXPERIMENTAL.)])
+)
+
+##
+AC_ARG_WITH([fuse3-12mb], 
+            AS_HELP_STRING([--with-fuse3-12mb @<:@=ARG@:>@ ], 
+                           [Build the filesystem using the FUSE3 library (12mb transfer size) [ARG=yes].
+                            (EXPERIMENTAL.)])
+)
+
+AM_CONDITIONAL([FUSE3_BUILD], 
+               [test "x$with_fuse3" = "xyes" || 
+                test "x$with_fuse3_4mb" = "xyes" ||
+                test "x$with_fuse3_8mb" = "xyes" ||
+                test "x$with_fuse3_12mb" = "xyes" ])
 
 # check for several functions and libraries that affect FUSE's behavior 
-AC_CHECK_FUNCS(setxattr fdatasync utimensat)
+AC_CHECK_FUNCS(setxattr fdatasync fstatat utimensat)
 AC_CHECK_FUNCS([posix_fallocate])
 AC_CHECK_LIB(ulockmgr, ulockmgr_op)
-FUSE_LIBS+=$LIBS
+
+if [ test "x$with_fuse3" == "xyes" ||
+     test "x$with_fuse3_4mb" == "xyes" ||
+     test "x$with_fuse3_8mb" == "xyes" ||
+     test "x$with_fuse3_12mb" == "xyes" ]; 
+then
+    FUSE3_LIBS+=$LIBS
+else
+    FUSE_LIBS+=$LIBS
+fi
+
 LIBS=
 
 # check for some BOOST libraries
