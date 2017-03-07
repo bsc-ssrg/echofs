@@ -37,7 +37,7 @@
 
 /* internal includes */
 #include "../../logging.h"
-#include "nvram-cache.h"
+#include "nvram-nvml.h"
 
 namespace boost { namespace filesystem {
 
