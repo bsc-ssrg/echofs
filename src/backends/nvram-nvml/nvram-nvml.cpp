@@ -77,21 +77,21 @@ boost::filesystem::path make_relative( boost::filesystem::path a_From, boost::fi
 
 namespace efsng {
 
-NVRAM_cache::NVRAM_cache(int64_t size, bfs::path dax_fs_base, bfs::path root_dir)
+NVML_backend::NVML_backend(int64_t size, bfs::path dax_fs_base, bfs::path root_dir)
     : Backend(size),
       dax_fs_base(dax_fs_base),
       root_dir(root_dir) {
 }
 
-NVRAM_cache::~NVRAM_cache(){
+NVML_backend::~NVML_backend(){
 }
 
-uint64_t NVRAM_cache::get_size() const {
+uint64_t NVML_backend::get_size() const {
     return max_size;
 }
 
 /** start the prefetch process of a file requested by the user */
-void NVRAM_cache::prefetch(const bfs::path& pathname){
+void NVML_backend::prefetch(const bfs::path& pathname){
 
     BOOST_LOG_TRIVIAL(debug) << "Prefetching file " << pathname;
 
@@ -170,7 +170,7 @@ void NVRAM_cache::prefetch(const bfs::path& pathname){
 }
 
 /** lookup an entry */
-bool NVRAM_cache::lookup(const char* pathname, void*& data_addr, size_t& size) const {
+bool NVML_backend::lookup(const char* pathname, void*& data_addr, size_t& size) const {
 
     (void) pathname;
     (void) data_addr;
@@ -191,7 +191,7 @@ bool NVRAM_cache::lookup(const char* pathname, void*& data_addr, size_t& size) c
     return true;
 }
 
-ssize_t NVRAM_cache::do_copy_to_pmem(char* addr, int fd){
+ssize_t NVML_backend::do_copy_to_pmem(char* addr, int fd){
 
     char* buf = (char*) malloc(block_size*sizeof(*buf));
 
@@ -224,7 +224,7 @@ ssize_t NVRAM_cache::do_copy_to_pmem(char* addr, int fd){
     return total;
 }
 
-ssize_t NVRAM_cache::do_copy_to_non_pmem(char* addr, int fd){
+ssize_t NVML_backend::do_copy_to_non_pmem(char* addr, int fd){
 
     char* buf = (char*) malloc(block_size*sizeof(*buf));
 

@@ -40,8 +40,8 @@ namespace efsng {
 
 typedef void* data_ptr_t;
 
-/* class to manage file allocations in NVRAM */
-class NVRAM_cache : public Backend {
+/* class to manage file allocations in NVRAM based on the NVML library */
+class NVML_backend : public Backend {
 
     const uint64_t block_size = 4096;
 
@@ -56,10 +56,10 @@ class NVRAM_cache : public Backend {
     }; // struct chunk
 
 public:
-    NVRAM_cache() : Backend(0) {} // XXX for backwards compatibility, remove
+    NVML_backend() : Backend(0) {} // XXX for backwards compatibility, remove
 
-    NVRAM_cache(int64_t size, bfs::path dax_fs_base, bfs::path root_dir);
-    ~NVRAM_cache();
+    NVML_backend(int64_t size, bfs::path dax_fs_base, bfs::path root_dir);
+    ~NVML_backend();
 
     uint64_t get_size() const;
 
@@ -76,7 +76,7 @@ private:
     bfs::path root_dir;
     /* filename -> data */
     std::unordered_map<std::string, chunk> entries;
-}; // NVRAM_cache
+}; // NVML_backend
 
 } // namespace efsng
 
