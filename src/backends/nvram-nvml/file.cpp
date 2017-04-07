@@ -24,28 +24,46 @@
  *                                                                       *
  *************************************************************************/
 
-#ifndef __EFS_COMMON_H__
-#define __EFS_COMMON_H__
-
-#include <cstdint>
+#include "file.h"
+#include <iostream>
 
 namespace efsng {
+namespace nvml {
 
-using data_ptr_t = void *;
 
-const uint64_t EFS_BLOCK_SIZE  = 0x000400000; // 4MiB
-const uint64_t FUSE_BLOCK_SIZE = 0x000400000; // 4MiB
-
-template <typename T>
-inline T align(const T n, const T block_size) {
-    return n & ~(block_size - 1);
+file::file() 
+    : Backend::file() {
 }
 
-template <typename T>
-inline T xalign(const T n, const T block_size) {
-    return align(n + block_size, block_size);
+file::file(mapping& mp) 
+    : efsng::Backend::file() {
+        (void) mp;
+
+    std::cerr << mp << "\n";
+
+
+//    m_mappings.push_back(std::move(mp));
+    m_mappings.emplace_back(std::move(mp));
+
+    std::cerr << m_mappings.back() << "\n";
+
+
+std::cerr << "file(mapping& mp) end\n";
+
 }
 
+
+void file::add(const mapping& mp) {
+        (void) mp;
+//    m_mappings.push_back(std::move(mp));
+}
+
+void file::add_m(const bfs::path& prefix, const bfs::path& base_path, size_t min_size) {
+    m_mappings.emplace_back(prefix, base_path, min_size);
+}
+
+} // namespace nvml
 } // namespace efsng
 
-#endif /* __EFS_COMMON_H__ */
+
+

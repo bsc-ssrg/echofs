@@ -38,20 +38,21 @@
 #include "dram-cache.h"
 
 namespace efsng {
+namespace dram {
 
-DRAM_cache::DRAM_cache(int64_t size)
-    : Backend(size){
+dram_backend::dram_backend(int64_t size)
+    : efsng::Backend(size){
 }
 
-DRAM_cache::~DRAM_cache(){
+dram_backend::~dram_backend(){
 }
 
-uint64_t DRAM_cache::get_size() const {
+uint64_t dram_backend::get_size() const {
     return max_size;
 }
 
 /** start the prefetch process of a file requested by the user */
-void DRAM_cache::prefetch(const bfs::path& pathname){
+void dram_backend::prefetch(const bfs::path& pathname){
 
     BOOST_LOG_TRIVIAL(debug) << "Prefetching file " << pathname;
 
@@ -121,8 +122,32 @@ void DRAM_cache::prefetch(const bfs::path& pathname){
     }
 }
 
+bool dram_backend::exists(const char* pathname) const {
+    return entries.find(pathname) != entries.end();
+}
+
+efsng::Backend::iterator dram_backend::find(const char* path) {
+    //return entries.find(path);
+}
+
+efsng::Backend::iterator dram_backend::begin() {
+    //return entries.begin();
+}
+
+efsng::Backend::iterator dram_backend::end() {
+    //return entries.end();
+}
+
+efsng::Backend::const_iterator dram_backend::cbegin() {
+    //return entries.cbegin();
+}
+
+efsng::Backend::const_iterator dram_backend::cend() {
+    //return entries.cend();
+}
+
 /** lookup an entry */
-bool DRAM_cache::lookup(const char* pathname, void*& data_addr, size_t& size) const {
+bool dram_backend::lookup(const char* pathname, void*& data_addr, size_t& size) const {
 
     auto it = entries.find(pathname);
 
@@ -131,13 +156,16 @@ bool DRAM_cache::lookup(const char* pathname, void*& data_addr, size_t& size) co
         return false;
     }
 
+#if 0
     BOOST_LOG_TRIVIAL(debug) << "Prefetched data found at:" << it->second.data;
 
     data_addr = it->second.data;
     size = it->second.size;
+#endif
 
     return true;
 }
 
 
+} // namespace dram
 } //namespace efsng

@@ -1158,7 +1158,8 @@ static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t 
             continue;
         }
 
-        if(bend->lookup(pathname, chunk_data, chunk_size)){
+        //if(bend->lookup(pathname, chunk_data, chunk_size)){
+        if(bend->exists(pathname)){
             file_cached = true;
             break;
         }
@@ -1253,24 +1254,83 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
 
     BOOST_LOG_TRIVIAL(debug) << "  Searching preloaded data for \"" << pathname << "\"";
 
-    void* chunk_data = nullptr;
-    size_t chunk_size = 0;
-    bool file_cached = false;
+
+    efsng::Backend* bend_ptr = nullptr;
+    efsng::Backend::file* file_ptr = nullptr;
 
     /* search file in available backends */
     /* FIXME it would be better to have this information already cached somewhere
      * IDEA: bloom filter? (see http://blog.michaelschmatz.com/2016/04/11/how-to-write-a-bloom-filter-cpp/) */
-    for(const auto& bend: efsng_ctx->backends){
+    //for(const auto& bend: efsng_ctx->backends){
+    for(auto bend: efsng_ctx->backends){
 
-        if(bend == NULL){
+        if(bend == nullptr){
             continue;
         }
 
-        if(bend->lookup(pathname, chunk_data, chunk_size)){
-            file_cached = true;
+        // XXX in the future, if it's possible that a file
+        // is removed from the backend by another thread 
+        // (e.g. to be copied to Lustre) we should add a
+        // lock_guard and add a reference count to the file
+        // so that the process doesn't happen while someone
+        // is using it
+        const auto& it = bend->find(pathname);
+
+        //XXX it would be better to "return" the iterators
+        // directly
+        if(it != bend->end()){
+            bend_ptr = bend;
+            file_ptr = it->second.get();
             break;
         }
     }
+
+    // file available in a caching backend
+    if(bend_ptr != nullptr && file_ptr != nullptr){
+        efsng::Backend::buffer_map bmap;
+
+        bend_ptr->read_data(*file_ptr, offset, size, bmap);
+
+        /* the FUSE interface forces us to allocate a buffer using malloc() and 
+         * memcpy() the requested data in order to return it back to the user. meh */
+        void* buffer = (void*) malloc(bmap.m_size);
+
+        if(buffer == NULL){
+            return -ENOMEM;
+        }
+
+        size_t copied = 0;
+
+        for(const auto& b : bmap){
+            efsng::data_ptr_t data = b.first;
+            size_t size = b.second;
+
+            memcpy((uintptr_t*)buffer + copied, (void*) data, size);
+            copied += size;
+        }
+
+        assert(copied == bmap.m_size);
+
+        src->buf[0].flags = (fuse_buf_flags) (~FUSE_BUF_IS_FD);
+        src->buf[0].mem = buffer;
+        src->buf[0].size = bmap.m_size;
+
+    }
+    else{
+        /* not available in a caching backend, read directly from the underlying filesystem */
+        src->buf[0].flags = (fuse_buf_flags) (FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
+        src->buf[0].fd = file_record->get_fd();
+        src->buf[0].pos = offset;
+    }
+
+    *bufp = src;
+    return 0;
+
+
+
+#if 0 
+    // old code, remove
+
 
     if(!file_cached){
         /* not available in DRAM nor NVRAM, read directly from the underlying filesystem */
@@ -1308,6 +1368,7 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
     *bufp = src;
 
     return 0;
+#endif
 }
 
 /**

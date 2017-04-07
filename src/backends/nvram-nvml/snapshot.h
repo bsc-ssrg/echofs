@@ -24,28 +24,29 @@
  *                                                                       *
  *************************************************************************/
 
-#ifndef __EFS_COMMON_H__
-#define __EFS_COMMON_H__
+#ifndef __SNAPSHOT_H__
+#define __SNAPSHOT_H__
 
-#include <cstdint>
+#include "mapping.h"
 
 namespace efsng {
+namespace nvml {
 
-using data_ptr_t = void *;
+/* frozen representation of a mapping state in time 
+ * does not claim ownership of the resources, which still 
+ * belong to the mapping */
+struct snapshot {
+    data_ptr_t                  m_data;     /* mapped data */
+    off_t                       m_offset;   /* base offset within file */
+    size_t                      m_size;     /* mapped size */
+    size_t                      m_bytes;    /* used size */
+    std::list<data_copy>        m_copies;   /* block copies */
 
-const uint64_t EFS_BLOCK_SIZE  = 0x000400000; // 4MiB
-const uint64_t FUSE_BLOCK_SIZE = 0x000400000; // 4MiB
+    snapshot(const mapping& mapping);
+};
 
-template <typename T>
-inline T align(const T n, const T block_size) {
-    return n & ~(block_size - 1);
-}
 
-template <typename T>
-inline T xalign(const T n, const T block_size) {
-    return align(n + block_size, block_size);
-}
-
+} // namespace nvml
 } // namespace efsng
 
-#endif /* __EFS_COMMON_H__ */
+#endif /* __SNAPSHOT_H__ */

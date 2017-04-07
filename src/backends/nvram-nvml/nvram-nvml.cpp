@@ -31,13 +31,25 @@
 #include <fcntl.h>
 
 
+#include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_io.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+#include <memory>
 
 #include <libpmem.h>
 
 /* internal includes */
 #include "../../logging.h"
+#include "../../utils.hpp"
+#include "file.h"
+#include "mapping.h"
+#include "snapshot.h"
+#include "posix-file.h"
 #include "nvram-nvml.h"
+
+//XXX move this to common header
 
 namespace boost { namespace filesystem {
 
@@ -76,183 +88,241 @@ boost::filesystem::path make_relative( boost::filesystem::path a_From, boost::fi
 
 
 namespace efsng {
+namespace nvml {
 
-NVML_backend::NVML_backend(int64_t size, bfs::path dax_fs_base, bfs::path root_dir)
+nvml_backend::nvml_backend(uint64_t size, bfs::path daxfs_mount, bfs::path root_dir)
     : Backend(size),
-      dax_fs_base(dax_fs_base),
-      root_dir(root_dir) {
+      m_daxfs_mount_point(daxfs_mount),
+      m_root_dir(root_dir) {
 }
 
-NVML_backend::~NVML_backend(){
+nvml_backend::~nvml_backend(){
 }
 
-uint64_t NVML_backend::get_size() const {
+uint64_t nvml_backend::get_size() const {
     return max_size;
 }
 
-/** start the prefetch process of a file requested by the user */
-void NVML_backend::prefetch(const bfs::path& pathname){
+std::string nvml_backend::compute_prefix(const bfs::path& basepath){
+    const bfs::path relpath = make_relative(m_root_dir, basepath);
+    std::string mp_prefix = relpath.string();
+    //std::replace(mp_prefix.begin(), mp_prefix.end(), bfs::path::preferred_separator, '_');
+    std::replace(mp_prefix.begin(), mp_prefix.end(), '/', '_');
 
-    BOOST_LOG_TRIVIAL(debug) << "Prefetching file " << pathname;
+    return mp_prefix;
+}
+
+/** start the prefetch process of a file requested by the user */
+void nvml_backend::prefetch(const bfs::path& pathname){
+
+    BOOST_LOG_TRIVIAL(debug) << "Loading file " << pathname << " into NVM..."; 
 
     /* open the file */
-    int fd = open(pathname.c_str(), O_RDONLY);
+    posix::file fd(pathname);
 
-    if(fd == -1){
-        BOOST_LOG_TRIVIAL(error) << "Unable to preload file " << pathname << ": " << strerror(errno);
-        return;
+    /* compute an appropriate path for the mapping file */
+    std::string mp_prefix = compute_prefix(pathname);
+
+    /* create a mapping and fill it with the current contents of the file */
+    mapping mp(mp_prefix, m_daxfs_mount_point, fd.get_size());
+    mp.populate(fd);
+    fd.close();
+
+    /* add the mapping to m_files */
+    BOOST_LOG_TRIVIAL(debug) << "Transfer complete (" << mp.m_bytes << ")";
+
+    //auto foo = new nvml::file(mp);
+
+    std::cerr << "temporary before insert\n";
+    std::cerr << mp << "\n";
+
+    auto rv = m_files.insert(std::make_pair(
+        pathname.c_str(),
+        std::make_unique<nvml::file>(mp)
+        //nvml::file{mp}
+        //std::move(*foo)
+        )
+    );
+
+    std::cerr << "temporary after insert\n";
+    std::cerr << mp << "\n";
+
+
+
+    std::cerr << rv.second << "\n";
+
+    auto xit = rv.first;
+
+    auto fff = dynamic_cast<const nvml::file*>(xit->second.get());
+
+    for(const mapping& mpp : fff->m_mappings) {
+
+std::cerr << "Retrieved:\n";
+
+std::cerr << "mapping{" << "\n";
+std::cerr << "  m_name: " << mpp.m_name << "\n";
+std::cerr << "  m_data: " << mpp.m_data << "\n";
+std::cerr << "  m_offset: " << mpp.m_offset << "\n";
+std::cerr << "  m_size: " << mpp.m_size << "\n";
+std::cerr << "  m_bytes: " << mpp.m_bytes << "\n";
+std::cerr << "  m_is_pmem: " << mpp.m_is_pmem << "\n";
+std::cerr << "  m_copies.size(): " << mpp.m_copies.size() << "\n";
+std::cerr << "  m_pmutex: " << mpp.m_pmutex.get() << "\n";
+std::cerr << "};" << "\n";
+
+        //std::cerr << mpp.m_pmutex << "\n";
+        //std::cerr << mpp << "\n";
+
     }
 
-    /* determine the size of the file */
-    struct stat stbuf;
 
-    if(fstat(fd, &stbuf) == -1){
-        BOOST_LOG_TRIVIAL(error) << "Unable to determine the size of file " << pathname << ": " << strerror(errno);
-        return;
-    }
+#if 0
+    { // test 
+        const auto& it = m_files.find(pathname.c_str());
 
-    /* create a corresponding file in pmem by memory mapping it */
-    void* pmem_addr;
-    size_t mapped_len;
-    int is_pmem;
+        assert(it != m_files.end());
 
-    const bfs::path relpath = make_relative(root_dir, pathname);
-    const bfs::path dst_abs_path = dax_fs_base / relpath;
+        const auto& ff = static_cast<const nvml::file&>(it->second);
 
-    /* if the mapping file already exists delete it, since we can't trust that it's the same file */
-    /* XXX we may need to change this in the future */
-    if(bfs::exists(dst_abs_path)){
-        if(unlink(dst_abs_path.c_str()) != 0){
-            BOOST_LOG_TRIVIAL(error) << "Unable to remove file " << dst_abs_path << ": " << strerror(errno);
-            return;
+        for(const auto& mpp : ff.m_mappings) {
+            //std::lock_guard<std::mutex>(*mpp.m_mutex);
         }
+
+    }
+#endif
+
+    /* lock_guard is automatically released here */
+}
+
+bool nvml_backend::exists(const char* pathname) const {
+
+    std::lock_guard<std::mutex> lock(m_files_mutex);
+
+    const auto& it = m_files.find(pathname);
+
+    // XXX it is safe to unlock the mutex here BECAUSE WE KNOW
+    // that no other threads are going to remove a mapping from
+    // the list; this happens because mappings are ONLY destroyed
+    // when the std::list destructor is called (and we make sure that
+    // this is done in a thread-safe manner). If this assumption ever
+    // changes, we may NEED to revise this.
+    return it != m_files.end();
+}
+
+/* build and return a list of all mapping regions affected by the read() operation */
+void nvml_backend::read_data(const Backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const {
+
+    const nvml::file& f = dynamic_cast<const nvml::file&>(file);
+
+    std::list<snapshot> snaps;
+
+    for(const auto& mp : f.m_mappings) {
+
+        // lock the mapping to make sure that there are no changes between
+        // checking if we should process it and creating an snapshot for it
+        std::lock_guard<std::mutex> lock(*mp.m_pmutex);
+
+        // if the mapping exceeds the region affected by 
+        // the operation, we can stop
+        if(mp.m_offset >= (off_t) (offset + size)) {
+            break;
+        }
+
+        // check if the mapping is affected by the operation and, if so,
+        // create a snapshot of its current state and store it for later use
+        if(mp.overlaps(offset, size)) {
+            snaps.emplace_back(mp);
+        }
+
+        // lock is released here
     }
 
-    if((pmem_addr = pmem_map_file(dst_abs_path.c_str(), stbuf.st_size, PMEM_FILE_CREATE | PMEM_FILE_EXCL,
-                                  0666, &mapped_len, &is_pmem)) == NULL) {
-        BOOST_LOG_TRIVIAL(error) << "Unable to create pmem file " << dst_abs_path << ": " << strerror(errno);
-        return;
+    // from this point on, threads should work EXCLUSIVELY with 
+    // the snapshots to compute the data that must be returned to the user,
+    // for the sake of reducing contention. We now build a buffer map based 
+    // on the snapshots collected
+    for(const auto& sn : snaps) {
+
+        data_ptr_t buf_start = 0;
+        size_t buf_size = 0;
+
+        data_ptr_t mp_data = sn.m_data;
+        off_t mp_offset = sn.m_offset;
+        size_t mp_size = sn.m_size;
+        size_t mp_bytes = sn.m_bytes;
+
+        if(offset <= mp_offset) {
+            buf_start = mp_data;
+        }
+        else {
+            buf_start = (uintptr_t*)mp_data + offset - mp_offset;
+        }
+
+        if(offset + size >= mp_offset + mp_size) {
+            buf_size = mp_size;
+        }
+        else {
+            // if the mapping contains less data than 
+            // requested we need to account for it
+            buf_size = std::min(offset + size - mp_offset, mp_bytes);
+        }
+
+        bufmap.emplace_back(buf_start, buf_size);
     }
 
-    /* check that the range allocated is of the required size */
-    if((off_t)mapped_len != stbuf.st_size){
-        BOOST_LOG_TRIVIAL(error) << "NVRAM file mapping of different size than requested";
-        pmem_unmap(pmem_addr, mapped_len);
-        return;
-    }
-
-    ssize_t byte_count = 0;
-
-    /* determine if the range allocated is true pmem and call the appropriate copy routine */
-    if(is_pmem){
-        byte_count = do_copy_to_pmem((char*) pmem_addr, fd);
-    }
-    else{
-        byte_count = do_copy_to_non_pmem((char*) pmem_addr, fd);
-    }
-
-    /* the fd can be closed safely */
-    if(close(fd) == -1){
-        BOOST_LOG_TRIVIAL(error) << "Unable to close file descriptor for " << pathname << ": " << strerror(errno);
-        return;
-    }
-    
-    BOOST_LOG_TRIVIAL(debug) << "Prefetching finished: read " << byte_count << "/" << stbuf.st_size << " bytes";
-    BOOST_LOG_TRIVIAL(debug) << "File preloaded to " << dst_abs_path;
-
-    BOOST_LOG_TRIVIAL(debug) << "Inserting {" << pathname << ", " << pmem_addr << "}";
-
-    entries.insert({
-            pathname.c_str(), 
-            std::move(chunk(pmem_addr, byte_count))
-    });
+    // XXX WARNING: the snapshots are currently deleted here. We don't know 
+    // (yet) if this is really what we need
+    std::cerr << "Deleting snapshots!\n";
 
 }
 
+void nvml_backend::write_data(const Backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const {
+
+}
+
+Backend::iterator nvml_backend::find(const char* path) {
+    return m_files.find(path);
+}
+
+Backend::iterator nvml_backend::begin() {
+    return m_files.begin();
+}
+
+Backend::iterator nvml_backend::end() {
+    return m_files.end();
+}
+
+Backend::const_iterator nvml_backend::cbegin() {
+    return m_files.cbegin();
+}
+
+Backend::const_iterator nvml_backend::cend() {
+    return m_files.cend();
+}
+
 /** lookup an entry */
-bool NVML_backend::lookup(const char* pathname, void*& data_addr, size_t& size) const {
+bool nvml_backend::lookup(const char* pathname, void*& data_addr, size_t& size) const {
 
     (void) pathname;
     (void) data_addr;
     (void) size;
 
-    auto it = entries.find(pathname);
+    const auto& it = m_files.find(pathname);
 
-    if(it == entries.end()){
+    if(it == m_files.end()){
         BOOST_LOG_TRIVIAL(debug) << "Prefetched data not found";
         return false;
     }
 
+#if 0
     BOOST_LOG_TRIVIAL(debug) << "Prefetched data found at:" << it->second.data;
 
     data_addr = it->second.data;
     size = it->second.size;
+#endif
 
     return true;
 }
 
-ssize_t NVML_backend::do_copy_to_pmem(char* addr, int fd){
-
-    char* buf = (char*) malloc(block_size*sizeof(*buf));
-
-    if(buf == NULL){
-        BOOST_LOG_TRIVIAL(error) << "Unable to allocate temporary buffer: " << strerror(errno);
-    }
-
-    ssize_t total = 0;
-    ssize_t n;
-
-    while((n = read(fd, buf, block_size)) != 0){
-
-        if(n == -1){
-            if(errno != EINTR){
-                BOOST_LOG_TRIVIAL(error) << "Error while reading: " << strerror(errno);
-                return n;
-            }
-            /* EINTR, repeat  */
-            continue;
-        }
-
-        pmem_memcpy_nodrain(addr, buf, n);
-        addr += n;
-        total += n;
-    }
-
-    /* flush caches */
-    pmem_drain();
-
-    return total;
-}
-
-ssize_t NVML_backend::do_copy_to_non_pmem(char* addr, int fd){
-
-    char* buf = (char*) malloc(block_size*sizeof(*buf));
-
-    if(buf == NULL){
-        BOOST_LOG_TRIVIAL(error) << "Unable to allocate temporary buffer: " << strerror(errno);
-    }
-
-    ssize_t total = 0;
-    ssize_t n;
-
-    while((n = read(fd, buf, block_size)) != 0){
-
-        if(n == -1){
-            if(errno != EINTR){
-                BOOST_LOG_TRIVIAL(error) << "Error while reading: " << strerror(errno);
-                return n;
-            }
-            /* EINTR, repeat  */
-            continue;
-        }
-
-        memcpy(addr, buf, n);
-        addr += n;
-        total += n;
-    }
-
-    return total;
-}
-
-
+} // namespace nvml
 } //namespace efsng

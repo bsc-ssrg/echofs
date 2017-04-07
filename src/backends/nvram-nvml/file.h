@@ -24,32 +24,38 @@
  *                                                                       *
  *************************************************************************/
 
-#ifndef __NVM_OPEN_FILE_H__
-#define __NVM_OPEN_FILE_H__
+#ifndef __FILE_H__
+#define __FILE_H__
 
 #include "../../efs-common.h"
+#include "mapping.h"
+#include "../backend.h"
 
-/* descriptor of an in-NVM mmap()-ed file */
-struct nvm_file_map {
-    data_ptr_t data; /* mapped data */
-    size_t     size; /* mapped size */
-};
+namespace bfs = boost::filesystem;
 
-/* copy of a data block */
-struct nvm_copy {
-    int        generation; /* generation number (1 == 1st copy, 2 == 2nd copy, ...) */
-    off_t      offset;     /* file offset where the block should go */
-    data_ptr_t data;       /* pointer to actual data */
-    int        refs;       /* number of current references to this block */
-};
+namespace efsng {
+namespace nvml {
 
-/* descriptor for an nvm open file */
-struct nvm_open_file {
+/* descriptor for a file loaded onto NVML */
+struct file : public Backend::file {
     /* TODO skip lists might be a good choice here.
      * e.g. see: https://github.com/khizmax/libcds 
      *      for lock-free skip lists */
-    std::vector<nvm_file_map> nvm_maps;   /* list of mmap pools associated to the file */
-    std::vector<nvm_copy>     nvm_copies; /* list of copies */
+    std::list<mapping>   m_mappings; /* list of mappings associated to the file */
+
+    file();
+    file(mapping& mp);
+
+    ~file(){
+        std::cerr << "a nvml::file instance died...\n";
+    }
+
+    void add(const mapping& mp);
+    void add_m(const bfs::path& prefix, const bfs::path& base_path, size_t min_size);
 };
 
-#endif /* __NVM_OPEN_FILE_H__ */
+} // namespace nvml
+} // namespace efsng
+
+
+#endif /* __FILE_H__ */

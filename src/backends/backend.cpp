@@ -58,7 +58,7 @@ Backend* Backend::backend_factory(const std::string& type, const kv_list& backen
             BOOST_LOG_TRIVIAL(error) << "Mandatory arguments missing for " << type << " backend"; 
         }
 
-        return new DRAM_cache(bend_size);
+        return new dram::dram_backend(bend_size);
 
     }
     else if(type == "NVRAM-NVML"){
@@ -90,7 +90,7 @@ Backend* Backend::backend_factory(const std::string& type, const kv_list& backen
             BOOST_LOG_TRIVIAL(error) << "Mandatory arguments missing for " << type << " backend"; 
         }
 
-        return new NVML_backend(bend_size, dax_fs_path, root_dir);
+        return new nvml::nvml_backend(bend_size, dax_fs_path, root_dir);
 
     }
 
@@ -166,3 +166,28 @@ int64_t Backend::parse_size(const std::string& str){
 }
 
 } // namespace efsng
+
+#ifdef __DEBUG__
+std::ostream& operator<<(std::ostream& os, const efsng::Backend::buffer& buf){
+
+    os << "buffer {\n"
+       << "  m_data_ptr: " << buf.first << "\n"
+       << "  m_size: " << buf.second << "\n"
+       << "};\n";
+
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const efsng::Backend::buffer_map& bmap){
+
+    os << "buffer_map {\n";
+
+    for(const auto& buf: bmap){
+        os << buf;
+    }
+
+    os << "};\n";
+
+    return os;
+}
+#endif

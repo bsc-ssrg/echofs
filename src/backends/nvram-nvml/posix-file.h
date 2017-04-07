@@ -24,28 +24,30 @@
  *                                                                       *
  *************************************************************************/
 
-#ifndef __EFS_COMMON_H__
-#define __EFS_COMMON_H__
+#ifndef __POSIX_FILE_H__
+#define __POSIX_FILE_H__
 
-#include <cstdint>
+#include <fcntl.h>
+#include <boost/filesystem.hpp>
+
+namespace bfs = boost::filesystem;
 
 namespace efsng {
+namespace posix {
 
-using data_ptr_t = void *;
+/* class to encapsulate a standard Unix file descriptor so that we can rely on RAII */
+struct file {
+    int       m_fd;       /* file descriptor */
+    bfs::path m_pathname; /* pathname */
 
-const uint64_t EFS_BLOCK_SIZE  = 0x000400000; // 4MiB
-const uint64_t FUSE_BLOCK_SIZE = 0x000400000; // 4MiB
+    file(const bfs::path& pathname, int flags=O_RDONLY);
+    ~file();
 
-template <typename T>
-inline T align(const T n, const T block_size) {
-    return n & ~(block_size - 1);
-}
+    size_t get_size() const;
+    void close();
+};
 
-template <typename T>
-inline T xalign(const T n, const T block_size) {
-    return align(n + block_size, block_size);
-}
-
+} // namespace posix
 } // namespace efsng
 
-#endif /* __EFS_COMMON_H__ */
+#endif /* __POSIX_FILE_H__ */

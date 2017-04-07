@@ -36,38 +36,53 @@
 namespace bfs = boost::filesystem;
 
 namespace efsng {
+namespace dram {
 
 typedef void* data_ptr_t;
 
 /* class to manage file allocations in DRAM */
-class DRAM_cache : public Backend {
+class dram_backend : public efsng::Backend {
 
     /* a data chunk */
-    struct chunk{
+    struct chunk : efsng::Backend::file {
         chunk(const data_ptr_t data, const size_t size)
             : data(data),
             size(size){ }
+
+        ~chunk(){}
 
         data_ptr_t  data;
         size_t      size;
     }; // struct chunk
 
 public:
-    DRAM_cache() : Backend(0) {} // XXX for backwards compatibility, remove
+    dram_backend() : Backend(0) {} // XXX for backwards compatibility, remove
 
-    DRAM_cache(int64_t size);
-    ~DRAM_cache();
+    dram_backend(int64_t size);
+    ~dram_backend();
 
     uint64_t get_size() const;
 
     void prefetch(const bfs::path& pathname);
+    // deprecated
     bool lookup(const char* pathname, void*& data_addr, size_t& size) const;
+
+    bool exists(const char* pathname) const;
+    void read_data(const Backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const {};
+    void write_data(const Backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const {};
+
+    efsng::Backend::iterator find(const char* path);
+    efsng::Backend::iterator begin();
+    efsng::Backend::iterator end();
+    efsng::Backend::const_iterator cbegin();
+    efsng::Backend::const_iterator cend();
 
 private:
     /* filename -> data */
-    std::unordered_map<std::string, chunk> entries;
-}; // DRAM_cache
+    std::unordered_map<std::string, efsng::Backend::file> entries;
+}; // dram_backend
 
+} // namespace dram
 } // namespace efsng
 
 #endif /* __DRAM_CACHE_H__ */

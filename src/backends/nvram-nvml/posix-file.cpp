@@ -24,28 +24,53 @@
  *                                                                       *
  *************************************************************************/
 
-#ifndef __EFS_COMMON_H__
-#define __EFS_COMMON_H__
+#include <sys/types.h>
+#include <sys/stat.h>
 
-#include <cstdint>
+#include "../../logging.h"
+#include "posix-file.h"
 
 namespace efsng {
+namespace posix {
 
-using data_ptr_t = void *;
+file::file(const bfs::path& pathname, int flags)
+    : m_fd(-1),
+      m_pathname(pathname){
 
-const uint64_t EFS_BLOCK_SIZE  = 0x000400000; // 4MiB
-const uint64_t FUSE_BLOCK_SIZE = 0x000400000; // 4MiB
+    m_fd = ::open(pathname.c_str(), flags);
 
-template <typename T>
-inline T align(const T n, const T block_size) {
-    return n & ~(block_size - 1);
+    if(m_fd == -1){
+        BOOST_LOG_TRIVIAL(error) << "Error loading file " << m_pathname << ": " << strerror(errno);
+        throw std::runtime_error("");
+    }
 }
 
-template <typename T>
-inline T xalign(const T n, const T block_size) {
-    return align(n + block_size, block_size);
+file::~file(){
+    if(m_fd != -1 && ::close(m_fd) == -1){
+        BOOST_LOG_TRIVIAL(error) << "Error closing file " << m_pathname << ": " << strerror(errno);
+    }
 }
 
+size_t file::get_size() const {
+
+    struct stat stbuf;
+
+    if(fstat(m_fd, &stbuf) == -1){
+        BOOST_LOG_TRIVIAL(error) << "Error finding size of file " << m_pathname << ": " << strerror(errno);
+        return 0;
+    }
+
+    return stbuf.st_size;
+}
+
+void file::close() {
+    if(m_fd != -1 && ::close(m_fd) == -1){
+        BOOST_LOG_TRIVIAL(error) << "Error closing file " << m_pathname << ": " << strerror(errno);
+        return;
+    }
+
+    m_fd = -1;
+}
+
+} // namespace posix
 } // namespace efsng
-
-#endif /* __EFS_COMMON_H__ */

@@ -24,28 +24,23 @@
  *                                                                       *
  *************************************************************************/
 
-#ifndef __EFS_COMMON_H__
-#define __EFS_COMMON_H__
+#include "file.h"
+#include "mapping.h"
+#include "snapshot.h"
 
-#include <cstdint>
+namespace bfs = boost::filesystem;
 
 namespace efsng {
+namespace nvml {
 
-using data_ptr_t = void *;
-
-const uint64_t EFS_BLOCK_SIZE  = 0x000400000; // 4MiB
-const uint64_t FUSE_BLOCK_SIZE = 0x000400000; // 4MiB
-
-template <typename T>
-inline T align(const T n, const T block_size) {
-    return n & ~(block_size - 1);
+/* make sure that this copy is protected by a lock! */
+snapshot::snapshot(const mapping& mapping) 
+    : m_data(mapping.m_data),
+      m_offset(mapping.m_offset),
+      m_size(mapping.m_size),
+      m_bytes(mapping.m_bytes),
+      m_copies(mapping.m_copies) {
 }
 
-template <typename T>
-inline T xalign(const T n, const T block_size) {
-    return align(n + block_size, block_size);
-}
-
+} // namespace nvml
 } // namespace efsng
-
-#endif /* __EFS_COMMON_H__ */
