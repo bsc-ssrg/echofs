@@ -42,7 +42,7 @@
 
 /* internal includes */
 #include "../../logging.h"
-#include "../../utils.hpp"
+#include "../../utils.h"
 #include "file.h"
 #include "mapping.h"
 #include "snapshot.h"

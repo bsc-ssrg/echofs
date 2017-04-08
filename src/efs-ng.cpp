@@ -64,7 +64,7 @@ extern "C" {
 #include "command-line.h"
 #include "preloader.h"
 #include "backends/backend.h"
-#include "utils.hpp"
+#include "utils.h"
 #include "logging.h"
 #include "efs-ng.h"
 
