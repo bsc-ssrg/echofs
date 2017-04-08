@@ -33,9 +33,9 @@
 #include "../posix-file.h"
 
 namespace efsng {
-namespace nvml {
+namespace dram {
 
-const uint64_t NVML_TRANSFER_SIZE = 0x1000; // 4KiB
+const uint64_t DRAM_TRANSFER_SIZE = 0x1000; // 4KiB
 
 /* copy of a data block */
 struct data_copy {
@@ -49,14 +49,12 @@ struct data_copy {
     data_copy& operator=(const data_copy& orig);
 };
 
-/* descriptor for an in-NVM mmap()-ed file region */
+/* descriptor for an in-RAM mmap()-ed file region */
 struct mapping {
-    std::string                 m_name;     /* mapping name */
     data_ptr_t                  m_data;     /* mapped data */
     off_t                       m_offset;   /* base offset within file */
     size_t                      m_size;     /* mapped size */
     size_t                      m_bytes;    /* used size */
-    int                         m_is_pmem;  /* NVML-required flag */
     std::list<data_copy>        m_copies;   /* block copies */
     std::unique_ptr<std::mutex> m_pmutex;   /* mutex ptr (mutexes are not copyable/movable) */
 
@@ -65,7 +63,7 @@ struct mapping {
     mapping(mapping&& other) noexcept ;
 
     ~mapping();
-    mapping(const bfs::path& prefix, const bfs::path& base_path, size_t min_size);
+    mapping(size_t min_size);
     void populate(const posix::file& fdesc);
 
     inline bool overlaps(off_t op_offset, size_t op_size) const {
@@ -85,17 +83,15 @@ struct mapping {
     }
 
 private:
-    bfs::path generate_pool_path(const bfs::path& prefix, const bfs::path& base_path) const;
-    ssize_t copy_data_to_pmem(const posix::file& fdesc);
-    ssize_t copy_data_to_non_pmem(const posix::file& fdesc);
+    ssize_t copy_data_to_ram(const posix::file& fdesc);
 };
 
-} // namespace nvml
+} // namespace dram
 } // namespace efsng
 
 #ifdef __DEBUG__
 
-std::ostream& operator<<(std::ostream& os, const efsng::nvml::mapping& mp);
+std::ostream& operator<<(std::ostream& os, const efsng::dram::mapping& mp);
 
 #endif /* __DEBUG__ */
 

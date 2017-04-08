@@ -37,29 +37,15 @@ file::file()
 
 file::file(mapping& mp) 
     : efsng::Backend::file() {
-        (void) mp;
 
-    std::cerr << mp << "\n";
-
-
-//    m_mappings.push_back(std::move(mp));
     m_mappings.emplace_back(std::move(mp));
-
-    std::cerr << m_mappings.back() << "\n";
-
-
-std::cerr << "file(mapping& mp) end\n";
-
 }
 
 
 void file::add(const mapping& mp) {
         (void) mp;
+        abort();
 //    m_mappings.push_back(std::move(mp));
-}
-
-void file::add_m(const bfs::path& prefix, const bfs::path& base_path, size_t min_size) {
-    m_mappings.emplace_back(prefix, base_path, min_size);
 }
 
 } // namespace nvml

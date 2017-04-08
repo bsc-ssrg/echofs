@@ -1,6 +1,6 @@
 /*************************************************************************
- * (C) Copyright 2016 Barcelona Supercomputing Center                    *
- *                    Centro Nacional de Supercomputacion                *
+ * (C) Copyright 2016-2017 Barcelona Supercomputing Center               *
+ *                         Centro Nacional de Supercomputacion           *
  *                                                                       *
  * This file is part of the Echo Filesystem NG.                          *
  *                                                                       *
@@ -24,61 +24,53 @@
  *                                                                       *
  *************************************************************************/
 
-#ifndef __NVRAM_CACHE_H__
-#define  __NVRAM_CACHE_H__
+#include <sys/types.h>
+#include <sys/stat.h>
 
-#include <string>
-#include <unordered_map>
-#include <boost/filesystem.hpp>
-#include <mutex>
-
-#include "../../src/efs-common.h"
-#include "../backend.h"
-
-namespace bfs = boost::filesystem;
+#include "../logging.h"
+#include "posix-file.h"
 
 namespace efsng {
-namespace nvml {
+namespace posix {
 
-/* class to manage file allocations in NVRAM based on the NVML library */
-class nvml_backend : public efsng::Backend {
+file::file(const bfs::path& pathname, int flags)
+    : m_fd(-1),
+      m_pathname(pathname){
 
-public:
-    nvml_backend() : Backend(0) {} // XXX for backwards compatibility, remove
+    m_fd = ::open(pathname.c_str(), flags);
 
-    nvml_backend(uint64_t capacity, bfs::path daxfs_mount, bfs::path root_dir);
-    ~nvml_backend();
+    if(m_fd == -1){
+        BOOST_LOG_TRIVIAL(error) << "Error loading file " << m_pathname << ": " << strerror(errno);
+        throw std::runtime_error("");
+    }
+}
 
-    uint64_t get_size() const;
+file::~file(){
+    if(m_fd != -1 && ::close(m_fd) == -1){
+        BOOST_LOG_TRIVIAL(error) << "Error closing file " << m_pathname << ": " << strerror(errno);
+    }
+}
 
-    void prefetch(const bfs::path& pathname);
-    bool lookup(const char* pathname, void*& data_addr, size_t& size) const;
+size_t file::get_size() const {
 
-    bool exists(const char* pathname) const;
-    void read_data(const Backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
-    void write_data(const Backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
+    struct stat stbuf;
 
-    Backend::iterator find(const char* path) override;
-    Backend::iterator begin() override;
-    Backend::iterator end() override;
-    Backend::const_iterator cbegin() override;
-    Backend::const_iterator cend() override;
+    if(fstat(m_fd, &stbuf) == -1){
+        BOOST_LOG_TRIVIAL(error) << "Error finding size of file " << m_pathname << ": " << strerror(errno);
+        return 0;
+    }
 
-private:
-    std::string compute_prefix(const bfs::path& basepath);
+    return stbuf.st_size;
+}
 
+void file::close() {
+    if(m_fd != -1 && ::close(m_fd) == -1){
+        BOOST_LOG_TRIVIAL(error) << "Error closing file " << m_pathname << ": " << strerror(errno);
+        return;
+    }
 
-private:
-    /* mount point of the DAX filesystem needed to access NVRAM */
-    bfs::path m_daxfs_mount_point;
-    bfs::path m_root_dir;
+    m_fd = -1;
+}
 
-    mutable std::mutex                    m_files_mutex;
-    std::unordered_map<std::string, 
-                       std::unique_ptr<Backend::file>> m_files;
-}; // nvml_backend
-
-} // namespace nvml
+} // namespace posix
 } // namespace efsng
-
-#endif /* __NVRAM_CACHE_H__ */

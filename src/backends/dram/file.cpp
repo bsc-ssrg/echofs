@@ -1,6 +1,6 @@
 /*************************************************************************
- * (C) Copyright 2016 Barcelona Supercomputing Center                    *
- *                    Centro Nacional de Supercomputacion                *
+ * (C) Copyright 2016-2017 Barcelona Supercomputing Center               *
+ *                         Centro Nacional de Supercomputacion           *
  *                                                                       *
  * This file is part of the Echo Filesystem NG.                          *
  *                                                                       *
@@ -24,65 +24,32 @@
  *                                                                       *
  *************************************************************************/
 
-#ifndef __DRAM_CACHE_H__
-#define  __DRAM_CACHE_H__
-
-#include <string>
-#include <unordered_map>
-#include <boost/filesystem.hpp>
-
-#include "../backend.h"
-
-namespace bfs = boost::filesystem;
+#include "file.h"
+#include <iostream>
 
 namespace efsng {
 namespace dram {
 
-typedef void* data_ptr_t;
 
-/* class to manage file allocations in DRAM */
-class dram_backend : public efsng::Backend {
+file::file() 
+    : Backend::file() {
+}
 
-    /* a data chunk */
-    struct chunk : efsng::Backend::file {
-        chunk(const data_ptr_t data, const size_t size)
-            : data(data),
-            size(size){ }
+file::file(mapping& mp) 
+    : efsng::Backend::file() {
 
-        ~chunk(){}
+    m_mappings.emplace_back(std::move(mp));
+}
 
-        data_ptr_t  data;
-        size_t      size;
-    }; // struct chunk
 
-public:
-    dram_backend() : Backend(0) {} // XXX for backwards compatibility, remove
-
-    dram_backend(int64_t size);
-    ~dram_backend();
-
-    uint64_t get_size() const;
-
-    void prefetch(const bfs::path& pathname);
-    // deprecated
-    bool lookup(const char* pathname, void*& data_addr, size_t& size) const;
-
-    bool exists(const char* pathname) const;
-    void read_data(const Backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const {};
-    void write_data(const Backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const {};
-
-    efsng::Backend::iterator find(const char* path);
-    efsng::Backend::iterator begin();
-    efsng::Backend::iterator end();
-    efsng::Backend::const_iterator cbegin();
-    efsng::Backend::const_iterator cend();
-
-private:
-    /* filename -> data */
-    std::unordered_map<std::string, efsng::Backend::file> entries;
-}; // dram_backend
+void file::add(const mapping& mp) {
+        (void) mp;
+        abort();
+//    m_mappings.push_back(std::move(mp));
+}
 
 } // namespace dram
 } // namespace efsng
 
-#endif /* __DRAM_CACHE_H__ */
+
+

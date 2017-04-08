@@ -31,14 +31,7 @@
 #include <fcntl.h>
 
 
-#include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
-#include <boost/uuid/uuid.hpp>
-#include <boost/uuid/uuid_io.hpp>
-#include <boost/uuid/uuid_generators.hpp>
-#include <memory>
-
-#include <libpmem.h>
 
 /* internal includes */
 #include "../../logging.h"
@@ -47,84 +40,32 @@
 #include "mapping.h"
 #include "snapshot.h"
 #include "../posix-file.h"
-#include "nvram-nvml.h"
-
-//XXX move this to common header
-
-namespace boost { namespace filesystem {
-
-template <> path& path::append<path::iterator>(path::iterator begin, path::iterator end, const codecvt_type& cvt)
-{
-
-    (void) cvt;
-
-    for( ; begin != end ; ++begin )
-        *this /= *begin;
-    return *this;
-}
-
-/* Return path when appended to a_From will resolve to same as a_To */
-boost::filesystem::path make_relative( boost::filesystem::path a_From, boost::filesystem::path a_To )
-{
-    a_From = boost::filesystem::absolute( a_From ); a_To = boost::filesystem::absolute( a_To );
-    boost::filesystem::path ret;
-    boost::filesystem::path::const_iterator itrFrom( a_From.begin() ), itrTo( a_To.begin() );
-    // Find common base
-    for( boost::filesystem::path::const_iterator toEnd( a_To.end() ), fromEnd( a_From.end() ) ; itrFrom != fromEnd && itrTo != toEnd && *itrFrom == *itrTo; ++itrFrom, ++itrTo );
-    // Navigate backwards in directory to reach previously found base
-    for( boost::filesystem::path::const_iterator fromEnd( a_From.end() ); itrFrom != fromEnd; ++itrFrom )
-    {
-        if( (*itrFrom) != "." )
-            ret /= "..";
-    }
-    // Now navigate down the directory branch
-    ret.append( itrTo, a_To.end() );
-    return ret;
-}
-
-} } // namespace boost::filesystem
-
-
-
+#include "dram.h"
 
 namespace efsng {
-namespace nvml {
+namespace dram {
 
-nvml_backend::nvml_backend(uint64_t size, bfs::path daxfs_mount, bfs::path root_dir)
-    : Backend(size),
-      m_daxfs_mount_point(daxfs_mount),
-      m_root_dir(root_dir) {
+dram_backend::dram_backend(int64_t size)
+    : efsng::Backend(size){
 }
 
-nvml_backend::~nvml_backend(){
+dram_backend::~dram_backend(){
 }
 
-uint64_t nvml_backend::get_size() const {
+uint64_t dram_backend::get_size() const {
     return max_size;
 }
 
-std::string nvml_backend::compute_prefix(const bfs::path& basepath){
-    const bfs::path relpath = make_relative(m_root_dir, basepath);
-    std::string mp_prefix = relpath.string();
-    //std::replace(mp_prefix.begin(), mp_prefix.end(), bfs::path::preferred_separator, '_');
-    std::replace(mp_prefix.begin(), mp_prefix.end(), '/', '_');
-
-    return mp_prefix;
-}
-
 /** start the prefetch process of a file requested by the user */
-void nvml_backend::prefetch(const bfs::path& pathname){
+void dram_backend::prefetch(const bfs::path& pathname){
 
-    BOOST_LOG_TRIVIAL(debug) << "Loading file " << pathname << " into NVM..."; 
+    BOOST_LOG_TRIVIAL(debug) << "Loading file " << pathname << "into RAM...";
 
     /* open the file */
     posix::file fd(pathname);
 
-    /* compute an appropriate path for the mapping file */
-    std::string mp_prefix = compute_prefix(pathname);
-
     /* create a mapping and fill it with the current contents of the file */
-    mapping mp(mp_prefix, m_daxfs_mount_point, fd.get_size());
+    mapping mp(fd.get_size());
     mp.populate(fd);
     fd.close();
 
@@ -137,14 +78,14 @@ void nvml_backend::prefetch(const bfs::path& pathname){
     // readers and writers
     m_files.insert(std::make_pair(
         pathname.c_str(),
-        std::make_unique<nvml::file>(mp)
+        std::make_unique<dram::file>(mp)
         )
     );
 
     /* lock_guard is automatically released here */
 }
 
-bool nvml_backend::exists(const char* pathname) const {
+bool dram_backend::exists(const char* pathname) const {
 
     std::lock_guard<std::mutex> lock(m_files_mutex);
 
@@ -160,9 +101,10 @@ bool nvml_backend::exists(const char* pathname) const {
 }
 
 /* build and return a list of all mapping regions affected by the read() operation */
-void nvml_backend::read_data(const Backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const {
+void dram_backend::read_data(const Backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const {
 
-    const nvml::file& f = dynamic_cast<const nvml::file&>(file);
+
+    const dram::file& f = dynamic_cast<const dram::file&>(file);
 
     std::list<snapshot> snaps;
 
@@ -223,10 +165,9 @@ void nvml_backend::read_data(const Backend::file& file, off_t offset, size_t siz
     // XXX WARNING: the snapshots are currently deleted here. We don't know 
     // (yet) if this is really what we need
     std::cerr << "Deleting snapshots!\n";
-
 }
 
-void nvml_backend::write_data(const Backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const {
+void dram_backend::write_data(const Backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const {
     (void) file;
     (void) offset;
     (void) size;
@@ -234,41 +175,39 @@ void nvml_backend::write_data(const Backend::file& file, off_t offset, size_t si
     //TODO
 }
 
-Backend::iterator nvml_backend::find(const char* path) {
+efsng::Backend::iterator dram_backend::find(const char* path) {
     return m_files.find(path);
 }
 
-Backend::iterator nvml_backend::begin() {
+efsng::Backend::iterator dram_backend::begin() {
     return m_files.begin();
 }
 
-Backend::iterator nvml_backend::end() {
+efsng::Backend::iterator dram_backend::end() {
     return m_files.end();
 }
 
-Backend::const_iterator nvml_backend::cbegin() {
+efsng::Backend::const_iterator dram_backend::cbegin() {
     return m_files.cbegin();
 }
 
-Backend::const_iterator nvml_backend::cend() {
+efsng::Backend::const_iterator dram_backend::cend() {
     return m_files.cend();
 }
 
 /** lookup an entry */
-bool nvml_backend::lookup(const char* pathname, void*& data_addr, size_t& size) const {
-
+bool dram_backend::lookup(const char* pathname, void*& data_addr, size_t& size) const {
     (void) pathname;
     (void) data_addr;
     (void) size;
+#if 0
+    auto it = entries.find(pathname);
 
-    const auto& it = m_files.find(pathname);
-
-    if(it == m_files.end()){
+    if(it == entries.end()){
         BOOST_LOG_TRIVIAL(debug) << "Prefetched data not found";
         return false;
     }
 
-#if 0
     BOOST_LOG_TRIVIAL(debug) << "Prefetched data found at:" << it->second.data;
 
     data_addr = it->second.data;
@@ -278,5 +217,6 @@ bool nvml_backend::lookup(const char* pathname, void*& data_addr, size_t& size) 
     return true;
 }
 
-} // namespace nvml
+
+} // namespace dram
 } //namespace efsng

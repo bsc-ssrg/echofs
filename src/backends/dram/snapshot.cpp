@@ -1,6 +1,6 @@
 /*************************************************************************
- * (C) Copyright 2016 Barcelona Supercomputing Center                    *
- *                    Centro Nacional de Supercomputacion                *
+ * (C) Copyright 2016-2017 Barcelona Supercomputing Center               *
+ *                         Centro Nacional de Supercomputacion           *
  *                                                                       *
  * This file is part of the Echo Filesystem NG.                          *
  *                                                                       *
@@ -24,61 +24,23 @@
  *                                                                       *
  *************************************************************************/
 
-#ifndef __NVRAM_CACHE_H__
-#define  __NVRAM_CACHE_H__
-
-#include <string>
-#include <unordered_map>
-#include <boost/filesystem.hpp>
-#include <mutex>
-
-#include "../../src/efs-common.h"
-#include "../backend.h"
+#include "file.h"
+#include "mapping.h"
+#include "snapshot.h"
 
 namespace bfs = boost::filesystem;
 
 namespace efsng {
-namespace nvml {
+namespace dram {
 
-/* class to manage file allocations in NVRAM based on the NVML library */
-class nvml_backend : public efsng::Backend {
+/* make sure that this copy is protected by a lock! */
+snapshot::snapshot(const mapping& mapping) 
+    : m_data(mapping.m_data),
+      m_offset(mapping.m_offset),
+      m_size(mapping.m_size),
+      m_bytes(mapping.m_bytes),
+      m_copies(mapping.m_copies) {
+}
 
-public:
-    nvml_backend() : Backend(0) {} // XXX for backwards compatibility, remove
-
-    nvml_backend(uint64_t capacity, bfs::path daxfs_mount, bfs::path root_dir);
-    ~nvml_backend();
-
-    uint64_t get_size() const;
-
-    void prefetch(const bfs::path& pathname);
-    bool lookup(const char* pathname, void*& data_addr, size_t& size) const;
-
-    bool exists(const char* pathname) const;
-    void read_data(const Backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
-    void write_data(const Backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
-
-    Backend::iterator find(const char* path) override;
-    Backend::iterator begin() override;
-    Backend::iterator end() override;
-    Backend::const_iterator cbegin() override;
-    Backend::const_iterator cend() override;
-
-private:
-    std::string compute_prefix(const bfs::path& basepath);
-
-
-private:
-    /* mount point of the DAX filesystem needed to access NVRAM */
-    bfs::path m_daxfs_mount_point;
-    bfs::path m_root_dir;
-
-    mutable std::mutex                    m_files_mutex;
-    std::unordered_map<std::string, 
-                       std::unique_ptr<Backend::file>> m_files;
-}; // nvml_backend
-
-} // namespace nvml
+} // namespace dram
 } // namespace efsng
-
-#endif /* __NVRAM_CACHE_H__ */

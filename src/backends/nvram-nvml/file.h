@@ -51,7 +51,6 @@ struct file : public Backend::file {
     }
 
     void add(const mapping& mp);
-    void add_m(const bfs::path& prefix, const bfs::path& base_path, size_t min_size);
 };
 
 } // namespace nvml

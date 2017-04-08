@@ -24,53 +24,36 @@
  *                                                                       *
  *************************************************************************/
 
-#include <sys/types.h>
-#include <sys/stat.h>
+#ifndef __FILE_H__
+#define __FILE_H__
 
-#include "../../logging.h"
-#include "posix-file.h"
+#include "../../efs-common.h"
+#include "mapping.h"
+#include "../backend.h"
+
+namespace bfs = boost::filesystem;
 
 namespace efsng {
-namespace posix {
+namespace dram {
 
-file::file(const bfs::path& pathname, int flags)
-    : m_fd(-1),
-      m_pathname(pathname){
+/* descriptor for a file loaded in DRAM */
+struct file : public Backend::file {
+    /* TODO skip lists might be a good choice here.
+     * e.g. see: https://github.com/khizmax/libcds 
+     *      for lock-free skip lists */
+    std::list<mapping>   m_mappings; /* list of mappings associated to the file */
 
-    m_fd = ::open(pathname.c_str(), flags);
+    file();
+    file(mapping& mp);
 
-    if(m_fd == -1){
-        BOOST_LOG_TRIVIAL(error) << "Error loading file " << m_pathname << ": " << strerror(errno);
-        throw std::runtime_error("");
-    }
-}
-
-file::~file(){
-    if(m_fd != -1 && ::close(m_fd) == -1){
-        BOOST_LOG_TRIVIAL(error) << "Error closing file " << m_pathname << ": " << strerror(errno);
-    }
-}
-
-size_t file::get_size() const {
-
-    struct stat stbuf;
-
-    if(fstat(m_fd, &stbuf) == -1){
-        BOOST_LOG_TRIVIAL(error) << "Error finding size of file " << m_pathname << ": " << strerror(errno);
-        return 0;
+    ~file(){
+        std::cerr << "a nvml::file instance died...\n";
     }
 
-    return stbuf.st_size;
-}
+    void add(const mapping& mp);
+};
 
-void file::close() {
-    if(m_fd != -1 && ::close(m_fd) == -1){
-        BOOST_LOG_TRIVIAL(error) << "Error closing file " << m_pathname << ": " << strerror(errno);
-        return;
-    }
-
-    m_fd = -1;
-}
-
-} // namespace posix
+} // namespace dram
 } // namespace efsng
+
+#endif /* __FILE_H__ */

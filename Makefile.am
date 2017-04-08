@@ -78,16 +78,22 @@ src_efs_ng_SOURCES =        						\
     src/efs-common.h                        		\
     src/backends/backend.h    						\
     src/backends/backend.cpp    					\
-	src/backends/dram/dram-cache.cpp				\
-	src/backends/dram/dram-cache.h					\
+	src/backends/posix-file.cpp						\
+	src/backends/posix-file.h						\
+	src/backends/dram/dram.cpp						\
+	src/backends/dram/dram.h						\
+	src/backends/dram/file.cpp 						\
+	src/backends/dram/file.h 						\
+	src/backends/dram/mapping.cpp					\
+	src/backends/dram/mapping.h 					\
+	src/backends/dram/snapshot.cpp					\
+	src/backends/dram/snapshot.h					\
 	src/backends/nvram-nvml/file.cpp 				\
 	src/backends/nvram-nvml/file.h 					\
 	src/backends/nvram-nvml/mapping.cpp				\
 	src/backends/nvram-nvml/mapping.h 				\
 	src/backends/nvram-nvml/nvram-nvml.cpp			\
 	src/backends/nvram-nvml/nvram-nvml.h			\
-	src/backends/nvram-nvml/posix-file.cpp			\
-	src/backends/nvram-nvml/posix-file.h			\
 	src/backends/nvram-nvml/snapshot.cpp			\
 	src/backends/nvram-nvml/snapshot.h				\
     src/efs-ng.cpp          						\

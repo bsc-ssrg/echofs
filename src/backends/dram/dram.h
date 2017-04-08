@@ -24,8 +24,8 @@
  *                                                                       *
  *************************************************************************/
 
-#ifndef __NVRAM_CACHE_H__
-#define  __NVRAM_CACHE_H__
+#ifndef __DRAM_CACHE_H__
+#define  __DRAM_CACHE_H__
 
 #include <string>
 #include <unordered_map>
@@ -38,47 +38,41 @@
 namespace bfs = boost::filesystem;
 
 namespace efsng {
-namespace nvml {
+namespace dram {
 
-/* class to manage file allocations in NVRAM based on the NVML library */
-class nvml_backend : public efsng::Backend {
+/* class to manage file allocations in DRAM */
+class dram_backend : public efsng::Backend {
 
 public:
-    nvml_backend() : Backend(0) {} // XXX for backwards compatibility, remove
+    dram_backend() : Backend(0) {} // XXX for backwards compatibility, remove
 
-    nvml_backend(uint64_t capacity, bfs::path daxfs_mount, bfs::path root_dir);
-    ~nvml_backend();
+    dram_backend(int64_t size);
+    ~dram_backend();
 
     uint64_t get_size() const;
 
     void prefetch(const bfs::path& pathname);
+    // deprecated
     bool lookup(const char* pathname, void*& data_addr, size_t& size) const;
 
     bool exists(const char* pathname) const;
     void read_data(const Backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
     void write_data(const Backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
 
-    Backend::iterator find(const char* path) override;
-    Backend::iterator begin() override;
-    Backend::iterator end() override;
-    Backend::const_iterator cbegin() override;
-    Backend::const_iterator cend() override;
+    efsng::Backend::iterator find(const char* path) override;
+    efsng::Backend::iterator begin() override;
+    efsng::Backend::iterator end() override;
+    efsng::Backend::const_iterator cbegin() override;
+    efsng::Backend::const_iterator cend() override;
 
 private:
-    std::string compute_prefix(const bfs::path& basepath);
-
-
-private:
-    /* mount point of the DAX filesystem needed to access NVRAM */
-    bfs::path m_daxfs_mount_point;
-    bfs::path m_root_dir;
-
-    mutable std::mutex                    m_files_mutex;
+    /* filename -> data */
+    mutable std::mutex m_files_mutex;
     std::unordered_map<std::string, 
-                       std::unique_ptr<Backend::file>> m_files;
-}; // nvml_backend
+                       std::unique_ptr<efsng::Backend::file>> m_files;
+}; // dram_backend
 
-} // namespace nvml
+} // namespace dram
 } // namespace efsng
 
-#endif /* __NVRAM_CACHE_H__ */
+#endif /* __DRAM_CACHE_H__ */
