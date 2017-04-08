@@ -64,6 +64,7 @@ extern "C" {
 #include "command-line.h"
 #include "preloader.h"
 #include "backends/backend.h"
+#include "utils.hpp"
 #include "logging.h"
 #include "efs-ng.h"
 
@@ -805,7 +806,7 @@ static void* efsng_init(struct fuse_conn_info *conn, struct fuse_config* cfg){
 
     /* initialize the backends stores */
     /* nullptr would be better here, but memset does not accept it */
-    memset(efsng_ctx->backends, 0, efsng::backend::TOTAL_COUNT);
+//    memset(efsng_ctx->backends, 0, efsng::backend::TOTAL_COUNT);
 
     int backend_count = 0;
 
@@ -825,6 +826,7 @@ static void* efsng_init(struct fuse_conn_info *conn, struct fuse_config* cfg){
             abort();
         }
 
+#if 0
         const auto& bend_type = efsng::backend::name_to_type(kv.first);
 
         if(bend_type == efsng::backend::UNKNOWN){
@@ -840,6 +842,10 @@ static void* efsng_init(struct fuse_conn_info *conn, struct fuse_config* cfg){
         }
 
         efsng_ctx->backends[bend_type] = bend;
+#endif
+
+        efsng_ctx->m_backends.emplace_back(std::unique_ptr<efsng::backend>(bend));
+
         ++backend_count;
     }
 
@@ -855,17 +861,21 @@ static void* efsng_init(struct fuse_conn_info *conn, struct fuse_config* cfg){
     for(const auto& kv: user_args->files_to_preload){
 
         const bfs::path& pathname = kv.first;
-        const std::string& backend = kv.second;
+        const std::string& target = kv.second;
+        bool preloaded = false;
 
-        const auto& bend_type = efsng::backend::name_to_type(backend);
-
-        if(bend_type == efsng::backend::UNKNOWN){
-            // FIXME: return with error
-            BOOST_LOG_TRIVIAL(error) << "Unknown backend of type '" << backend << "' for file '" << pathname << "'";
-            abort();
+        for(auto& bend : efsng_ctx->m_backends){
+            if(bend->name() == target){
+                bend->preload(pathname);
+                preloaded = true;
+                break;
+            }
         }
 
-        efsng_ctx->backends[bend_type]->preload(pathname);
+        if(!preloaded){
+            // FIXME: return with error
+            BOOST_LOG_TRIVIAL(warning) << "No backend '" << target << "' found for file '" << pathname << "'. Ignored.";
+        }
     }
 
     return (void*) efsng_ctx;
@@ -1152,13 +1162,7 @@ static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t 
     /* search file in available backends */
     /* FIXME it would be better to have this information already cached somewhere
      * IDEA: bloom filter? (see http://blog.michaelschmatz.com/2016/04/11/how-to-write-a-bloom-filter-cpp/) */
-    for(const auto& bend: efsng_ctx->backends){
-
-        if(bend == NULL){
-            continue;
-        }
-
-        //if(bend->lookup(pathname, chunk_data, chunk_size)){
+    for(const auto& bend: efsng_ctx->m_backends){
         if(bend->exists(pathname)){
             file_cached = true;
             break;
@@ -1236,8 +1240,6 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
 
     BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << "(pathname=\"" << pathname << "\", size=" << size << ", offset=" << offset << ")";
 
-    (void) pathname;
-
     auto file_record = (efsng::File*) file_info->fh;
 
     struct fuse_bufvec* src;
@@ -1254,121 +1256,72 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
 
     BOOST_LOG_TRIVIAL(debug) << "  Searching preloaded data for \"" << pathname << "\"";
 
-
-    efsng::backend* bend_ptr = nullptr;
-    efsng::backend::file* file_ptr = nullptr;
-
     /* search file in available backends */
     /* FIXME it would be better to have this information already cached somewhere
      * IDEA: bloom filter? (see http://blog.michaelschmatz.com/2016/04/11/how-to-write-a-bloom-filter-cpp/) */
-    //for(const auto& bend: efsng_ctx->backends){
-    for(auto bend: efsng_ctx->backends){
-
-        if(bend == nullptr){
-            continue;
-        }
+    for(const auto& bend: efsng_ctx->m_backends){
 
         // XXX in the future, if it's possible that a file
         // is removed from the backend by another thread 
         // (e.g. to be copied to Lustre) we should add a
         // lock_guard and add a reference count to the file
-        // so that the process doesn't happen while someone
-        // is using it
+        // so that the removal doesn't happen while someone
+        // is using the file
         const auto& it = bend->find(pathname);
 
-        //XXX it would be better to "return" the iterators
-        // directly
         if(it != bend->end()){
-            bend_ptr = bend;
-            file_ptr = it->second.get();
-            break;
-        }
-    }
 
-    // file available in a caching backend
-    if(bend_ptr != nullptr && file_ptr != nullptr){
-        efsng::backend::buffer_map bmap;
+            const efsng::backend::file_ptr& file_ptr = it->second;
 
-        bend_ptr->read_data(*file_ptr, offset, size, bmap);
+            efsng::backend::buffer_map bmap;
 
-        /* the FUSE interface forces us to allocate a buffer using malloc() and 
-         * memcpy() the requested data in order to return it back to the user. meh */
-        void* buffer = (void*) malloc(bmap.m_size);
+            bend->read_data(*file_ptr, offset, size, bmap);
 
-        if(buffer == NULL){
-            return -ENOMEM;
-        }
+            if(bmap.size() == 0){
+                src->buf[0].flags = (fuse_buf_flags) (~FUSE_BUF_IS_FD);
+                src->buf[0].mem = NULL;
+                src->buf[0].size = 0;
+                *bufp = src;
 
-        size_t copied = 0;
-
-        for(const auto& b : bmap){
-            efsng::data_ptr_t data = b.first;
-            size_t size = b.second;
-
-            memcpy((uintptr_t*)buffer + copied, (void*) data, size);
-            copied += size;
-        }
-
-        assert(copied == bmap.m_size);
-
-        src->buf[0].flags = (fuse_buf_flags) (~FUSE_BUF_IS_FD);
-        src->buf[0].mem = buffer;
-        src->buf[0].size = bmap.m_size;
-
-    }
-    else{
-        /* not available in a caching backend, read directly from the underlying filesystem */
-        src->buf[0].flags = (fuse_buf_flags) (FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
-        src->buf[0].fd = file_record->get_fd();
-        src->buf[0].pos = offset;
-    }
-
-    *bufp = src;
-    return 0;
-
-
-
-#if 0 
-    // old code, remove
-
-
-    if(!file_cached){
-        /* not available in DRAM nor NVRAM, read directly from the underlying filesystem */
-        src->buf[0].flags = (fuse_buf_flags) (FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
-        src->buf[0].fd = file_record->get_fd();
-        src->buf[0].pos = offset;
-    }
-    else{
-        /* available in DRAM or NVRAM, read from chunk_data */
-        size_t available_bytes = std::min(size, chunk_size - offset);
-
-        if(available_bytes <= 0){
-            src->buf[0].flags = (fuse_buf_flags) (~FUSE_BUF_IS_FD);
-            src->buf[0].mem = NULL;
-            src->buf[0].size = 0;
-        }
-        else{
-
-            /* the FUSE interface forces us to allocate a buffer using malloc() and memcpy() the requested data 
-            * in order to return it back to the user. meh */
-            void* req_data = (void*) malloc(available_bytes);
-
-            if(req_data == NULL){
-                return -errno;
+                return 0;
             }
 
-            memcpy(req_data, ((uint8_t*)chunk_data) + offset, available_bytes);
+            /* the FUSE interface forces us to allocate a buffer using malloc() and 
+            * memcpy() the requested data in order to return it back to the user. meh */
+            void* buffer = (void*) malloc(bmap.m_size);
+
+            if(buffer == NULL){
+                return -ENOMEM;
+            }
+
+            size_t copied = 0;
+
+            for(const auto& b : bmap){
+                efsng::data_ptr_t data = b.first;
+                size_t size = b.second;
+
+                memcpy((uintptr_t*)buffer + copied, (void*) data, size);
+                copied += size;
+            }
+
+            assert(copied == bmap.m_size);
 
             src->buf[0].flags = (fuse_buf_flags) (~FUSE_BUF_IS_FD);
-            src->buf[0].mem = req_data;
-            src->buf[0].size = available_bytes;
+            src->buf[0].mem = buffer;
+            src->buf[0].size = bmap.m_size;
+            *bufp = src;
+
+            return 0;
         }
     }
 
+    /* not available in a registered backend, read directly from the underlying filesystem */
+    src->buf[0].flags = (fuse_buf_flags) (FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
+    src->buf[0].fd = file_record->get_fd();
+    src->buf[0].pos = offset;
     *bufp = src;
 
     return 0;
-#endif
 }
 
 /**

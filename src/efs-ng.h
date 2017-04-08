@@ -26,39 +26,27 @@
 #ifndef __EFS_NG_H__
 #define __EFS_NG_H__
 
+#include <vector>
 #include <memory>
-#include <unordered_map>
-#include <boost/filesystem.hpp>
-namespace bfs = boost::filesystem;
 
-namespace efsng{
+#include "backends/backend.h"
+
+namespace efsng {
 
 /* forward declarations */
 struct Arguments;
 struct File;
 
+using backend_ptr = std::unique_ptr<backend>;
+
 /* internal state of the filesystem */
 struct Efsng {
-
-    // void add_open_file(const bfs::path& filename){
-
-    //     auto record = std::unique_ptr<File>(new File(-1,-1,-1));
-    //     open_files.insert(std::make_pair(
-    //                         filename.c_str(), 
-    //                         std::move(record)));
-    // }
 
     /** configuration options passed by the user */
     Arguments* user_args;
 
-    /** */
-    //std::unordered_map<const char*, std::unique_ptr<File>> open_files;
-    /** */
-    //std::unordered_map<const char*, void*> ram_cache; // encapsulate
-    //std::unordered_map<std::string, void*> ram_cache; // encapsulate
-    //
-
-    backend* backends[backend::TOTAL_COUNT];
+    /* registered backends */
+    std::vector<backend_ptr> m_backends;
 
 }; // struct Efsng
 

@@ -52,6 +52,9 @@
 namespace boost { 
 namespace filesystem {
 
+/**********************************************************************************************************************/
+/* helper functions                                                                                                   */
+/**********************************************************************************************************************/
 template <> 
 path& path::append<path::iterator>(path::iterator begin, path::iterator end, const codecvt_type& cvt) {
 
@@ -92,7 +95,6 @@ path make_relative(path from_path, path to_path) {
 } 
 } // namespace boost::filesystem
 
-
 namespace {
 
 std::string compute_prefix(const bfs::path& rootdir, const bfs::path& basepath){
@@ -112,6 +114,10 @@ std::string compute_prefix(const bfs::path& rootdir, const bfs::path& basepath){
 
 } // anonymous namespace
 
+
+/**********************************************************************************************************************/
+/* implementation                                                                                                     */
+/**********************************************************************************************************************/
 namespace efsng {
 namespace nvml {
 
@@ -124,7 +130,11 @@ nvml_backend::nvml_backend(uint64_t size, bfs::path daxfs_mount, bfs::path root_
 nvml_backend::~nvml_backend(){
 }
 
-uint64_t nvml_backend::get_capacity() const {
+std::string nvml_backend::name() const {
+    return s_name;
+}
+
+uint64_t nvml_backend::capacity() const {
     return m_capacity;
 }
 

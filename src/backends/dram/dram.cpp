@@ -52,7 +52,11 @@ dram_backend::dram_backend(int64_t size)
 dram_backend::~dram_backend(){
 }
 
-uint64_t dram_backend::get_capacity() const {
+std::string dram_backend::name() const {
+    return s_name;
+}
+
+uint64_t dram_backend::capacity() const {
     return m_capacity;
 }
 

@@ -43,11 +43,14 @@ namespace dram {
 /* class to manage file allocations in DRAM */
 class dram_backend : public efsng::backend {
 
+    static constexpr const char* s_name = "DRAM";
+
 public:
     dram_backend(int64_t size);
     ~dram_backend();
 
-    uint64_t get_capacity() const;
+    std::string name() const;
+    uint64_t capacity() const;
     void preload(const bfs::path& pathname);
     bool exists(const char* pathname) const;
     void read_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;

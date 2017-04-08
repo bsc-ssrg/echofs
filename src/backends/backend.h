@@ -49,6 +49,7 @@ public:
         virtual ~file(){}
     };
 
+    using file_ptr = std::unique_ptr<file>;
     using buffer = std::pair<data_ptr_t, size_t>;
 
     struct buffer_map : public std::list<buffer> {
@@ -65,8 +66,8 @@ public:
     };
     
     /* iterator types */
-    typedef std::unordered_map<std::string, std::unique_ptr<file>>::iterator iterator;
-    typedef std::unordered_map<std::string, std::unique_ptr<file>>::const_iterator const_iterator;
+    typedef std::unordered_map<std::string, file_ptr>::iterator iterator;
+    typedef std::unordered_map<std::string, file_ptr>::const_iterator const_iterator;
 
     enum Type {
         UNKNOWN = -1,
@@ -80,12 +81,16 @@ public:
 protected:
     backend(int64_t capacity)
         : m_capacity(capacity) {}
+
+public:
     virtual ~backend() {}
 
 public:
-    static Type name_to_type(const std::string& name);
+    static Type name_to_type(const std::string& name); // probably deprecated
+
     static backend* backend_factory(const std::string& type, const kv_list& backend_opts);
-    virtual uint64_t get_capacity() const = 0;
+    virtual std::string name() const = 0;
+    virtual uint64_t capacity() const = 0;
     virtual void preload(const bfs::path& pathname) = 0;
     virtual bool exists(const char* pathname) const = 0;
     virtual void read_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const = 0;

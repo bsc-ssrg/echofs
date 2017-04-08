@@ -43,15 +43,18 @@ namespace nvml {
 /* class to manage file allocations in NVRAM based on the NVML library */
 class nvml_backend : public efsng::backend {
 
+    static constexpr const char* s_name = "NVRAM-NVML";
+
 public:
     nvml_backend(uint64_t capacity, bfs::path daxfs_mount, bfs::path root_dir);
     ~nvml_backend();
 
-    uint64_t get_capacity() const;
-    void preload(const bfs::path& pathname);
-    bool exists(const char* pathname) const;
-    void read_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
-    void write_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
+    std::string name() const override;
+    uint64_t capacity() const override;
+    void preload(const bfs::path& pathname) override;
+    bool exists(const char* pathname) const override;
+    void read_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const override;
+    void write_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const override;
 
     backend::iterator find(const char* path) override;
     backend::iterator begin() override;
