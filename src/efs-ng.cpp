@@ -805,7 +805,7 @@ static void* efsng_init(struct fuse_conn_info *conn, struct fuse_config* cfg){
 
     /* initialize the backends stores */
     /* nullptr would be better here, but memset does not accept it */
-    memset(efsng_ctx->backends, 0, efsng::Backend::TOTAL_COUNT);
+    memset(efsng_ctx->backends, 0, efsng::backend::TOTAL_COUNT);
 
     int backend_count = 0;
 
@@ -817,7 +817,7 @@ static void* efsng_init(struct fuse_conn_info *conn, struct fuse_config* cfg){
         /* add root_dir as an option for those backends that may need it */
         bend_opts.push_back({"root-dir", user_args->root_dir.string()});
 
-        efsng::Backend* bend = efsng::Backend::backend_factory(bend_key, bend_opts);
+        efsng::backend* bend = efsng::backend::backend_factory(bend_key, bend_opts);
 
         if(bend == nullptr){
             // FIXME: return with error
@@ -825,9 +825,9 @@ static void* efsng_init(struct fuse_conn_info *conn, struct fuse_config* cfg){
             abort();
         }
 
-        const auto& bend_type = efsng::Backend::name_to_type(kv.first);
+        const auto& bend_type = efsng::backend::name_to_type(kv.first);
 
-        if(bend_type == efsng::Backend::UNKNOWN){
+        if(bend_type == efsng::backend::UNKNOWN){
             // FIXME: return with error
             BOOST_LOG_TRIVIAL(error) << "Unknown backend of type '" << kv.first << "'";
             abort();
@@ -857,15 +857,15 @@ static void* efsng_init(struct fuse_conn_info *conn, struct fuse_config* cfg){
         const bfs::path& pathname = kv.first;
         const std::string& backend = kv.second;
 
-        const auto& bend_type = efsng::Backend::name_to_type(backend);
+        const auto& bend_type = efsng::backend::name_to_type(backend);
 
-        if(bend_type == efsng::Backend::UNKNOWN){
+        if(bend_type == efsng::backend::UNKNOWN){
             // FIXME: return with error
             BOOST_LOG_TRIVIAL(error) << "Unknown backend of type '" << backend << "' for file '" << pathname << "'";
             abort();
         }
 
-        efsng_ctx->backends[bend_type]->prefetch(pathname);
+        efsng_ctx->backends[bend_type]->preload(pathname);
     }
 
     return (void*) efsng_ctx;
@@ -1255,8 +1255,8 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
     BOOST_LOG_TRIVIAL(debug) << "  Searching preloaded data for \"" << pathname << "\"";
 
 
-    efsng::Backend* bend_ptr = nullptr;
-    efsng::Backend::file* file_ptr = nullptr;
+    efsng::backend* bend_ptr = nullptr;
+    efsng::backend::file* file_ptr = nullptr;
 
     /* search file in available backends */
     /* FIXME it would be better to have this information already cached somewhere
@@ -1287,7 +1287,7 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
 
     // file available in a caching backend
     if(bend_ptr != nullptr && file_ptr != nullptr){
-        efsng::Backend::buffer_map bmap;
+        efsng::backend::buffer_map bmap;
 
         bend_ptr->read_data(*file_ptr, offset, size, bmap);
 

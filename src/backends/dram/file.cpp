@@ -25,18 +25,17 @@
  *************************************************************************/
 
 #include "file.h"
-#include <iostream>
 
 namespace efsng {
 namespace dram {
 
 
 file::file() 
-    : Backend::file() {
+    : backend::file() {
 }
 
 file::file(mapping& mp) 
-    : efsng::Backend::file() {
+    : efsng::backend::file() {
 
     m_mappings.emplace_back(std::move(mp));
 }

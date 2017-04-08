@@ -46,18 +46,18 @@ namespace efsng {
 namespace dram {
 
 dram_backend::dram_backend(int64_t size)
-    : efsng::Backend(size){
+    : efsng::backend(size){
 }
 
 dram_backend::~dram_backend(){
 }
 
-uint64_t dram_backend::get_size() const {
-    return max_size;
+uint64_t dram_backend::get_capacity() const {
+    return m_capacity;
 }
 
-/** start the prefetch process of a file requested by the user */
-void dram_backend::prefetch(const bfs::path& pathname){
+/** start the preload process of a file requested by the user */
+void dram_backend::preload(const bfs::path& pathname){
 
     BOOST_LOG_TRIVIAL(debug) << "Loading file " << pathname << "into RAM...";
 
@@ -101,7 +101,7 @@ bool dram_backend::exists(const char* pathname) const {
 }
 
 /* build and return a list of all mapping regions affected by the read() operation */
-void dram_backend::read_data(const Backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const {
+void dram_backend::read_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const {
 
 
     const dram::file& f = dynamic_cast<const dram::file&>(file);
@@ -167,7 +167,7 @@ void dram_backend::read_data(const Backend::file& file, off_t offset, size_t siz
     std::cerr << "Deleting snapshots!\n";
 }
 
-void dram_backend::write_data(const Backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const {
+void dram_backend::write_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const {
     (void) file;
     (void) offset;
     (void) size;
@@ -175,48 +175,25 @@ void dram_backend::write_data(const Backend::file& file, off_t offset, size_t si
     //TODO
 }
 
-efsng::Backend::iterator dram_backend::find(const char* path) {
+efsng::backend::iterator dram_backend::find(const char* path) {
     return m_files.find(path);
 }
 
-efsng::Backend::iterator dram_backend::begin() {
+efsng::backend::iterator dram_backend::begin() {
     return m_files.begin();
 }
 
-efsng::Backend::iterator dram_backend::end() {
+efsng::backend::iterator dram_backend::end() {
     return m_files.end();
 }
 
-efsng::Backend::const_iterator dram_backend::cbegin() {
+efsng::backend::const_iterator dram_backend::cbegin() {
     return m_files.cbegin();
 }
 
-efsng::Backend::const_iterator dram_backend::cend() {
+efsng::backend::const_iterator dram_backend::cend() {
     return m_files.cend();
 }
-
-/** lookup an entry */
-bool dram_backend::lookup(const char* pathname, void*& data_addr, size_t& size) const {
-    (void) pathname;
-    (void) data_addr;
-    (void) size;
-#if 0
-    auto it = entries.find(pathname);
-
-    if(it == entries.end()){
-        BOOST_LOG_TRIVIAL(debug) << "Prefetched data not found";
-        return false;
-    }
-
-    BOOST_LOG_TRIVIAL(debug) << "Prefetched data found at:" << it->second.data;
-
-    data_addr = it->second.data;
-    size = it->second.size;
-#endif
-
-    return true;
-}
-
 
 } // namespace dram
 } //namespace efsng

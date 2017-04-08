@@ -41,35 +41,29 @@ namespace efsng {
 namespace dram {
 
 /* class to manage file allocations in DRAM */
-class dram_backend : public efsng::Backend {
+class dram_backend : public efsng::backend {
 
 public:
-    dram_backend() : Backend(0) {} // XXX for backwards compatibility, remove
-
     dram_backend(int64_t size);
     ~dram_backend();
 
-    uint64_t get_size() const;
-
-    void prefetch(const bfs::path& pathname);
-    // deprecated
-    bool lookup(const char* pathname, void*& data_addr, size_t& size) const;
-
+    uint64_t get_capacity() const;
+    void preload(const bfs::path& pathname);
     bool exists(const char* pathname) const;
-    void read_data(const Backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
-    void write_data(const Backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
+    void read_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
+    void write_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
 
-    efsng::Backend::iterator find(const char* path) override;
-    efsng::Backend::iterator begin() override;
-    efsng::Backend::iterator end() override;
-    efsng::Backend::const_iterator cbegin() override;
-    efsng::Backend::const_iterator cend() override;
+    efsng::backend::iterator find(const char* path) override;
+    efsng::backend::iterator begin() override;
+    efsng::backend::iterator end() override;
+    efsng::backend::const_iterator cbegin() override;
+    efsng::backend::const_iterator cend() override;
 
 private:
     /* filename -> data */
     mutable std::mutex m_files_mutex;
     std::unordered_map<std::string, 
-                       std::unique_ptr<efsng::Backend::file>> m_files;
+                       std::unique_ptr<efsng::backend::file>> m_files;
 }; // dram_backend
 
 } // namespace dram

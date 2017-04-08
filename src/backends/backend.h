@@ -39,9 +39,9 @@ namespace efsng {
 
 
 /**
- * Backend: A pure virtual class for manipulating a backend store
+ * A pure virtual class for manipulating a backend store
  */
-class Backend {
+class backend {
 
 public:
     class file {
@@ -78,20 +78,18 @@ public:
     };
 
 protected:
-    Backend(int64_t size)
-        : max_size(size) {}
-    virtual ~Backend() {}
+    backend(int64_t capacity)
+        : m_capacity(capacity) {}
+    virtual ~backend() {}
 
 public:
     static Type name_to_type(const std::string& name);
-    static Backend* backend_factory(const std::string& type, const kv_list& backend_opts);
-    virtual uint64_t get_size() const = 0;
-    virtual void prefetch(const bfs::path& pathname) = 0;
-    virtual bool lookup(const char* pathname, void*& data_addr, size_t& size) const __attribute__((deprecated)) = 0 ;
-
+    static backend* backend_factory(const std::string& type, const kv_list& backend_opts);
+    virtual uint64_t get_capacity() const = 0;
+    virtual void preload(const bfs::path& pathname) = 0;
     virtual bool exists(const char* pathname) const = 0;
-    virtual void read_data(const Backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const = 0;
-    virtual void write_data(const Backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const = 0;
+    virtual void read_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const = 0;
+    virtual void write_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const = 0;
 
     virtual iterator find(const char* path) = 0;
     virtual iterator begin() = 0;
@@ -104,16 +102,16 @@ private:
 
 protected:
     /* maximum allocatable size in bytes */
-    int64_t max_size;
+    int64_t m_capacity;
     
 
-}; // class Backend
+}; // class backend
 
 } // namespace efsng
 
 #ifdef __DEBUG__
-std::ostream& operator<<(std::ostream& os, const efsng::Backend::buffer& buf);
-std::ostream& operator<<(std::ostream& os, const efsng::Backend::buffer_map& bmap);
+std::ostream& operator<<(std::ostream& os, const efsng::backend::buffer& buf);
+std::ostream& operator<<(std::ostream& os, const efsng::backend::buffer_map& bmap);
 #endif
 
 #endif /* __DATA_STORE_H__ */

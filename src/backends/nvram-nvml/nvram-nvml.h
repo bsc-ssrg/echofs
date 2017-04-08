@@ -41,32 +41,23 @@ namespace efsng {
 namespace nvml {
 
 /* class to manage file allocations in NVRAM based on the NVML library */
-class nvml_backend : public efsng::Backend {
+class nvml_backend : public efsng::backend {
 
 public:
-    nvml_backend() : Backend(0) {} // XXX for backwards compatibility, remove
-
     nvml_backend(uint64_t capacity, bfs::path daxfs_mount, bfs::path root_dir);
     ~nvml_backend();
 
-    uint64_t get_size() const;
-
-    void prefetch(const bfs::path& pathname);
-    bool lookup(const char* pathname, void*& data_addr, size_t& size) const;
-
+    uint64_t get_capacity() const;
+    void preload(const bfs::path& pathname);
     bool exists(const char* pathname) const;
-    void read_data(const Backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
-    void write_data(const Backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
+    void read_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
+    void write_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
 
-    Backend::iterator find(const char* path) override;
-    Backend::iterator begin() override;
-    Backend::iterator end() override;
-    Backend::const_iterator cbegin() override;
-    Backend::const_iterator cend() override;
-
-private:
-    std::string compute_prefix(const bfs::path& basepath);
-
+    backend::iterator find(const char* path) override;
+    backend::iterator begin() override;
+    backend::iterator end() override;
+    backend::const_iterator cbegin() override;
+    backend::const_iterator cend() override;
 
 private:
     /* mount point of the DAX filesystem needed to access NVRAM */
@@ -75,7 +66,7 @@ private:
 
     mutable std::mutex                    m_files_mutex;
     std::unordered_map<std::string, 
-                       std::unique_ptr<Backend::file>> m_files;
+                       std::unique_ptr<backend::file>> m_files;
 }; // nvml_backend
 
 } // namespace nvml

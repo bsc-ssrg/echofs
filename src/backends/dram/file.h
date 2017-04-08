@@ -37,7 +37,7 @@ namespace efsng {
 namespace dram {
 
 /* descriptor for a file loaded in DRAM */
-struct file : public Backend::file {
+struct file : public backend::file {
     /* TODO skip lists might be a good choice here.
      * e.g. see: https://github.com/khizmax/libcds 
      *      for lock-free skip lists */

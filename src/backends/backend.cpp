@@ -35,7 +35,7 @@ namespace bfs = boost::filesystem;
 
 namespace efsng {
 
-Backend* Backend::backend_factory(const std::string& type, const kv_list& backend_opts){
+backend* backend::backend_factory(const std::string& type, const kv_list& backend_opts){
 
     if(type == "DRAM"){
 
@@ -97,7 +97,7 @@ Backend* Backend::backend_factory(const std::string& type, const kv_list& backen
     return nullptr;
 }
 
-Backend::Type Backend::name_to_type(const std::string& name){
+backend::Type backend::name_to_type(const std::string& name){
 
     if(name == "DRAM"){
         return DRAM;
@@ -110,7 +110,7 @@ Backend::Type Backend::name_to_type(const std::string& name){
     return UNKNOWN;
 }
 
-int64_t Backend::parse_size(const std::string& str){
+int64_t backend::parse_size(const std::string& str){
 
     const uint64_t B_FACTOR = 1;
     const uint64_t KB_FACTOR = 1e3;
@@ -168,7 +168,7 @@ int64_t Backend::parse_size(const std::string& str){
 } // namespace efsng
 
 #ifdef __DEBUG__
-std::ostream& operator<<(std::ostream& os, const efsng::Backend::buffer& buf){
+std::ostream& operator<<(std::ostream& os, const efsng::backend::buffer& buf){
 
     os << "buffer {\n"
        << "  m_data_ptr: " << buf.first << "\n"
@@ -178,7 +178,7 @@ std::ostream& operator<<(std::ostream& os, const efsng::Backend::buffer& buf){
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const efsng::Backend::buffer_map& bmap){
+std::ostream& operator<<(std::ostream& os, const efsng::backend::buffer_map& bmap){
 
     os << "buffer_map {\n";
 

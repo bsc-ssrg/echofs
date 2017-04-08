@@ -58,7 +58,7 @@ struct Efsng {
     //std::unordered_map<std::string, void*> ram_cache; // encapsulate
     //
 
-    Backend* backends[Backend::TOTAL_COUNT];
+    backend* backends[backend::TOTAL_COUNT];
 
 }; // struct Efsng
 
