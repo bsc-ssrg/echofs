@@ -29,13 +29,14 @@
 
 namespace bfs = boost::filesystem;
 
-#include "backend.h"
-#include "dram/dram.h"
-#include "nvram-nvml/nvram-nvml.h"
+#include <logging.h>
+#include <backend.h>
+#include <dram/dram.h>
+#include <nvram-nvml/nvram-nvml.h>
 
 namespace efsng {
 
-backend* backend::backend_factory(const std::string& type, const kv_list& backend_opts){
+backend* backend::builder(const std::string& type, const kv_list& backend_opts, logger& logger){
 
     if(type == "DRAM"){
 
@@ -48,17 +49,16 @@ backend* backend::backend_factory(const std::string& type, const kv_list& backen
                 bend_size = parse_size(kv.second);
 
                 if(bend_size == -1){
-                    BOOST_LOG_TRIVIAL(error) << "Unable to parse backend-store size '" << kv.second << "'";
-                    return nullptr;
+                    throw std::invalid_argument("Error parsing backend-store size '" + kv.second + "'");
                 }
             }
         }
 
         if(bend_size == -1){
-            BOOST_LOG_TRIVIAL(error) << "Mandatory arguments missing for " << type << " backend"; 
+            throw std::runtime_error("Mandatory arguments missing for " + type + " backend");
         }
 
-        return new dram::dram_backend(bend_size);
+        return new dram::dram_backend(bend_size, logger);
 
     }
     else if(type == "NVRAM-NVML"){
@@ -74,8 +74,7 @@ backend* backend::backend_factory(const std::string& type, const kv_list& backen
                 bend_size = parse_size(kv.second);
 
                 if(bend_size == -1){
-                    BOOST_LOG_TRIVIAL(error) << "Unable to parse backend-store size '" << kv.second << "'";
-                    return nullptr;
+                    throw std::invalid_argument("Error parsing backend-store size '" + kv.second + "'");
                 }
             }
             else if(kv.first == "dax-fs-path"){
@@ -87,10 +86,10 @@ backend* backend::backend_factory(const std::string& type, const kv_list& backen
         }
 
         if(bend_size == -1 || dax_fs_path == ""){
-            BOOST_LOG_TRIVIAL(error) << "Mandatory arguments missing for " << type << " backend"; 
+            throw std::runtime_error("Mandatory arguments missing for " + type + " backend");
         }
 
-        return new nvml::nvml_backend(bend_size, dax_fs_path, root_dir);
+        return new nvml::nvml_backend(bend_size, dax_fs_path, root_dir, logger);
 
     }
 
@@ -167,13 +166,13 @@ int64_t backend::parse_size(const std::string& str){
 
 } // namespace efsng
 
-#ifdef __DEBUG__
+#ifdef __EFS_DEBUG__
 std::ostream& operator<<(std::ostream& os, const efsng::backend::buffer& buf){
 
-    os << "buffer {\n"
-       << "  m_data_ptr: " << buf.first << "\n"
-       << "  m_size: " << buf.second << "\n"
-       << "};\n";
+    os << "{ "
+       << "m_data_ptr: " << buf.first << ", "
+       << "m_size: 0x" << std::hex << buf.second
+       << "}";
 
     return os;
 }
@@ -190,4 +189,4 @@ std::ostream& operator<<(std::ostream& os, const efsng::backend::buffer_map& bma
 
     return os;
 }
-#endif
+#endif /* __EFS_DEBUG__ */

@@ -31,22 +31,17 @@
 #endif /* HAVE_CONFIG_H */
 
 #include <fuse.h>
-#include <getopt.h>
 
 /* C++ includes */
 #include <sstream>
-#include <boost/filesystem.hpp>
+#include <iostream>
 
 /* project includes */
-#include "command-line.h"
-#include "configuration.h"
-#include "logging.h"
+#include <command-line.h>
 
-namespace bfs = boost::filesystem;
+namespace cmdline {
 
-namespace efsng {
-
-void usage(const char* name, bool is_error){
+void usage(const std::string& name, bool is_error){
 
     std::stringstream ss;  
 
@@ -64,7 +59,7 @@ void usage(const char* name, bool is_error){
     std::cout << ss.str();
 }
 
-static void fuse_usage(const char* name){
+void fuse_usage(const std::string& name){
 
     std::cout << "Usage: " << name << " [options] root_dir mount_point [-- [FUSE Mount Options]]\n"
               << "Valid FUSE Mount Options:\n\n";
@@ -72,177 +67,6 @@ static void fuse_usage(const char* name){
     int argc = 2;
     const char* argv[] = {"...", "-h"};
     fuse_main(argc, const_cast<char**>(argv), (fuse_operations*) NULL, NULL);
-}
-
-bool process_args(int argc, char* argv[], Arguments* out){
-
-    /* pass through (and remember) executable name */
-    std::string exec_name = bfs::basename(argv[0]);
-    out->exec_name = exec_name;
-    out->fuse_argv[0] = exec_name.c_str();
-    ++out->fuse_argc;
-
-    /* leave a space for the mount point given that FUSE expects the mount point before any flags */
-    ++out->fuse_argv[1] = NULL;
-    ++out->fuse_argc;
-
-    /* command line options */
-    struct option long_options[] = {
-        {"root-dir",            1, 0, 'r'}, /* directory to mirror */
-        {"mount-point",         1, 0, 'm'}, /* mount point */
-        {"config-file",         1, 0, 'c'}, /* configuration file */
-        {"help",                0, 0, 'h'}, /* display usage */
-        {"foreground",          0, 0, 'f'}, /* foreground operation */
-        {"debug",               0, 0, 'd'}, /* enfs-ng debug mode */
-        {"log-file",            1, 0, 'l'}, /* log to file */
-        {"fuse-debug",          0, 0, 'D'}, /* FUSE debug mode */
-        {"fuse-single-thread",  0, 0, 'S'}, /* FUSE debug mode */
-        {"fuse-help",           0, 0, 'H'}, /* fuse_mount usage */
-        {"version",             0, 0, 'V'}, /* version information */
-        {0, 0, 0, 0}
-    };
-
-    /* build opt_string automatically to pass to getopt_long */ 
-    std::string opt_string;
-    int num_options = sizeof(long_options)/sizeof(long_options[0]) - 1;
-
-    for(int i=0; i<num_options; i++){
-        opt_string += static_cast<char>(long_options[i].val);
-
-        if(long_options[i].has_arg){
-            opt_string += ":";
-        }
-    }
-
-    /* o: arguments directly passed to FUSE */
-    opt_string += ("o:");
-
-    /* helper lambda function to safely add an argument to fuse_argv */
-    auto push_arg = [&out](const char* arg){
-        assert(out->fuse_argc < MAX_FUSE_ARGS);
-        size_t n = strlen(arg);
-        char* arg_copy = strndup(arg, n+1);
-        arg_copy[n] = '\0';
-        out->fuse_argv[out->fuse_argc++] = arg_copy;
-    };
-
-    /* process the options */
-    while(true){
-
-        int opt_idx = 0;
-
-        int rv = getopt_long(argc, argv, opt_string.c_str(), long_options, &opt_idx);
-
-        if(rv == -1){
-            break;
-        }
-
-        switch(rv){
-            /* efs-ng options */
-            case 'r':
-                /* configure FUSE to prepend the root-dir to all paths */
-                out->root_dir = std::string(optarg);
-                break;
-            case 'm':
-                out->mount_point = std::string(optarg);
-                break;
-            case 'c':
-                out->config_file = std::string(optarg);
-                break;
-            case 'h':
-                usage(exec_name.c_str());
-                exit(EXIT_SUCCESS);
-                break;
-            case 'f':
-                /* prevent that FUSE starts as a daemon */
-                push_arg("-f");
-                break;
-            case 'd':
-                /* enable debug mode */
-                /* prevent that FUSE starts as a daemon */
-                push_arg("-f");
-                break;
-            case 'l':
-                /* log to file */
-                out->log_file = std::string(optarg);
-                break;
-            case 'D':
-                /* FUSE debug mode */
-                push_arg("-d");
-                break;
-            case 'S':
-                /* FUSE single thread mode */
-                push_arg("-s");
-                break;
-            case 'H':
-                fuse_usage(exec_name.c_str());
-                exit(EXIT_SUCCESS);
-                break;
-            case 'V':
-                std::cout << exec_name.c_str() << " version " << VERSION << "\n"
-                          << "Copyright (C) 2016 Barcelona Supercomputing Center (BSC-CNS)\n" 
-                          << "This is free software; see the source for copying conditions. There is NO\n"
-                          << "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n";
-                exit(EXIT_SUCCESS);
-                break;
-            case 'o':
-                push_arg("-o");
-                push_arg(optarg);
-                break;
-            case '?':
-                /* invalid option */
-                return false;
-            case ':':
-                /* missing parameter for option */
-                return false;
-            default:
-                break;
-        }
-    }
-
-    if(out->config_file != ""){
-        if(!efsng::Configuration::load(out->config_file, out)){
-            std::cerr << "  Errors occurred when reading the configuration file. "
-                      << "All of its contents will be ignored.";
-        }
-    }
-
-    assert(out->root_dir != out->mount_point);
-
-    if(out->root_dir != ""){
-        std::string option = "modules=subdir,subdir=";
-        option += out->root_dir.c_str();
-        push_arg("-o");
-        push_arg(option.c_str());
-    }
-
-    if(out->log_file != "none"){
-        init_logger(out->log_file);
-    }
-
-    /** 
-     * other default options for FUSE:
-     * - nonempty: needed to allow the filesystem to be mounted on top of non empty directories.
-     * - use_ino: needed to allow files to retain their original inode numbers.
-     * - attr_timeout=0: set cache timeout for names to 0s
-     */
-    push_arg("-o");
-#if FUSE_USE_VERSION < 30
-    push_arg("nonempty,use_ino,attr_timeout=0,big_writes");
-#else
-    push_arg("attr_timeout=0");
-#endif
-
-    /* if there are still extra unparsed arguments, pass them onto FUSE */
-    if(optind < argc){
-        push_arg(argv[optind]);
-        ++optind;
-    }
-
-    /* fill in the mount point for FUSE */
-    out->fuse_argv[1] = out->mount_point.c_str();
-
-    return true;
 }
 
 } // namespace efsng

@@ -27,7 +27,8 @@
 #ifndef __SNAPSHOT_H__
 #define __SNAPSHOT_H__
 
-#include "mapping.h"
+#include <logging.h>
+#include <nvram-nvml/mapping.h>
 
 namespace efsng {
 namespace nvml {
@@ -45,8 +46,11 @@ struct snapshot {
     snapshot(const mapping& mapping);
 };
 
-
 } // namespace nvml
 } // namespace efsng
+
+#ifdef __EFS_DEBUG__
+std::ostream& operator<<(std::ostream& os, const efsng::nvml::snapshot& snap);
+#endif /* __EFS_DEBUG__ */
 
 #endif /* __SNAPSHOT_H__ */

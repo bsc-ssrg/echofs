@@ -32,6 +32,47 @@ DIST_SUBDIRS = lib tests
 
 END=
 
+SPDLOG_INCLUDES = \
+	src/spdlog/async_logger.h \
+	src/spdlog/common.h \
+	src/spdlog/details/async_log_helper.h \
+	src/spdlog/details/async_logger_impl.h \
+	src/spdlog/details/file_helper.h \
+	src/spdlog/details/logger_impl.h \
+	src/spdlog/details/log_msg.h \
+	src/spdlog/details/mpmc_bounded_q.h \
+	src/spdlog/details/null_mutex.h \
+	src/spdlog/details/os.h \
+	src/spdlog/details/pattern_formatter_impl.h \
+	src/spdlog/details/registry.h \
+	src/spdlog/details/spdlog_impl.h \
+	src/spdlog/fmt/bundled/format.cc \
+	src/spdlog/fmt/bundled/format.h \
+	src/spdlog/fmt/bundled/ostream.cc \
+	src/spdlog/fmt/bundled/ostream.h \
+	src/spdlog/fmt/bundled/posix.cc \
+	src/spdlog/fmt/bundled/posix.h \
+	src/spdlog/fmt/bundled/time.h \
+	src/spdlog/fmt/fmt.h \
+	src/spdlog/fmt/ostr.h \
+	src/spdlog/formatter.h \
+	src/spdlog/logger.h \
+	src/spdlog/sinks/android_sink.h \
+	src/spdlog/sinks/ansicolor_sink.h \
+	src/spdlog/sinks/base_sink.h \
+	src/spdlog/sinks/dist_sink.h \
+	src/spdlog/sinks/file_sinks.h \
+	src/spdlog/sinks/msvc_sink.h \
+	src/spdlog/sinks/null_sink.h \
+	src/spdlog/sinks/ostream_sink.h \
+	src/spdlog/sinks/sink.h \
+	src/spdlog/sinks/stdout_sinks.h \
+	src/spdlog/sinks/syslog_sink.h \
+	src/spdlog/sinks/wincolor_sink.h \
+	src/spdlog/spdlog.h \
+	src/spdlog/tweakme.h \
+	$(END)
+
 if FUSE3_BUILD
 FUSEXX_CFLAGS=@FUSE3_CFLAGS@
 FUSEXX_CPPFLAGS="-DFUSE_USE_VERSION=30"
@@ -46,10 +87,13 @@ endif
 bin_PROGRAMS = src/efs-ng
 
 # we need -DBOOST_ALL_DYN_LINK to correctly link boost::log 
-src_efs_ng_CPPFLAGS =		\
-	$(FUSEXX_CPPFLAGS)		\
-	@BOOST_CPPFLAGS@		\
-	-DBOOST_ALL_DYN_LINK	\
+src_efs_ng_CPPFLAGS =						\
+	$(FUSEXX_CPPFLAGS)						\
+	@BOOST_CPPFLAGS@						\
+	-DBOOST_ALL_DYN_LINK					\
+	-DSPDLOG_ENABLE_SYSLOG  				\
+	-I$(top_srcdir)/src						\
+	-I$(top_srcdir)/src/backends			\
 	$(END)
 
 src_efs_ng_CXXFLAGS =       \
@@ -71,11 +115,6 @@ src_efs_ng_LDFLAGS =		\
 
 # source files in alphabetical order
 src_efs_ng_SOURCES =        						\
-    src/command-line.cpp    						\
-    src/command-line.h      						\
-    src/configuration.cpp   						\
-    src/configuration.h     						\
-    src/efs-common.h                        		\
     src/backends/backend.h    						\
     src/backends/backend.cpp    					\
 	src/backends/posix-file.cpp						\
@@ -96,15 +135,18 @@ src_efs_ng_SOURCES =        						\
 	src/backends/nvram-nvml/nvram-nvml.h			\
 	src/backends/nvram-nvml/snapshot.cpp			\
 	src/backends/nvram-nvml/snapshot.h				\
+    src/command-line.cpp    						\
+    src/command-line.h      						\
+    src/efs-common.h                        		\
     src/efs-ng.cpp          						\
     src/efs-ng.h          							\
-    src/logging.cpp        							\
     src/logging.h          							\
     src/metadata/dirs.cpp   						\
     src/metadata/dirs.h     						\
     src/metadata/files.cpp  						\
     src/metadata/files.h    						\
-    src/preloader.cpp       						\
-    src/preloader.h         						\
+    src/settings.cpp                                \
+    src/settings.h                                  \
     src/usr-credentials.h   						\
+    $(SPDLOG_INCLUDES)								\
     $(END)

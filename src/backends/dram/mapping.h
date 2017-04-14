@@ -29,8 +29,9 @@
 
 #include <atomic>
 #include <mutex>
-#include "file.h"
-#include "../posix-file.h"
+
+#include <dram/file.h>
+#include <posix-file.h>
 
 namespace efsng {
 namespace dram {
@@ -67,19 +68,8 @@ struct mapping {
     void populate(const posix::file& fdesc);
 
     inline bool overlaps(off_t op_offset, size_t op_size) const {
-
-        off_t op_end = op_offset + op_size;
-        off_t mp_end = m_offset + m_size;
-
-        if(m_offset >= op_offset || m_offset < op_end) {
-            return true;
-        }
-        else if(mp_end > op_offset && mp_end <= op_end) {
-            return true;
-        }
-        else{
-            return false;
-        }
+        return ((op_offset < (off_t) (m_offset + m_size)) && 
+                (m_offset <  (off_t) (op_offset + op_size)));
     }
 
 private:
@@ -89,12 +79,10 @@ private:
 } // namespace dram
 } // namespace efsng
 
-#ifdef __DEBUG__
+#ifdef __EFS_DEBUG__
 
 std::ostream& operator<<(std::ostream& os, const efsng::dram::mapping& mp);
 
-#endif /* __DEBUG__ */
-
-
+#endif /* __EFS_DEBUG__ */
 
 #endif /* __MAPPING_H__ */

@@ -24,8 +24,7 @@
  *                                                                       *
  *************************************************************************/
 
-#include "file.h"
-#include <iostream>
+#include <nvram-nvml/file.h>
 
 namespace efsng {
 namespace nvml {

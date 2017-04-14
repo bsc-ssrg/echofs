@@ -29,26 +29,26 @@
 #include <vector>
 #include <memory>
 
-#include "backends/backend.h"
+#include <settings.h>
+#include <backends/backend.h>
 
 namespace efsng {
-
-/* forward declarations */
-struct Arguments;
-struct File;
 
 using backend_ptr = std::unique_ptr<backend>;
 
 /* internal state of the filesystem */
-struct Efsng {
+struct context {
+
+    void initialize(const settings& user_opts);
 
     /** configuration options passed by the user */
-    Arguments* user_args;
+    std::unique_ptr<settings> m_user_args;
+    std::unique_ptr<logger> m_logger;
 
     /* registered backends */
     std::vector<backend_ptr> m_backends;
 
-}; // struct Efsng
+}; // struct context
 
 } // namespace efsng
 

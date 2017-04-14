@@ -24,9 +24,10 @@
  *                                                                       *
  *************************************************************************/
 
-#include "file.h"
-#include "mapping.h"
-#include "snapshot.h"
+#include <logging.h>
+#include <nvram-nvml/file.h>
+#include <nvram-nvml/mapping.h>
+#include <nvram-nvml/snapshot.h>
 
 namespace bfs = boost::filesystem;
 
@@ -44,3 +45,18 @@ snapshot::snapshot(const mapping& mapping)
 
 } // namespace nvml
 } // namespace efsng
+
+#ifdef __EFS_DEBUG__
+std::ostream& operator<<(std::ostream& os, const efsng::nvml::snapshot& snap) {
+    os << "{ "
+       << "m_data = " << snap.m_data << ", "
+       << "m_offset = 0x" << std::hex << snap.m_offset << ", "
+       << "m_size = 0x" << std::hex << snap.m_size << ", "
+       << "m_bytes = 0x" << std::hex << snap.m_size
+       << "}";
+
+    return os;
+}
+
+#endif /* __EFS_DEBUG__ */
+

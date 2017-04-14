@@ -30,23 +30,21 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 
-
-#include <boost/filesystem/fstream.hpp>
-
 /* internal includes */
-#include "../../logging.h"
-#include "../../utils.h"
-#include "file.h"
-#include "mapping.h"
-#include "snapshot.h"
-#include "../posix-file.h"
-#include "dram.h"
+#include <logging.h>
+#include <utils.h>
+#include <posix-file.h>
+#include <dram/file.h>
+#include <dram/mapping.h>
+#include <dram/snapshot.h>
+#include <dram/dram.h>
 
 namespace efsng {
 namespace dram {
 
-dram_backend::dram_backend(int64_t size)
-    : efsng::backend(size){
+dram_backend::dram_backend(uint64_t capacity, logger& logger)
+    : m_capacity(capacity),
+      m_logger(logger) {
 }
 
 dram_backend::~dram_backend(){
@@ -60,10 +58,12 @@ uint64_t dram_backend::capacity() const {
     return m_capacity;
 }
 
-/** start the preload process of a file requested by the user */
-void dram_backend::preload(const bfs::path& pathname){
+/** start the load process of a file requested by the user */
+void dram_backend::load(const bfs::path& pathname){
 
-    BOOST_LOG_TRIVIAL(debug) << "Loading file " << pathname << "into RAM...";
+#ifdef __EFS_DEBUG__
+    m_logger.debug("Loading file \"{}\" in RAM", pathname.string());
+#endif
 
     /* open the file */
     posix::file fd(pathname);
@@ -73,9 +73,11 @@ void dram_backend::preload(const bfs::path& pathname){
     mp.populate(fd);
     fd.close();
 
-    /* add the mapping to a nvml::file descriptor and insert it into m_files */
-    BOOST_LOG_TRIVIAL(debug) << "Transfer complete (" << mp.m_bytes << ")";
+#ifdef __EFS_DEBUG__
+    m_logger.debug("Transfer complete ({} bytes)", mp.m_bytes);
+#endif
 
+    /* add the mapping to a nvml::file descriptor and insert it into m_files */
     std::lock_guard<std::mutex> lock(m_files_mutex);
 
     //XXX consider using the TBB concurrent_map to discriminate between locking
@@ -133,6 +135,14 @@ void dram_backend::read_data(const backend::file& file, off_t offset, size_t siz
         // lock is released here
     }
 
+#ifdef __EFS_DEBUG__
+    m_logger.debug("snapshots = {");
+    for(const auto& sn : snaps){
+        m_logger.debug("  {}", sn);
+    }
+    m_logger.debug("};");
+#endif
+
     // from this point on, threads should work EXCLUSIVELY with 
     // the snapshots to compute the data that must be returned to the user,
     // for the sake of reducing contention. We now build a buffer map based 
@@ -146,29 +156,40 @@ void dram_backend::read_data(const backend::file& file, off_t offset, size_t siz
         off_t mp_offset = sn.m_offset;
         size_t mp_size = sn.m_size;
         size_t mp_bytes = sn.m_bytes;
+        off_t delta = 0;
 
-        if(offset <= mp_offset) {
-            buf_start = mp_data;
+        /* compute the address where the read should start */
+        if(offset <= mp_offset){
+            delta = 0;
         }
-        else {
-            buf_start = (uintptr_t*)mp_data + offset - mp_offset;
+        else { /* offset > mp_offset */
+            delta = offset - mp_offset;
+        }
+        
+        buf_start = (data_ptr_t)((uintptr_t) mp_data + delta);
+
+        assert(mp_bytes <= mp_size);
+
+        /* compute how much to read from this mapping */
+        if(offset + size <= mp_offset + mp_bytes) {
+            buf_size = offset + size - mp_offset - delta;
+        }
+        else { /* offset + size > mp_offset + mp_bytes */
+            buf_size = mp_bytes - delta;
         }
 
-        if(offset + size >= mp_offset + mp_size) {
-            buf_size = mp_size;
-        }
-        else {
-            // if the mapping contains less data than 
-            // requested we need to account for it
-            buf_size = std::min(offset + size - mp_offset, mp_bytes);
-        }
+#ifdef __EFS_DEBUG__
+        m_logger.debug("{} + {} => {}, {}", offset, size, buf_start, buf_size);
+#endif
 
         bufmap.emplace_back(buf_start, buf_size);
     }
 
     // XXX WARNING: the snapshots are currently deleted here. We don't know 
     // (yet) if this is really what we need
-    std::cerr << "Deleting snapshots!\n";
+#ifdef __EFS_DEBUG__
+    m_logger.debug("Deleting snapshots!");
+#endif
 }
 
 void dram_backend::write_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const {

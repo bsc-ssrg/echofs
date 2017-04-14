@@ -33,8 +33,8 @@
 
 #include <libconfig.h++>
 
-#include "command-line.h"
-#include "configuration.h"
+#include <command-line.h>
+#include <configuration.h>
 
 /** 
  * Sample configuration file for reference:
@@ -86,21 +86,19 @@ namespace efsng{
 
 bool Configuration::load(const bfs::path& config_file, Arguments* out){
 
-    Arguments out_backup(*out);
-
     libconfig::Config cfg;
 
     try{
         cfg.readFile(config_file.c_str());
     }
     catch(const libconfig::FileIOException& fioex){
-        BOOST_LOG_TRIVIAL(warning) << "An error happened while reading the configuration file.";
+        //BOOST_LOG_TRIVIAL(warning) << "An error happened while reading the configuration file.";
         return false;
     }
     catch(const libconfig::ParseException& pex){
-        BOOST_LOG_TRIVIAL(error) << "Parse error at " << pex.getFile() << ":" << pex.getLine() << " - " 
-                                 << pex.getError();
-        BOOST_LOG_TRIVIAL(error) << "The configuration file will be ignored";
+        //BOOST_LOG_TRIVIAL(error) << "Parse error at " << pex.getFile() << ":" << pex.getLine() << " - " 
+        //                         << pex.getError();
+        //BOOST_LOG_TRIVIAL(error) << "The configuration file will be ignored";
         return false;
     }
 
@@ -116,7 +114,7 @@ bool Configuration::load(const bfs::path& config_file, Arguments* out){
         if(out->root_dir == "none"){
             out->root_dir = std::string(optval);
 
-            BOOST_LOG_TRIVIAL(debug) << " * root-dir = " << out->root_dir;
+            //BOOST_LOG_TRIVIAL(debug) << " * root-dir = " << out->root_dir;
         }
     }
     catch(const libconfig::SettingNotFoundException& nfex){
@@ -133,7 +131,7 @@ bool Configuration::load(const bfs::path& config_file, Arguments* out){
         if(out->mount_point == "none"){
             out->mount_point = std::string(optval);
 
-            BOOST_LOG_TRIVIAL(debug) << " * mount-point = " << optval;
+            //BOOST_LOG_TRIVIAL(debug) << " * mount-point = " << optval;
         }
     }
     catch(const libconfig::SettingNotFoundException& nfex){
@@ -150,7 +148,7 @@ bool Configuration::load(const bfs::path& config_file, Arguments* out){
         if(out->log_file == "none"){
             out->log_file = std::string(optval);
 
-            BOOST_LOG_TRIVIAL(debug) << " * log-file: " << optval;
+            //BOOST_LOG_TRIVIAL(debug) << " * log-file: " << optval;
         }
     }
     catch(const libconfig::SettingNotFoundException& nfex){
@@ -194,7 +192,7 @@ bool Configuration::load(const bfs::path& config_file, Arguments* out){
         const libconfig::Setting& cfg_files_to_preload = root["efs-ng"]["preload"];
         int count = cfg_files_to_preload.getLength();
 
-        BOOST_LOG_TRIVIAL(debug) << "cfg_files_to_preload.getLength() = " << count;
+        //BOOST_LOG_TRIVIAL(debug) << "cfg_files_to_preload.getLength() = " << count;
 
         // for(int i=0; i<count; ++i){
 
@@ -226,14 +224,14 @@ bool Configuration::load(const bfs::path& config_file, Arguments* out){
                     backend = opt_value;
                 }
                 else{
-                    BOOST_LOG_TRIVIAL(error) << "Unsupported parameter in configuration file '" << opt_name << "'";
+                    //BOOST_LOG_TRIVIAL(error) << "Unsupported parameter in configuration file '" << opt_name << "'";
                     return false;
                 }
             }
 
             out->files_to_preload.insert({filename, backend});
 
-            BOOST_LOG_TRIVIAL(debug) << "  \"" << filename << "\"";
+            //BOOST_LOG_TRIVIAL(debug) << "  \"" << filename << "\"";
         }
     }
     catch(const libconfig::SettingNotFoundException& nfex){

@@ -27,9 +27,9 @@
 #ifndef __FILE_H__
 #define __FILE_H__
 
-#include "../../efs-common.h"
-#include "mapping.h"
-#include "../backend.h"
+#include <efs-common.h>
+#include <nvram-nvml/mapping.h>
+#include <backend.h>
 
 namespace bfs = boost::filesystem;
 

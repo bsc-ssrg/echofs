@@ -30,10 +30,10 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <libpmem.h>
 
-#include "../../logging.h"
-#include "../../efs-common.h"
-#include "file.h"
-#include "mapping.h"
+#include <logging.h>
+#include <efs-common.h>
+#include <nvram-nvml/file.h>
+#include <nvram-nvml/mapping.h>
 
 namespace bfs = boost::filesystem;
 
@@ -71,9 +71,8 @@ mapping::mapping(mapping&& other) noexcept
         other.m_bytes = 0;
         other.m_is_pmem = 0;
 
-        std::cerr << "mover called!\n";
-
-        std::cerr << "<< " << m_pmutex.get() << "\n";
+        //std::cerr << "mover called!\n";
+        //std::cerr << "<< " << m_pmutex.get() << "\n";
 }
 
 mapping::mapping(const bfs::path& prefix, const bfs::path& base_path, size_t min_size){
@@ -84,13 +83,11 @@ mapping::mapping(const bfs::path& prefix, const bfs::path& base_path, size_t min
 
     std::replace(mp_name.begin(), mp_name.end(), '/', '_');
 
-    BOOST_LOG_TRIVIAL(debug) << abs_path;
-
     /* if the mapping file already exists delete it, since we can't trust that it's the same file */
     /* TODO: we may need to change this in the future */
     if(bfs::exists(abs_path)){
         if(unlink(abs_path.c_str()) != 0){
-            BOOST_LOG_TRIVIAL(error) << "Error removing file " << abs_path << ": " << strerror(errno);
+            //BOOST_LOG_TRIVIAL(error) << "Error removing file " << abs_path << ": " << strerror(errno);
             throw std::runtime_error("");
         }
     }
@@ -108,13 +105,13 @@ mapping::mapping(const bfs::path& prefix, const bfs::path& base_path, size_t min
     /* create the mapping */
     if((pmem_addr = pmem_map_file(abs_path.c_str(), aligned_size, PMEM_FILE_CREATE | PMEM_FILE_EXCL,
                                   0666, &mapping_length, &is_pmem)) == NULL) {
-        BOOST_LOG_TRIVIAL(error) << "Error creating pmem file " << abs_path << ": " << strerror(errno);
+        //BOOST_LOG_TRIVIAL(error) << "Error creating pmem file " << abs_path << ": " << strerror(errno);
         throw std::runtime_error("");
     }
 
     /* check that the range allocated is of the required size */
     if(mapping_length != aligned_size){
-        BOOST_LOG_TRIVIAL(error) << "File mapping of different size than requested";
+        //BOOST_LOG_TRIVIAL(error) << "File mapping of different size than requested";
         pmem_unmap(pmem_addr, mapping_length);
         throw std::runtime_error("");
     }
@@ -132,15 +129,15 @@ mapping::mapping(const bfs::path& prefix, const bfs::path& base_path, size_t min
 
 mapping::~mapping() {
 
-    std::cerr << "Died!\n";
+//    std::cerr << "Died!\n";
 
     if(m_data != 0){
         if(pmem_unmap(m_data, m_size) == -1) {
-            BOOST_LOG_TRIVIAL(error) << "Error while deleting mapping";
+            //BOOST_LOG_TRIVIAL(error) << "Error while deleting mapping";
         }
-        else{
-            std::cerr << "Mapping released :P\n";
-        }
+//        else{
+//            std::cerr << "Mapping released :P\n";
+//        }
     }
 }
 
@@ -165,7 +162,7 @@ ssize_t mapping::copy_data_to_pmem(const posix::file& fdesc){
     char* buffer = (char*) malloc(NVML_TRANSFER_SIZE*sizeof(*buffer));
 
     if(buffer == NULL){
-        BOOST_LOG_TRIVIAL(error) << "Unable to allocate temporary buffer: " << strerror(errno);
+        //BOOST_LOG_TRIVIAL(error) << "Unable to allocate temporary buffer: " << strerror(errno);
     }
 
     ssize_t total = 0;
@@ -175,7 +172,7 @@ ssize_t mapping::copy_data_to_pmem(const posix::file& fdesc){
 
         if(n == -1){
             if(errno != EINTR){
-                BOOST_LOG_TRIVIAL(error) << "Error while reading: " << strerror(errno);
+                //BOOST_LOG_TRIVIAL(error) << "Error while reading: " << strerror(errno);
                 return n;
             }
             /* EINTR, repeat  */
@@ -201,7 +198,7 @@ ssize_t mapping::copy_data_to_non_pmem(const posix::file& fdesc){
     char* buffer = (char*) malloc(NVML_TRANSFER_SIZE*sizeof(*buffer));
 
     if(buffer == NULL){
-        BOOST_LOG_TRIVIAL(error) << "Unable to allocate temporary buffer: " << strerror(errno);
+        //BOOST_LOG_TRIVIAL(error) << "Unable to allocate temporary buffer: " << strerror(errno);
     }
 
     ssize_t total = 0;
@@ -211,7 +208,7 @@ ssize_t mapping::copy_data_to_non_pmem(const posix::file& fdesc){
 
         if(n == -1){
             if(errno != EINTR){
-                BOOST_LOG_TRIVIAL(error) << "Error while reading: " << strerror(errno);
+                //BOOST_LOG_TRIVIAL(error) << "Error while reading: " << strerror(errno);
                 return n;
             }
             /* EINTR, repeat  */
@@ -263,7 +260,7 @@ data_copy& data_copy::operator=(const data_copy& orig) {
 } // namespace efsng
 
 
-#ifdef __DEBUG__
+#ifdef __EFS_DEBUG__
 
 std::ostream& operator<<(std::ostream& os, const efsng::nvml::mapping& mp) {
     os << "mapping {" << "\n"
@@ -280,4 +277,4 @@ std::ostream& operator<<(std::ostream& os, const efsng::nvml::mapping& mp) {
     return os;
 }
 
-#endif /* __DEBUG__ */
+#endif /* __EFS_DEBUG__ */

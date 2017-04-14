@@ -58,15 +58,15 @@ extern "C" {
 #include <sstream>
 
 /* internal includes */
-#include "metadata/files.h"
-#include "metadata/dirs.h"
-#include "usr-credentials.h"
-#include "command-line.h"
-#include "preloader.h"
-#include "backends/backend.h"
-#include "utils.h"
-#include "logging.h"
-#include "efs-ng.h"
+#include <settings.h>
+#include <metadata/files.h>
+#include <metadata/dirs.h>
+#include <usr-credentials.h>
+#include <command-line.h>
+#include <backends/backend.h>
+#include <utils.h>
+#include <logging.h>
+#include <efs-ng.h>
 
 /**********************************************************************************************************************/
 /*   Filesytem operations
@@ -795,70 +795,12 @@ static void* efsng_init(struct fuse_conn_info *conn, struct fuse_config* cfg){
     cfg->use_ino = 1;
 #endif
 
-    efsng::Arguments* user_args = (efsng::Arguments*) fuse_get_context()->private_data;
 
-    /* create an Efsng object that maintains the internal state of the filesystem 
-     * so that it can be passed around to filesystem operations */
-    auto efsng_ctx = new efsng::Efsng();
+    auto efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
+    const auto& user_args = efsng_ctx->m_user_args;
 
-    /* remember user_args */
-    efsng_ctx->user_args = user_args;
-
-    /* initialize the backends stores */
-    /* nullptr would be better here, but memset does not accept it */
-//    memset(efsng_ctx->backends, 0, efsng::backend::TOTAL_COUNT);
-
-    int backend_count = 0;
-
-    for(const auto& kv : user_args->backend_opts){
-
-        const auto& bend_key = kv.first;
-        efsng::kv_list& bend_opts = const_cast<efsng::kv_list&>(kv.second);
-
-        /* add root_dir as an option for those backends that may need it */
-        bend_opts.push_back({"root-dir", user_args->root_dir.string()});
-
-        efsng::backend* bend = efsng::backend::backend_factory(bend_key, bend_opts);
-
-        if(bend == nullptr){
-            // FIXME: return with error
-            BOOST_LOG_TRIVIAL(error) << "Unable to create backend of type '" << kv.first << "'";
-            abort();
-        }
-
-#if 0
-        const auto& bend_type = efsng::backend::name_to_type(kv.first);
-
-        if(bend_type == efsng::backend::UNKNOWN){
-            // FIXME: return with error
-            BOOST_LOG_TRIVIAL(error) << "Unknown backend of type '" << kv.first << "'";
-            abort();
-        }
-
-        if(efsng_ctx->backends[bend_type] != 0){
-            // FIXME: return with error. duplicate backend
-            BOOST_LOG_TRIVIAL(error) << "Duplicate backend of type '" << kv.first << "'";
-            abort();
-        }
-
-        efsng_ctx->backends[bend_type] = bend;
-#endif
-
-        efsng_ctx->m_backends.emplace_back(std::unique_ptr<efsng::backend>(bend));
-
-        ++backend_count;
-    }
-
-    /* check that there is at least one backend */
-    if(backend_count == 0){
-        // FIXME: return with error. No backends.
-        BOOST_LOG_TRIVIAL(error) << "No valid backends registered. Please, check configuration file.";
-        abort();
-    }
-
-    /* Preload the files requested by the user to DRAM */
-    //XXX FIXME: this will need to be extended to NVRAM as well
-    for(const auto& kv: user_args->files_to_preload){
+    /* Load any input files requested by the user to the selected backends */
+    for(const auto& kv: user_args->m_files_to_preload){
 
         const bfs::path& pathname = kv.first;
         const std::string& target = kv.second;
@@ -866,15 +808,14 @@ static void* efsng_init(struct fuse_conn_info *conn, struct fuse_config* cfg){
 
         for(auto& bend : efsng_ctx->m_backends){
             if(bend->name() == target){
-                bend->preload(pathname);
+                bend->load(pathname);
                 preloaded = true;
                 break;
             }
         }
 
         if(!preloaded){
-            // FIXME: return with error
-            BOOST_LOG_TRIVIAL(warning) << "No backend '" << target << "' found for file '" << pathname << "'. Ignored.";
+            efsng_ctx->m_logger->warn("No configured backend '{}' for input file '{}'. Ignored.", target, pathname.string());
         }
     }
 
@@ -1136,24 +1077,15 @@ static int efsng_poll(const char* pathname, struct fuse_file_info* file_info, st
 static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t offset, 
                            struct fuse_file_info* file_info){
 
-    BOOST_LOG_TRIVIAL(debug) << "efsng_write_buf(" << pathname << ", " << offset << ")";
-
-    //thread_local uint64_t idx = 0;
-
-    //char buffer[262144];
-
-    //memcpy(buffer, buf->buf[0].mem, fuse_buf_size(buf));
-    //return fuse_buf_size(buf);
-
-    (void) pathname;
-
     auto file_record = (efsng::File*) file_info->fh;
 
     struct fuse_bufvec dst = FUSE_BUFVEC_INIT(fuse_buf_size(buf));
 
-    efsng::Efsng* efsng_ctx = (efsng::Efsng*) fuse_get_context()->private_data;
+    efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
 
-    BOOST_LOG_TRIVIAL(debug) << "  Searching preloaded data for \"" << pathname << "\"";
+#ifdef __EFS_DEBUG__
+    efsng_ctx->m_logger->debug("write({}, {}, {}", pathname, offset, fuse_buf_size(buf));
+#endif
 
     void* chunk_data = nullptr;
     size_t chunk_size = 0;
@@ -1190,7 +1122,7 @@ static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t 
 #endif
         return fuse_buf_size(buf);
 #else
-        BOOST_LOG_TRIVIAL(debug) << "FUSE_BUF_SPLICE_MOVE" << dst.buf[0].size;
+        //BOOST_LOG_TRIVIAL(debug) << "FUSE_BUF_SPLICE_MOVE" << dst.buf[0].size;
 
         return fuse_buf_copy(&dst, buf, FUSE_BUF_SPLICE_MOVE);
 #endif
@@ -1238,8 +1170,6 @@ static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t 
 static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_t size, off_t offset, 
                           struct fuse_file_info* file_info){
 
-    BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << "(pathname=\"" << pathname << "\", size=" << size << ", offset=" << offset << ")";
-
     auto file_record = (efsng::File*) file_info->fh;
 
     struct fuse_bufvec* src;
@@ -1250,19 +1180,21 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
         return -ENOMEM;
     }
 
-    efsng::Efsng* efsng_ctx = (efsng::Efsng*) fuse_get_context()->private_data;
+    efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
+
+#ifdef __EFS_DEBUG__
+    efsng_ctx->m_logger->debug("read(\"{}\", {}, {})", pathname, offset, size);
+#endif
 
     *src = FUSE_BUFVEC_INIT(size);
 
-    BOOST_LOG_TRIVIAL(debug) << "  Searching preloaded data for \"" << pathname << "\"";
-
     /* search file in available backends */
-    /* FIXME it would be better to have this information already cached somewhere
+    /* FIXME it might be better to have this information already cached somewhere
      * IDEA: bloom filter? (see http://blog.michaelschmatz.com/2016/04/11/how-to-write-a-bloom-filter-cpp/) */
     for(const auto& bend: efsng_ctx->m_backends){
 
         // XXX in the future, if it's possible that a file
-        // is removed from the backend by another thread 
+        // is removed from a backend by another thread 
         // (e.g. to be copied to Lustre) we should add a
         // lock_guard and add a reference count to the file
         // so that the removal doesn't happen while someone
@@ -1271,13 +1203,26 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
 
         if(it != bend->end()){
 
+#ifdef __EFS_DEBUG__
+            efsng_ctx->m_logger->debug("File \"{}\" loaded in {}", pathname, bend->name());
+#endif
+
             const efsng::backend::file_ptr& file_ptr = it->second;
 
             efsng::backend::buffer_map bmap;
 
             bend->read_data(*file_ptr, offset, size, bmap);
+            
+#ifdef __EFS_DEBUG__
+            efsng_ctx->m_logger->debug("buffer_map = {");
+            for(const auto& b: bmap){
+                efsng_ctx->m_logger->debug("  {}", b);
+            }
+            efsng_ctx->m_logger->debug("   size = {}", bmap.m_size);
+            efsng_ctx->m_logger->debug("};");
+#endif
 
-            if(bmap.size() == 0){
+           if(bmap.size() == 0){
                 src->buf[0].flags = (fuse_buf_flags) (~FUSE_BUF_IS_FD);
                 src->buf[0].mem = NULL;
                 src->buf[0].size = 0;
@@ -1300,7 +1245,7 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
                 efsng::data_ptr_t data = b.first;
                 size_t size = b.second;
 
-                memcpy((uintptr_t*)buffer + copied, (void*) data, size);
+                memcpy((void*) ((uintptr_t)buffer + copied), (void*) data, size);
                 copied += size;
             }
 
@@ -1314,6 +1259,11 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
             return 0;
         }
     }
+
+#ifdef __EFS_DEBUG__
+    efsng_ctx->m_logger->debug("File \"{}\" not loaded", pathname);
+    efsng_ctx->m_logger->debug("Reading \"{}\" from filesystem", pathname);
+#endif
 
     /* not available in a registered backend, read directly from the underlying filesystem */
     src->buf[0].flags = (fuse_buf_flags) (FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
@@ -1384,35 +1334,133 @@ static int efsng_fallocate(const char* pathname, int mode, off_t offset, off_t l
 }
 #endif /* HAVE_POSIX_FALLOCATE */
 
+
+/**********************************************************************************************************************/
+/*  helpers                                                                                                           */
+/**********************************************************************************************************************/
+namespace efsng {
+
+void context::initialize(const settings& user_opts) {
+
+    /* copy user_opts into the context, from now on we will use this copy 
+     * rather than the one passed as an argument */
+    m_user_args = std::make_unique<settings>(user_opts);
+
+    std::string log_type;
+    std::string log_file;
+
+    /* 1. initialize logging facilities */
+    if(m_user_args->m_log_file != "none"){
+        log_type = "file";
+        log_file = m_user_args->m_log_file.string();
+    }
+    else {
+        if(m_user_args->m_daemonize){
+            log_type = "syslog";
+        }
+        else{
+            log_type = "console color";
+        }
+    }
+
+    /* this will throw if initialization fails */
+    m_logger = std::make_unique<logger>(logger(user_opts.m_exec_name, log_type, log_file));
+
+    if(user_opts.m_debug){
+        m_logger->enable_debug();
+    }
+
+    m_logger->info("==============================================");
+    m_logger->info("=== echofs (NG) v{}                     ===", VERSION);
+    m_logger->info("==============================================");
+
+    m_logger->info("");
+    m_logger->info("* Creating storage backend handlers...");
+
+    /* 2. setup storage backends */
+    for(const auto& kv : user_opts.m_backend_opts){
+
+        const auto& bend_key = kv.first;
+        efsng::kv_list& bend_opts = const_cast<efsng::kv_list&>(kv.second);
+
+        /* add root_dir as an option for those backends that may need it */
+        bend_opts.push_back({"root-dir", user_opts.m_root_dir.string()});
+
+        efsng::backend* bend = efsng::backend::builder(bend_key, bend_opts, *m_logger);
+
+        m_logger->info("    Backend (type: {})", bend->name());  
+        m_logger->info("      [ capacity: {} bytes ]", bend->capacity());
+
+        if(bend == nullptr){
+            throw std::runtime_error("Unable to create backend'" + kv.first + "'");
+        }
+
+        m_backends.emplace_back(std::unique_ptr<efsng::backend>(bend));
+    }
+
+    /* check that there is at least one backend */
+    if(m_backends.size() == 0){
+        throw std::runtime_error("No valid backends configured. Check configuration file.");
+    }
+
+#ifdef __EFS_DEBUG__
+    m_logger->debug("Command line passed to FUSE:");
+#endif
+
+    std::stringstream ss;
+    for(int i=0; i<user_opts.m_fuse_argc; ++i){
+        ss << user_opts.m_fuse_argv[i] << " ";
+    }
+
+#ifdef __EFS_DEBUG__
+    m_logger->debug("  {}", ss.str());
+#endif
+
+}
+
+} // namespace efsng
+
+
+
 /**********************************************************************************************************************/
 /*  main point of entry                                                                                               */
 /**********************************************************************************************************************/
 int main (int argc, char *argv[]){
 
-    /* 1. parse command-line arguments */
-    efsng::Arguments* user_args = new efsng::Arguments();
+    std::string exec_name = bfs::basename(argv[0]);
 
-    if(argc == 1 || !process_args(argc, argv, user_args)){
-        efsng::usage(argv[0], true);
+    /* 1. parse command-line arguments */
+    efsng::settings user_opts;
+
+    if(argc == 1) {
+        cmdline::usage(exec_name, true);
         return EXIT_FAILURE;
     }
 
-    BOOST_LOG_TRIVIAL(info) << "==============================================";
-    BOOST_LOG_TRIVIAL(info) << "=== Echo Filesystem (NG) v" << VERSION << "            ===";
-    BOOST_LOG_TRIVIAL(info) << "==============================================";
-    BOOST_LOG_TRIVIAL(info) << "";
-
-
-    BOOST_LOG_TRIVIAL(info) << "Command line passed to FUSE:";
-
-    std::stringstream ss;
-    for(int i=0; i<user_args->fuse_argc; ++i){
-        ss << user_args->fuse_argv[i] << " ";
+    try {
+        user_opts.from_cmdline(argc, argv);
+    } 
+    catch(const std::exception& e) {
+        std::cerr << exec_name << ": " << e.what() << "\n";
+        return EXIT_FAILURE;
     }
 
-    BOOST_LOG_TRIVIAL(debug) << "  " << ss.str();
+    /* 2. create a context object to maintain the internal state of the filesystem 
+     * so that we can later pass it around to the filesystem operations */
+    auto efsng_ctx = std::make_unique<efsng::context>(efsng::context());
 
-    /* 2. prepare operations */
+    try {
+        efsng_ctx->initialize(user_opts);
+    } 
+    catch(const std::exception& e) {
+        // use std::cerr since logger might not have been correctly initialized
+        std::cerr << exec_name << ": " << e.what() << "\n";
+        return EXIT_FAILURE;
+    }
+
+    const auto& logger = efsng_ctx->m_logger;
+
+    /* 3. prepare operations */
     fuse_operations efsng_ops;
     memset(&efsng_ops, 0, sizeof(fuse_operations));
 
@@ -1478,16 +1526,16 @@ int main (int argc, char *argv[]){
     efsng_ops.fallocate = efsng_fallocate;
 #endif /* HAVE_POSIX_FALLOCATE */
     
-    /* 3. set the umask */
+    /* 4. set the umask */
     umask(0);
 
-    /* 4. start the FUSE filesystem and pass user_args to efsng_init() */
-    int res = fuse_main(user_args->fuse_argc, 
-                        const_cast<char **>(user_args->fuse_argv), 
+    /* 5. start the FUSE filesystem and pass efsng_ctx to efsng_init() */
+    int res = fuse_main(user_opts.m_fuse_argc, 
+                        const_cast<char **>(user_opts.m_fuse_argv), 
                         &efsng_ops, 
-                        (void*) user_args);
+                        (void*) efsng_ctx.get());
 
-    BOOST_LOG_TRIVIAL(info) << "Bye! [status=" << res << "]";
+    logger->info("Bye! [status={}]", res);
 
-    return 0;
+    return EXIT_SUCCESS;
 }

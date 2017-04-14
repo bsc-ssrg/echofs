@@ -27,7 +27,7 @@
 #ifndef __SNAPSHOT_H__
 #define __SNAPSHOT_H__
 
-#include "mapping.h"
+#include <dram/mapping.h>
 
 namespace efsng {
 namespace dram {
@@ -48,5 +48,9 @@ struct snapshot {
 
 } // namespace dram
 } // namespace efsng
+
+#ifdef __EFS_DEBUG__
+std::ostream& operator<<(std::ostream& os, const efsng::dram::snapshot& snap);
+#endif /* __EFS_DEBUG__ */
 
 #endif /* __SNAPSHOT_H__ */

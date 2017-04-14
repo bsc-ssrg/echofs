@@ -32,8 +32,10 @@
 
 #include <unordered_map>
 
-#include "../command-line.h"
-#include "../efs-common.h"
+/* internal includes */
+#include <logging.h>
+#include <settings.h>
+#include <efs-common.h>
 
 namespace efsng {
 
@@ -79,8 +81,7 @@ public:
     };
 
 protected:
-    backend(int64_t capacity)
-        : m_capacity(capacity) {}
+    backend() {}
 
 public:
     virtual ~backend() {}
@@ -88,10 +89,10 @@ public:
 public:
     static Type name_to_type(const std::string& name); // probably deprecated
 
-    static backend* backend_factory(const std::string& type, const kv_list& backend_opts);
+    static backend* builder(const std::string& type, const kv_list& backend_opts, logger& logger);
     virtual std::string name() const = 0;
     virtual uint64_t capacity() const = 0;
-    virtual void preload(const bfs::path& pathname) = 0;
+    virtual void load(const bfs::path& pathname) = 0;
     virtual bool exists(const char* pathname) const = 0;
     virtual void read_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const = 0;
     virtual void write_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const = 0;
@@ -104,17 +105,11 @@ public:
 
 private:
     static int64_t parse_size(const std::string& str);
-
-protected:
-    /* maximum allocatable size in bytes */
-    int64_t m_capacity;
-    
-
 }; // class backend
 
 } // namespace efsng
 
-#ifdef __DEBUG__
+#ifdef __EFS_DEBUG__
 std::ostream& operator<<(std::ostream& os, const efsng::backend::buffer& buf);
 std::ostream& operator<<(std::ostream& os, const efsng::backend::buffer_map& bmap);
 #endif

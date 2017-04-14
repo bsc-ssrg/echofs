@@ -24,9 +24,9 @@
  *                                                                       *
  *************************************************************************/
 
-#include "file.h"
-#include "mapping.h"
-#include "snapshot.h"
+#include <dram/file.h>
+#include <dram/mapping.h>
+#include <dram/snapshot.h>
 
 namespace bfs = boost::filesystem;
 
@@ -44,3 +44,16 @@ snapshot::snapshot(const mapping& mapping)
 
 } // namespace dram
 } // namespace efsng
+
+#ifdef __EFS_DEBUG__
+std::ostream& operator<<(std::ostream& os, const efsng::dram::snapshot& snap) {
+    os << "{ "
+       << "m_data = " << snap.m_data << ", "
+       << "m_offset = 0x" << std::hex << snap.m_offset << ", "
+       << "m_size = 0x" << std::hex << snap.m_size << ", "
+       << "m_bytes = 0x" << std::hex << snap.m_size
+       << "}";
+
+    return os;
+}
+#endif /* __EFS_DEBUG__ */

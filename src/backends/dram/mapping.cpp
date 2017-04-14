@@ -31,10 +31,10 @@
 #include <sys/mman.h>
 
 
-#include "../../logging.h"
-#include "../../efs-common.h"
-#include "file.h"
-#include "mapping.h"
+#include <logging.h>
+#include <efs-common.h>
+#include <dram/file.h>
+#include <dram/mapping.h>
 
 namespace bfs = boost::filesystem;
 
@@ -67,9 +67,8 @@ mapping::mapping(mapping&& other) noexcept
         other.m_size = 0;
         other.m_bytes = 0;
 
-        std::cerr << "mover called!\n";
-
-        std::cerr << "<< " << m_pmutex.get() << "\n";
+        //std::cerr << "mover called!\n";
+        //std::cerr << "<< " << m_pmutex.get() << "\n";
 }
 
 mapping::mapping(size_t min_size){
@@ -85,7 +84,7 @@ mapping::mapping(size_t min_size){
 
     if((mapping_addr = mmap(NULL, aligned_size, PROT_READ | PROT_WRITE, 
             MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)) == NULL) {
-        BOOST_LOG_TRIVIAL(error) << "Error creating RAM mapping: " << strerror(errno);
+        //BOOST_LOG_TRIVIAL(error) << "Error creating RAM mapping: " << strerror(errno);
         throw std::runtime_error("");
     }
     
@@ -100,15 +99,15 @@ mapping::mapping(size_t min_size){
 
 mapping::~mapping() {
 
-    std::cerr << "Died!\n";
+    //std::cerr << "Died!\n";
 
     if(m_data != 0){
         if(munmap(m_data, m_size) == -1) {
-            BOOST_LOG_TRIVIAL(error) << "Error while deleting mapping";
+            //BOOST_LOG_TRIVIAL(error) << "Error while deleting mapping";
         }
-        else{
-            std::cerr << "Mapping released :P\n";
-        }
+        //else{
+        //    std::cerr << "Mapping released :P\n";
+        //}
     }
 }
 
@@ -122,7 +121,7 @@ ssize_t mapping::copy_data_to_ram(const posix::file& fdesc){
     char* buffer = (char*) malloc(DRAM_TRANSFER_SIZE*sizeof(*buffer));
 
     if(buffer == NULL){
-        BOOST_LOG_TRIVIAL(error) << "Unable to allocate temporary buffer: " << strerror(errno);
+        //BOOST_LOG_TRIVIAL(error) << "Unable to allocate temporary buffer: " << strerror(errno);
     }
 
     ssize_t total = 0;
@@ -132,7 +131,7 @@ ssize_t mapping::copy_data_to_ram(const posix::file& fdesc){
 
         if(n == -1){
             if(errno != EINTR){
-                BOOST_LOG_TRIVIAL(error) << "Error while reading: " << strerror(errno);
+                //BOOST_LOG_TRIVIAL(error) << "Error while reading: " << strerror(errno);
                 return n;
             }
             /* EINTR, repeat  */
@@ -184,7 +183,7 @@ data_copy& data_copy::operator=(const data_copy& orig) {
 } // namespace efsng
 
 
-#ifdef __DEBUG__
+#ifdef __EFS_DEBUG__
 
 std::ostream& operator<<(std::ostream& os, const efsng::dram::mapping& mp) {
     os << "mapping {" << "\n"
@@ -199,4 +198,4 @@ std::ostream& operator<<(std::ostream& os, const efsng::dram::mapping& mp) {
     return os;
 }
 
-#endif /* __DEBUG__ */
+#endif /* __EFS_DEBUG__ */

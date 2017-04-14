@@ -27,13 +27,16 @@
 #ifndef __NVRAM_CACHE_H__
 #define  __NVRAM_CACHE_H__
 
+/* C++ includes */
 #include <string>
 #include <unordered_map>
 #include <boost/filesystem.hpp>
 #include <mutex>
 
-#include "../../src/efs-common.h"
-#include "../backend.h"
+/* internal includes */
+#include <efs-common.h>
+#include <logging.h>
+#include <backend.h>
 
 namespace bfs = boost::filesystem;
 
@@ -46,12 +49,12 @@ class nvml_backend : public efsng::backend {
     static constexpr const char* s_name = "NVRAM-NVML";
 
 public:
-    nvml_backend(uint64_t capacity, bfs::path daxfs_mount, bfs::path root_dir);
+    nvml_backend(uint64_t capacity, bfs::path daxfs_mount, bfs::path root_dir, logger& logger);
     ~nvml_backend();
 
     std::string name() const override;
     uint64_t capacity() const override;
-    void preload(const bfs::path& pathname) override;
+    void load(const bfs::path& pathname) override;
     bool exists(const char* pathname) const override;
     void read_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const override;
     void write_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const override;
@@ -63,6 +66,9 @@ public:
     backend::const_iterator cend() override;
 
 private:
+    /* maximum allocatable size in bytes */
+    uint64_t m_capacity;
+    logger& m_logger;
     /* mount point of the DAX filesystem needed to access NVRAM */
     bfs::path m_daxfs_mount_point;
     bfs::path m_root_dir;

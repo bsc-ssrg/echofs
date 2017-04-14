@@ -27,8 +27,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "../logging.h"
-#include "posix-file.h"
+#include <logging.h>
+#include <posix-file.h>
 
 namespace efsng {
 namespace posix {
@@ -40,14 +40,14 @@ file::file(const bfs::path& pathname, int flags)
     m_fd = ::open(pathname.c_str(), flags);
 
     if(m_fd == -1){
-        BOOST_LOG_TRIVIAL(error) << "Error loading file " << m_pathname << ": " << strerror(errno);
+        //BOOST_LOG_TRIVIAL(error) << "Error loading file " << m_pathname << ": " << strerror(errno);
         throw std::runtime_error("");
     }
 }
 
 file::~file(){
     if(m_fd != -1 && ::close(m_fd) == -1){
-        BOOST_LOG_TRIVIAL(error) << "Error closing file " << m_pathname << ": " << strerror(errno);
+        //BOOST_LOG_TRIVIAL(error) << "Error closing file " << m_pathname << ": " << strerror(errno);
     }
 }
 
@@ -56,7 +56,7 @@ size_t file::get_size() const {
     struct stat stbuf;
 
     if(fstat(m_fd, &stbuf) == -1){
-        BOOST_LOG_TRIVIAL(error) << "Error finding size of file " << m_pathname << ": " << strerror(errno);
+        //BOOST_LOG_TRIVIAL(error) << "Error finding size of file " << m_pathname << ": " << strerror(errno);
         return 0;
     }
 
@@ -65,7 +65,7 @@ size_t file::get_size() const {
 
 void file::close() {
     if(m_fd != -1 && ::close(m_fd) == -1){
-        BOOST_LOG_TRIVIAL(error) << "Error closing file " << m_pathname << ": " << strerror(errno);
+        //BOOST_LOG_TRIVIAL(error) << "Error closing file " << m_pathname << ": " << strerror(errno);
         return;
     }
 

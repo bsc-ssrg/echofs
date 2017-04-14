@@ -27,16 +27,122 @@
 #ifndef __LOGGING_H__
 #define __LOGGING_H__
 
-#include <boost/filesystem.hpp>
+#include <spdlog/spdlog.h>
+#include <spdlog/fmt/ostr.h>
 
-#include <boost/log/trivial.hpp>
+namespace efsng {
 
-namespace bfs = boost::filesystem;
+class logger {
 
-namespace efsng{
+    static const int32_t queue_size = 8192; // must be a power of 2
 
-void init_logger();
-void init_logger(const bfs::path& log_file);
+public:
+    logger(const std::string& ident, const std::string& type, const std::string& logfile="") {
+
+        try {
+
+            if(type == "console") {
+                //spdlog::set_async_mode(queue_size);
+                m_internal_logger = spdlog::stdout_logger_mt(ident);
+            }
+            else if(type == "console color") {
+                spdlog::set_async_mode(queue_size);
+                m_internal_logger = spdlog::stdout_color_mt(ident);
+            }
+#ifdef SPDLOG_ENABLE_SYSLOG 
+            else if(type == "syslog") {
+                m_internal_logger = spdlog::syslog_logger("syslog", ident, LOG_PID);
+            }
+#endif
+            else if(type == "file") {
+                 m_internal_logger = spdlog::basic_logger_mt(ident, logfile);
+            }
+            else {
+                throw std::invalid_argument("Unknown logger type: '" + type + "'");
+            }
+
+            assert(m_internal_logger != nullptr);
+
+            m_internal_logger->set_pattern("[%Y-%m-%d %T] [%n] [%t] [%l] %v");
+
+
+            spdlog::drop_all();
+
+            // globally register the logger so that it can be accessed 
+            // using spdlog::get(logger_name)
+            spdlog::register_logger(m_internal_logger);
+        }
+        catch(const spdlog::spdlog_ex& ex) {
+            throw std::runtime_error("logger initialization failed: " + std::string(ex.what()));
+        }
+    }
+
+    ~logger(){
+        spdlog::drop_all();
+    }
+
+    inline void enable_debug() const {
+        m_internal_logger->set_level(spdlog::level::debug);
+    }
+
+    inline void flush() {
+        m_internal_logger->flush();
+    }
+
+    template <typename... Args>
+    inline void info(const char* fmt, const Args&... args) {
+        m_internal_logger->info(fmt, args...);
+    }
+
+    template <typename... Args>
+    inline void debug(const char* fmt, const Args&... args) {
+        m_internal_logger->debug(fmt, args...);
+    }
+
+    template <typename... Args>
+    inline void warn(const char* fmt, const Args&... args) {
+        m_internal_logger->warn(fmt, args...);
+    }
+
+    template <typename... Args>
+    inline void error(const char* fmt, const Args&... args) {
+        m_internal_logger->error(fmt, args...);
+    }
+
+    template <typename... Args>
+    inline void critical(const char* fmt, const Args&... args) {
+        m_internal_logger->critical(fmt, args...);
+    }
+
+    template <typename T>
+    inline void info(const T& msg) {
+        m_internal_logger->info(msg);
+    }
+
+    template <typename T>
+    inline void debug(const T& msg) {
+        m_internal_logger->debug(msg);
+    }
+
+    template <typename T>
+    inline void warn(const T& msg) {
+        m_internal_logger->warn(msg);
+    }
+
+    template <typename T>
+    inline void error(const T& msg) {
+        m_internal_logger->error(msg);
+    }
+
+    template <typename T>
+    inline void critical(const T& msg) {
+        m_internal_logger->critical(msg);
+    }
+
+private:
+    std::shared_ptr<spdlog::logger> m_internal_logger;
+    std::string                     m_type;
+};
 
 } // namespace efsng
 

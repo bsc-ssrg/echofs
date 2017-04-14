@@ -32,8 +32,9 @@
 #include <boost/filesystem.hpp>
 #include <mutex>
 
-#include "../../src/efs-common.h"
-#include "../backend.h"
+#include <logging.h>
+#include <efs-common.h>
+#include <backend.h>
 
 namespace bfs = boost::filesystem;
 
@@ -46,12 +47,12 @@ class dram_backend : public efsng::backend {
     static constexpr const char* s_name = "DRAM";
 
 public:
-    dram_backend(int64_t size);
+    dram_backend(uint64_t capacity, logger& logger);
     ~dram_backend();
 
     std::string name() const;
     uint64_t capacity() const;
-    void preload(const bfs::path& pathname);
+    void load(const bfs::path& pathname);
     bool exists(const char* pathname) const;
     void read_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
     void write_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
@@ -63,6 +64,9 @@ public:
     efsng::backend::const_iterator cend() override;
 
 private:
+    /* maximum allocatable size in bytes */
+    uint64_t m_capacity;
+    logger& m_logger;
     /* filename -> data */
     mutable std::mutex m_files_mutex;
     std::unordered_map<std::string, 

@@ -41,13 +41,13 @@
 #include <libpmem.h>
 
 /* internal includes */
-#include "../../logging.h"
-#include "../../utils.h"
-#include "file.h"
-#include "mapping.h"
-#include "snapshot.h"
-#include "../posix-file.h"
-#include "nvram-nvml.h"
+#include <logging.h>
+#include <utils.h>
+#include <posix-file.h>
+#include <nvram-nvml/file.h>
+#include <nvram-nvml/mapping.h>
+#include <nvram-nvml/snapshot.h>
+#include <nvram-nvml/nvram-nvml.h>
 
 namespace boost { 
 namespace filesystem {
@@ -103,11 +103,11 @@ std::string compute_prefix(const bfs::path& rootdir, const bfs::path& basepath){
 
 // due to an obscure reason, compiling with -ggdb3 -O0 produces linking errors
 // against with boost::filesystem::path::preferred_separator
-#ifndef __DEBUG__
+#ifndef __EFS_DEBUG__
     std::replace(mp_prefix.begin(), mp_prefix.end(), bfs::path::preferred_separator, '_');
 #else
     std::replace(mp_prefix.begin(), mp_prefix.end(), '/', '_');
-#endif /* __DEBUG__ */
+#endif /* __EFS_DEBUG__ */
 
     return mp_prefix;
 }
@@ -121,8 +121,9 @@ std::string compute_prefix(const bfs::path& rootdir, const bfs::path& basepath){
 namespace efsng {
 namespace nvml {
 
-nvml_backend::nvml_backend(uint64_t size, bfs::path daxfs_mount, bfs::path root_dir)
-    : backend(size),
+nvml_backend::nvml_backend(uint64_t capacity, bfs::path daxfs_mount, bfs::path root_dir, logger& logger)
+    : m_capacity(capacity),
+      m_logger(logger),
       m_daxfs_mount_point(daxfs_mount),
       m_root_dir(root_dir) {
 }
@@ -138,10 +139,12 @@ uint64_t nvml_backend::capacity() const {
     return m_capacity;
 }
 
-/** start the preload process of a file requested by the user */
-void nvml_backend::preload(const bfs::path& pathname){
+/** start the load process of a file requested by the user */
+void nvml_backend::load(const bfs::path& pathname){
 
-    BOOST_LOG_TRIVIAL(debug) << "Loading file " << pathname << " into NVM..."; 
+#ifdef __EFS_DEBUG__
+    m_logger.debug("Loading file \"{}\" in NVRAM", pathname.string());
+#endif
 
     /* open the file */
     posix::file fd(pathname);
@@ -154,9 +157,11 @@ void nvml_backend::preload(const bfs::path& pathname){
     mp.populate(fd);
     fd.close();
 
-    /* add the mapping to a nvml::file descriptor and insert it into m_files */
-    BOOST_LOG_TRIVIAL(debug) << "Transfer complete (" << mp.m_bytes << ")";
+#ifdef __EFS_DEBUG__
+    m_logger.debug("Transfer complete ({} bytes)", mp.m_bytes);
+#endif
 
+    /* add the mapping to a nvml::file descriptor and insert it into m_files */
     std::lock_guard<std::mutex> lock(m_files_mutex);
 
     //XXX consider using the TBB concurrent_map to discriminate between locking
@@ -188,6 +193,10 @@ bool nvml_backend::exists(const char* pathname) const {
 /* build and return a list of all mapping regions affected by the read() operation */
 void nvml_backend::read_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const {
 
+#ifdef __EFS_DEBUG__
+    m_logger.debug("nvml_backend::read_data(file, {}, {})", offset, size);
+#endif
+
     const nvml::file& f = dynamic_cast<const nvml::file&>(file);
 
     std::list<snapshot> snaps;
@@ -213,6 +222,14 @@ void nvml_backend::read_data(const backend::file& file, off_t offset, size_t siz
         // lock is released here
     }
 
+#ifdef __EFS_DEBUG__
+    m_logger.debug("snapshots = {");
+    for(const auto& sn : snaps){
+        m_logger.debug("  {}", sn);
+    }
+    m_logger.debug("};");
+#endif
+
     // from this point on, threads should work EXCLUSIVELY with 
     // the snapshots to compute the data that must be returned to the user,
     // for the sake of reducing contention. We now build a buffer map based 
@@ -226,30 +243,40 @@ void nvml_backend::read_data(const backend::file& file, off_t offset, size_t siz
         off_t mp_offset = sn.m_offset;
         size_t mp_size = sn.m_size;
         size_t mp_bytes = sn.m_bytes;
+        off_t delta = 0;
 
-        if(offset <= mp_offset) {
-            buf_start = mp_data;
+        /* compute the address where the read should start */
+        if(offset <= mp_offset){
+            delta = 0;
         }
-        else {
-            buf_start = (uintptr_t*)mp_data + offset - mp_offset;
+        else { /* offset > mp_offset */
+            delta = offset - mp_offset;
+        }
+        
+        buf_start = (data_ptr_t)((uintptr_t) mp_data + delta);
+
+        assert(mp_bytes <= mp_size);
+
+        /* compute how much to read from this mapping */
+        if(offset + size <= mp_offset + mp_bytes) {
+            buf_size = offset + size - mp_offset - delta;
+        }
+        else { /* offset + size > mp_offset + mp_bytes */
+            buf_size = mp_bytes - delta;
         }
 
-        if(offset + size >= mp_offset + mp_size) {
-            buf_size = mp_size;
-        }
-        else {
-            // if the mapping contains less data than 
-            // requested we need to account for it
-            buf_size = std::min(offset + size - mp_offset, mp_bytes);
-        }
+#ifdef __EFS_DEBUG__
+        m_logger.debug("{} + {} => {}, {}", offset, size, buf_start, buf_size);
+#endif
 
         bufmap.emplace_back(buf_start, buf_size);
     }
 
     // XXX WARNING: the snapshots are currently deleted here. We don't know 
     // (yet) if this is really what we need
-    std::cerr << "Deleting snapshots!\n";
-
+#ifdef __EFS_DEBUG__
+    m_logger.debug("Deleting snapshots!");
+#endif
 }
 
 void nvml_backend::write_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const {
