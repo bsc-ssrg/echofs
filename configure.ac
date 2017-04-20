@@ -134,6 +134,23 @@ PKG_CHECK_MODULES([LIBPMEMOBJ], [libpmemobj >= 1.1],,
                   AC_MSG_ERROR(libpmemobj 1.1 or newer not found.)
 )
 
+## check if documentation should be built and if we have the appropriate
+## programs to do so
+AC_ARG_ENABLE([docs],
+  [AS_HELP_STRING([--enable-docs], [Generate docs during build.])],
+  [enable_docs=$enableval],
+  [enable_docs=no]
+)
+AS_IF([test "x$enable_docs" = "xyes"],
+  [
+    AC_PATH_PROG([DOXYGEN], [doxygen])
+    AS_IF([test -z "$DOXYGEN"], [AC_MSG_ERROR([doxygen not found])])
+    AC_PATH_PROG([SPHINX], [sphinx-build])
+    AS_IF([test -z "$SPHINX"], [AC_MSG_ERROR([sphinx-build not found])])
+  ]
+)
+AM_CONDITIONAL([BUILD_DOCS], [test "$enable_docs" = yes])
+
 # for the POSIX compliance tests we need the tests definitions in
 # the build hierarchy. This is the easiest way
 AC_CONFIG_COMMANDS([posix-test-dependencies],
@@ -152,6 +169,7 @@ fi
 
 AC_CONFIG_FILES([
         Makefile
+        doc/Makefile
         lib/Makefile
         tests/Makefile
         tests/library/Makefile

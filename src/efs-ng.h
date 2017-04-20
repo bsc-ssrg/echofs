@@ -34,19 +34,17 @@
 
 namespace efsng {
 
+/*! Convenience alias */
 using backend_ptr = std::unique_ptr<backend>;
 
-/* internal state of the filesystem */
+/*! This class is used to keep the internal state of the filesystem while it's running */
 struct context {
 
     void initialize(const settings& user_opts);
 
-    /** configuration options passed by the user */
-    std::unique_ptr<settings> m_user_args;
-    std::unique_ptr<logger> m_logger;
-
-    /* registered backends */
-    std::vector<backend_ptr> m_backends;
+    std::unique_ptr<settings>   m_user_args; /*!< Configuration options passed by the user */
+    std::unique_ptr<logger>     m_logger;    /*!< Logger */
+    std::vector<backend_ptr>    m_backends;  /*!< Registered backends */
 
 }; // struct context
 

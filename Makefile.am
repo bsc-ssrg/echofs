@@ -1,6 +1,6 @@
 ###########################################################################
-#  (C) Copyright 2016 Barcelona Supercomputing Center                     #
-#                     Centro Nacional de Supercomputacion                 #
+#  (C) Copyright 2016-2017 Barcelona Supercomputing Center                #
+#                          Centro Nacional de Supercomputacion            #
 #                                                                         #
 #  This file is part of the Echo Filesystem NG.                           #
 #                                                                         #
@@ -26,9 +26,9 @@
 
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = lib tests
+SUBDIRS = lib tests doc
 
-DIST_SUBDIRS = lib tests
+DIST_SUBDIRS = lib tests doc
 
 END=
 
