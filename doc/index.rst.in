@@ -4,20 +4,16 @@
    contain the root `toctree` directive.
 
 echofs documentation
-==================
+====================
 
-Multi-dimensional data structure, or mdds for short, is a collection of data
-structures and indexing algorithms that are useful for storing and indexing
-multi-dimensional data for C++ projects.
+<add description>
 
 Contents:
 
 .. toctree::
    :maxdepth: 1
 
-.. doxygenindex::
-
-
+   settings.rst
 
 Indices and tables
 ==================

@@ -44,6 +44,7 @@
 
 namespace efsng {
 
+/*! Whatever */
 settings::settings() 
     : m_exec_name("none"),
       m_daemonize(false),

@@ -33,9 +33,10 @@ DX_INPUT_DIRS=				\
 	$(END)
 
 # input files for Sphinx
-SX_INPUT_FILES=						\
-	$(top_srcdir)/doc/conf.py.in 	\
-	$(top_srcdir)/doc/index.rst.in 	\
+SX_INPUT_FILES=							\
+	$(top_srcdir)/doc/conf.py.in 		\
+	$(top_srcdir)/doc/index.rst.in 		\
+	$(top_srcdir)/doc/settings.rst.in	\
 	$(END)
 
 html-local:

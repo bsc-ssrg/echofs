@@ -1,0 +1,59 @@
+.. highlight:: cpp
+
+settings
+========
+
+Code Example
+^^^^^^^^^^^^
+
+::
+
+    #include <settings.h>
+    #include <string>
+    #include <iostream>
+    #include <sstream>
+
+    using namespace efsng;
+
+    int main(int argc, char* argv[]) {
+
+        // parse command-line arguments
+        efsng::settings user_opts;
+
+        try {
+            user_opts.from_cmdline(argc, argv);
+        } 
+        catch(const std::exception& e) {
+            std::cerr << e.what() << "\n";
+            return EXIT_FAILURE;
+        }
+
+        if(argc != 1) {
+            std::string config_file = argv[1];
+
+
+            // read settings from configuration file, if one was provided 
+            // Notice that command line arguments will always have precedence over 
+            // configuration file options
+            if(config_file != ""){
+
+                settings backup(user_opts);
+
+                try {
+                    from_file(config_file);
+                }
+                catch(const std::exception& e) {
+                    user_opts = std::move(backup);
+                    std::stringstream ss;
+                    ss << "Errors detected in configuration file. Ignored.\n";
+                    ss << "    [" << e.what() << "]";
+                    throw std::invalid_argument(ss.str());
+                }
+            }
+        }
+
+        return EXIT_SUCCESS;
+    }
+
+
+.. doxygenstruct:: efsng::settings
