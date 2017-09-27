@@ -106,7 +106,7 @@ std::string compute_prefix(const bfs::path& rootdir, const bfs::path& basepath){
 #if BOOST_VERSION <= 106000 // 1.6.0
     const bfs::path relpath = make_relative(rootdir, basepath);
 #else
-    const bfs::path relpath = bfs::relative(rootdir, basepath);
+    const bfs::path relpath = bfs::relative(basepath, rootdir);
 #endif
     std::string mp_prefix = relpath.string();
 
