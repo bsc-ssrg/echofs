@@ -31,6 +31,7 @@
 #include <fcntl.h>
 
 
+#include <boost/version.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/uuid/uuid.hpp>
@@ -49,12 +50,14 @@
 #include <nvram-nvml/snapshot.h>
 #include <nvram-nvml/nvram-nvml.h>
 
+#if BOOST_VERSION <= 106000 // 1.6.0
 namespace boost { 
 namespace filesystem {
 
 /**********************************************************************************************************************/
 /* helper functions                                                                                                   */
 /**********************************************************************************************************************/
+
 template <> 
 path& path::append<path::iterator>(path::iterator begin, path::iterator end, const codecvt_type& cvt) {
 
@@ -94,11 +97,17 @@ path make_relative(path from_path, path to_path) {
 
 } 
 } // namespace boost::filesystem
+#endif
 
 namespace {
 
 std::string compute_prefix(const bfs::path& rootdir, const bfs::path& basepath){
+
+#if BOOST_VERSION <= 106000 // 1.6.0
     const bfs::path relpath = make_relative(rootdir, basepath);
+#else
+    const bfs::path relpath = bfs::relative(rootdir, basepath);
+#endif
     std::string mp_prefix = relpath.string();
 
 // due to an obscure reason, compiling with -ggdb3 -O0 produces linking errors
