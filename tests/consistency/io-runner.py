@@ -100,10 +100,80 @@ class pread_cmd(Command):
             print("pread error: [" + errno.errorcode[e.errno] + " \"" + e.strerror + "\"]")
             sys.exit(1)
 
+class pwrite_cmd(Command):
+    def __init__(self):
+        self.name = "pwrite"
+
+    def help(self):
+        print("\n"
+              " writes a range of bytes in (block size increments) from the given offset\n"
+              "\n"
+              " Example:\n"
+              " 'pwrite 512 20' - writes 20 bytes at 512 bytes into the open file\n"
+              "\n"
+              " Writes into a segment of the currently open file, using either a buffer\n"
+              " filled with a set pattern (0xcdcdcdcd) or data read from an input file.\n"
+              " The writes are performed in sequential blocks starting at offset, with the\n"
+              " blocksize tunable using the -b option (default blocksize is 4096 bytes),\n"
+              " unless a different write pattern is requested.\n"
+              " -i      -- input file, source of data to write (used when writing forward)\n"
+              " -p      -- pattern to replicate when writing (size = 1 byte)\n"
+              " -w      -- call fdatasync(2) at the end (included in timing results)\n"
+              " -W      -- call fsync(2) at the end (included in timing results)\n"
+              " -B      -- write backwards through the range from offset (backwards N bytes)\n"
+              " -F      -- write forwards through the range of bytes from offset (default)\n"
+              " -R      -- write at random offsets in the specified range of bytes\n"
+              " -Z N    -- zeed the random number generator (used when writing randomly)\n"
+              "            (heh, zorry, the -s/-S arguments were already in use in pwrite)\n"
+              "\n");
+
+    def run(self, fd, args):
+
+        parser = argparse.ArgumentParser()
+
+        # arguments
+        parser.add_argument('offset', type=int);
+        parser.add_argument('buffersize', type=int);
+        parser.add_argument('-i', '--infile', type=str);
+        parser.add_argument('-p', '--pattern', type=str);
+
+        # flags
+        parser.add_argument('-w', action='store_true');
+        parser.add_argument('-W', action='store_true');
+        parser.add_argument('-B', action='store_true');
+        parser.add_argument('-F', action='store_true');
+        parser.add_argument('-R', action='store_true');
+        parser.add_argument('-Z', action='store_true');
+
+        pargs = parser.parse_args(args)
+
+        offset = pargs.offset
+        buffersize = pargs.buffersize
+
+        if(pargs.infile is not None):
+            fd2 = os.open(pargs.infile, os.O_RDONLY)
+            buffer = os.pread(fd2, buffersize, 0)
+            os.close(fd2)
+        else:
+            if(pargs.pattern is None):
+                pattern = 0xcd
+            else:
+                pattern = int(pargs.pattern, 16)
+
+            buffer = bytes([pattern] * buffersize)
+
+            assert(len(buffer) == buffersize)
+
+        try:
+            os.pwrite(fd, buffer, offset);
+        except OSError as e:
+            print("pwrite error: [" + errno.errorcode[e.errno] + " \"" + e.strerror + "\"]")
+            sys.exit(1)
 
 def init_commands():
 
     COMMANDS['pread'] = pread_cmd()
+    COMMANDS['pwrite'] = pwrite_cmd()
 
 def init(argv):
 
@@ -113,24 +183,24 @@ def init(argv):
 
     parser.add_argument('-c', '--command', metavar='CMD',
                         help='run command CMD', action='append')
-    parser.add_argument('file', metavar='INFILE', type=str, nargs=1)
-    parser.add_argument('-o', '--outfile', metavar='OUTFILE', #default=,
-                        help="write command output to OUTFILE instead of STDOUT")
+    parser.add_argument('file', metavar='FILE', type=str, nargs=1)
+    parser.add_argument('-o', '--logfile', metavar='LOGFILE', #default=,
+                        help="write command output to LOGFILE instead of STDOUT")
     args = parser.parse_args()
 
     commands = args.command
     target_file = args.file
 
-    return (target_file[0], args.outfile, commands)
+    return (target_file[0], args.logfile, commands)
 
-def command_loop(target_file, outfile, commands):
+def command_loop(target_file, logfile, commands):
 
     # open 'target_file'
-    fd = os.open(target_file, os.O_RDWR)
+    fd = os.open(target_file,  os.O_CREAT | os.O_RDWR, mode=0o666)
 
-    if outfile is not None:
+    if logfile is not None:
         saved_stdout = sys.stdout
-        sys.stdout = open(outfile, 'w')
+        sys.stdout = open(logfile, 'w')
 
     for cmd in commands:
         cmd_fields = cmd.split(' ')
@@ -140,7 +210,7 @@ def command_loop(target_file, outfile, commands):
 
         COMMANDS[cmd_name].run(fd, cmd_args)
 
-    if outfile is not None:
+    if logfile is not None:
         sys.stdout.close()
         sys.stdout = saved_stdout
 
@@ -156,8 +226,8 @@ def do_pread(fd, offset, buffersize):
 
 if __name__ == "__main__":
 
-    target_file, outfile, commands = init(sys.argv)
+    target_file, logfile, commands = init(sys.argv)
 
-    command_loop(target_file, outfile, commands)
+    command_loop(target_file, logfile, commands)
 
     sys.exit(0)

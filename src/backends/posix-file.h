@@ -45,6 +45,7 @@ struct file {
 
     size_t get_size() const;
     void close();
+    int stat(struct stat& stbuf);
 };
 
 } // namespace posix

@@ -120,9 +120,28 @@ _require_test_mnt()
     fi
 }
 
+# we may need a $TEST_TMP directory for various tasks
+_require_test_tmp()
+{
+    if [[ -z $TEST_TMP ]]; then
+        echo "'$TEST_TMP' not set"
+        exit 1
+    fi
+
+    # check if the directory exists, and create it if not
+    if [ ! -d "$TEST_TMP" ]; then
+        echo "* creating $TEST_TMP"
+        mkdir "$TEST_TMP"
+    else
+        echo "* reusing $TEST_TMP"
+    fi
+}
+
 # generate an ID for this test and store it in $TESTID
 _generate_test_id(){
-    TESTID=`basename $0 | cut -d '.' -f 1`
+    TMP=${0##./}
+    TMP=${TMP/\//_}
+    TESTID=${TMP%%.test}
 }
 
 # generate a configuration file for efs-ng based on the values
@@ -266,7 +285,7 @@ _require_test_subdir()
         exit 1
     fi
 
-    TEST_SUBDIR="${PWD}/${TESTID}"
+    TEST_SUBDIR="${PWD}/run/test__${TESTID}__"
 
     if [[ ! -e $TEST_SUBDIR ]]; then
         echo "creating $TEST_SUBDIR"
@@ -279,6 +298,7 @@ _require_test_subdir()
 
     TEST_ROOT="${TEST_SUBDIR}/test_root"
     TEST_MNT="${TEST_SUBDIR}/test_mnt"
+    TEST_TMP="${TEST_SUBDIR}/test_tmp"
 }
 
 _remove_test_subdir()

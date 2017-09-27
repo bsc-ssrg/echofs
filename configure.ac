@@ -160,11 +160,13 @@ AC_CONFIG_COMMANDS([posix-test-dependencies],
 AC_CONFIG_COMMANDS([consistency-tests-dependencies],
                    [cp -pR "$srcdir"/tests/consistency tests/])
 
-# automatically find all read tests and put them in a EFSNG_READ_TESTS variable
+# automatically find all consistency tests and put them in appropriate variables
 # that can be easily used from Makefile.am
 if test -d "$srcdir"/tests/consistency; then
     EFSNG_READ_TESTS=`cd ${srcdir}/tests/consistency/ && find read -name '*.test' -print0 | sort -z | xargs -0`
     AC_SUBST([EFSNG_READ_TESTS])
+    EFSNG_WRITE_TESTS=`cd ${srcdir}/tests/consistency/ && find write -name '*.test' -print0 | sort -z | xargs -0`
+    AC_SUBST([EFSNG_WRITE_TESTS])
 fi
 
 AC_CONFIG_FILES([
@@ -175,6 +177,7 @@ AC_CONFIG_FILES([
         tests/library/Makefile
         tests/posix-compliance/Makefile
         tests/consistency/Makefile
+        tests/unit/Makefile
 ])
 
 AC_OUTPUT

@@ -29,6 +29,7 @@
 
 #include <spdlog/spdlog.h>
 #include <spdlog/fmt/ostr.h>
+#include <sstream>
 
 namespace efsng {
 
@@ -63,7 +64,17 @@ public:
 
             assert(m_internal_logger != nullptr);
 
-            m_internal_logger->set_pattern("[%Y-%m-%d %T] [%n] [%t] [%l] %v");
+            // %Y - Year in 4 digits
+            // %m - month 1-12
+            // %d - day 1-31
+            // %T - ISO 8601 time format (HH:MM:SS)
+            // %f - microsecond part of the current second
+            // %E - epoch (microseconds precision)
+            // %n - logger's name
+            // %t - thread id
+            // %l - log level
+            // %v - message
+            m_internal_logger->set_pattern("[%Y-%m-%d %T.%f] [%E] [%n] [%t] [%l] %v");
 
 
             spdlog::drop_all();
@@ -137,6 +148,21 @@ public:
     template <typename T>
     inline void critical(const T& msg) {
         m_internal_logger->critical(msg);
+    }
+
+    template <typename... Args>
+    static inline std::string build_message(Args&&... args) {
+
+        // see:
+        // 1. https://stackoverflow.com/questions/27375089/what-is-the-easiest-way-to-print-a-variadic-parameter-pack-using-stdostream
+        // 2. https://stackoverflow.com/questions/25680461/variadic-template-pack-expansion/25683817#25683817
+
+        std::stringstream ss;
+
+        using expander = int[];
+        (void) expander{0, (void(ss << std::forward<Args>(args)),0)...};
+
+        return ss.str();
     }
 
 private:

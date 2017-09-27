@@ -40,8 +40,14 @@ namespace bfs = boost::filesystem;
 namespace efsng {
 namespace nvml {
 
+// we need a definition of the constant because std::min/max rely on references
+// (see: http://stackoverflow.com/questions/16957458/static-const-in-c-class-undefined-reference)
+const size_t mapping::s_min_size;
+
 mapping::mapping(const mapping& mp) 
     : m_name(mp.m_name),
+      m_type(mp.m_type),
+      m_path(mp.m_path),
       m_data(mp.m_data),
       m_offset(mp.m_offset),
       m_size(mp.m_size),
@@ -53,6 +59,8 @@ mapping::mapping(const mapping& mp)
 
 mapping::mapping(mapping&& other) noexcept
     : m_name(std::move(other.m_name)),
+      m_type(std::move(other.m_type)),
+      m_path(std::move(other.m_path)),
       m_data(std::move(other.m_data)),
       m_offset(std::move(other.m_offset)),
       m_size(std::move(other.m_size)),
@@ -75,7 +83,7 @@ mapping::mapping(mapping&& other) noexcept
         //std::cerr << "<< " << m_pmutex.get() << "\n";
 }
 
-mapping::mapping(const bfs::path& prefix, const bfs::path& base_path, size_t min_size){
+mapping::mapping(const bfs::path& prefix, const bfs::path& base_path, size_t min_size, mapping::type type){
 
     const bfs::path abs_path = generate_pool_path(prefix, base_path);
 
@@ -86,9 +94,9 @@ mapping::mapping(const bfs::path& prefix, const bfs::path& base_path, size_t min
     /* if the mapping file already exists delete it, since we can't trust that it's the same file */
     /* TODO: we may need to change this in the future */
     if(bfs::exists(abs_path)){
-        if(unlink(abs_path.c_str()) != 0){
-            //BOOST_LOG_TRIVIAL(error) << "Error removing file " << abs_path << ": " << strerror(errno);
-            throw std::runtime_error("");
+        if(::unlink(abs_path.c_str()) != 0){
+            throw std::runtime_error(
+                    logger::build_message("Error removing file: ", abs_path, " (", strerror(errno), ")"));
         }
     }
 
@@ -100,26 +108,27 @@ mapping::mapping(const bfs::path& prefix, const bfs::path& base_path, size_t min
      * we don't have (yet) enough data to fill it with 
      * XXX: this will provoke some waste of storage space for small files
      * if a large FUSE_BLOCK_SIZE is used */
-    size_t aligned_size = efsng::xalign(min_size, efsng::FUSE_BLOCK_SIZE);
+    size_t aligned_size = std::max(s_min_size, (size_t) efsng::xalign(min_size, efsng::FUSE_BLOCK_SIZE));
 
     /* create the mapping */
     if((pmem_addr = pmem_map_file(abs_path.c_str(), aligned_size, PMEM_FILE_CREATE | PMEM_FILE_EXCL,
                                   0666, &mapping_length, &is_pmem)) == NULL) {
-        //BOOST_LOG_TRIVIAL(error) << "Error creating pmem file " << abs_path << ": " << strerror(errno);
-        throw std::runtime_error("");
+        throw std::runtime_error(
+                logger::build_message("Fatal error creating pmem file: ", abs_path, " (", strerror(errno), ")"));
     }
 
     /* check that the range allocated is of the required size */
     if(mapping_length != aligned_size){
-        //BOOST_LOG_TRIVIAL(error) << "File mapping of different size than requested";
         pmem_unmap(pmem_addr, mapping_length);
-        throw std::runtime_error("");
+        throw std::runtime_error("File mapping of different size than requested");
     }
 
     /* initialize members */
     m_name = mp_name;
+    m_type = type;
+    m_path = abs_path;
     m_data = pmem_addr;
-    m_offset = 0;
+    m_offset = 0; // will be updated when added to a file
     m_size = mapping_length;
     m_bytes = 0; // will be filled by populate()
     m_is_pmem = is_pmem;
@@ -131,6 +140,7 @@ mapping::~mapping() {
 
 //    std::cerr << "Died!\n";
 
+    // release the mapped region
     if(m_data != 0){
         if(pmem_unmap(m_data, m_size) == -1) {
             //BOOST_LOG_TRIVIAL(error) << "Error while deleting mapping";
@@ -139,6 +149,15 @@ mapping::~mapping() {
 //            std::cerr << "Mapping released :P\n";
 //        }
     }
+
+    // if the mapping corresponds to a temporary file, remove
+    // also the file from the filesystem
+    if(m_type == mapping::type::temporary) {
+        if(::unlink(m_path.c_str()) != 0){
+            //BOOST_LOG_TRIVIAL(error) << "Error removing file " << abs_path << ": " << strerror(errno);
+        }
+    }
+
 }
 
 void mapping::populate(const posix::file& fdesc) {

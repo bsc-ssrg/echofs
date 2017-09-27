@@ -170,8 +170,8 @@ int64_t backend::parse_size(const std::string& str){
 std::ostream& operator<<(std::ostream& os, const efsng::backend::buffer& buf){
 
     os << "{ "
-       << "m_data_ptr: " << buf.first << ", "
-       << "m_size: 0x" << std::hex << buf.second
+       << "m_data_ptr: " << buf.m_data << ", "
+       << "m_size: 0x" << std::hex << buf.m_size
        << "}";
 
     return os;

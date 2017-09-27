@@ -152,9 +152,16 @@ void nvml_backend::load(const bfs::path& pathname){
     /* compute an appropriate path for the mapping file */
     std::string mp_prefix = ::compute_prefix(m_root_dir, pathname);
 
+    // save attributes
+    struct stat stbuf;
+    fd.stat(stbuf);
+
     /* create a mapping and fill it with the current contents of the file */
-    mapping mp(mp_prefix, m_daxfs_mount_point, fd.get_size());
+    mapping mp(mp_prefix, m_daxfs_mount_point, stbuf.st_size);
     mp.populate(fd);
+
+
+
     fd.close();
 
 #ifdef __EFS_DEBUG__
@@ -168,7 +175,7 @@ void nvml_backend::load(const bfs::path& pathname){
     // readers and writers
     m_files.insert(std::make_pair(
         pathname.c_str(),
-        std::make_unique<nvml::file>(mp)
+        std::make_unique<nvml::file>(pathname, mp, stbuf)
         )
     );
 
@@ -191,14 +198,17 @@ bool nvml_backend::exists(const char* pathname) const {
 }
 
 /* build and return a list of all mapping regions affected by the read() operation */
-void nvml_backend::read_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const {
+void nvml_backend::read_prepare(const backend::file& file, off_t offset, size_t size, buffer_map& bmap) const {
 
 #ifdef __EFS_DEBUG__
-    m_logger.debug("nvml_backend::read_data(file, {}, {})", offset, size);
+    m_logger.debug("nvml_backend::read_prepare(file, {}, {})", offset, size);
 #endif
 
     const nvml::file& f = dynamic_cast<const nvml::file&>(file);
 
+    f.range_lookup(offset, offset+size, bmap);
+
+#if 0 // old version with snapshots -- discarded
     std::list<snapshot> snaps;
 
     for(const auto& mp : f.m_mappings) {
@@ -269,7 +279,7 @@ void nvml_backend::read_data(const backend::file& file, off_t offset, size_t siz
         m_logger.debug("{} + {} => {}, {}", offset, size, buf_start, buf_size);
 #endif
 
-        bufmap.emplace_back(buf_start, buf_size);
+        bmap.emplace_back(buf_start, buf_size);
     }
 
     // XXX WARNING: the snapshots are currently deleted here. We don't know 
@@ -277,14 +287,188 @@ void nvml_backend::read_data(const backend::file& file, off_t offset, size_t siz
 #ifdef __EFS_DEBUG__
     m_logger.debug("Deleting snapshots!");
 #endif
+#endif
 }
 
-void nvml_backend::write_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const {
+void nvml_backend::read_finalize(const backend::file& file, off_t offset, size_t size, buffer_map& bmap) const {
     (void) file;
     (void) offset;
     (void) size;
-    (void) bufmap;
-    //TODO
+    (void) bmap;
+}
+
+void nvml_backend::write_prepare(backend::file& file, off_t start_offset, size_t size, buffer_map& bmap) const {
+    (void) file;
+
+#ifdef __EFS_DEBUG__
+    m_logger.debug("nvml_backend::write_prepare(file, {}, {})", start_offset, size);
+#endif
+
+    nvml::file& f = dynamic_cast<nvml::file&>(file);
+
+    off_t end_offset = start_offset + size;
+    off_t eof_offset = f.get_size();
+
+    if(end_offset > eof_offset) {
+        std::string mp_prefix = ::compute_prefix(m_root_dir, f.m_pathname);
+        f.extend(end_offset, mp_prefix, m_daxfs_mount_point);
+    }
+
+    f.find_segments(start_offset, end_offset, bmap);
+
+#if 0 /* old code for write log -- discarded */
+    off_t end_offset = start_offset + size;
+    off_t eof_offset = f.m_size;
+
+    // if we are appending beyond the current EOF we need to take 
+    // into account the additional size of the resulting zeroed region
+    // FIXME in the future, we should not store this kind of file regions
+    if(start_offset > eof_offset) {
+        start_offset = eof_offset;
+        size = end_offset - start_offset;
+    }
+
+    // allocate a buffer for FUSE to fill with the user-provided data
+    int n = block_count(start_offset, size, FUSE_BLOCK_SIZE);
+
+    data_ptr_t dst_buf = new char[n*FUSE_BLOCK_SIZE];
+
+    std::cerr << "XXX " << dst_buf << "\n";
+
+    off_t start_block = align(start_offset, FUSE_BLOCK_SIZE);
+    off_t end_block = xalign(end_offset, FUSE_BLOCK_SIZE);
+    off_t dst_offset = start_block; // dst_offset will end up being start_block in all cases but one
+
+    // check if append or overwrite
+    if(end_offset <= eof_offset) {
+        // overwrite: 
+        // implies (potentially) copying contents from start and 
+        // end blocks if the overwrite is partial
+        if(start_offset != start_block) {
+            size_t partial_size = start_offset - start_block;
+
+            backend::buffer_map bmap;
+            f.range_lookup(start_block, start_block + FUSE_BLOCK_SIZE, bmap);
+            assert(bmap.size() == 1);
+
+            data_ptr_t src_buf = bmap.front().m_data;
+
+            memcpy(dst_buf, src_buf, partial_size);
+        }
+
+        if(end_offset != end_block) {
+            size_t partial_size = end_block - end_offset;
+            size_t partial_delta = end_offset - start_block;
+
+            backend::buffer_map bmap;
+            f.range_lookup(end_block, end_block + FUSE_BLOCK_SIZE, bmap);
+            assert(bmap.size() == 1);
+
+            data_ptr_t src_buf = bmap.front().m_data;
+
+            memcpy((void*) ((uintptr_t) dst_buf + partial_delta), 
+                   (void*) ((uintptr_t) src_buf + partial_delta), 
+                   partial_size);
+        }
+    }
+    else { /* end_offset > (off_t) f.m_size */
+        // append: 
+        // - implies (potentially) copying contents from start block 
+        // if the append starts before EOF and the overwrite is partial
+        // - also (potentially) implies extending the file with a zeroed region
+        // if start_offset is beyond EOF
+
+        if(start_offset > eof_offset) {
+            size_t zero_size = start_offset - eof_offset;
+            size_t zero_delta = eof_offset - start_block;
+            dst_offset = align(eof_offset, FUSE_BLOCK_SIZE);
+
+            memset((void*) ((uintptr_t) dst_buf + zero_delta), 0, zero_size);
+        }
+
+        if(start_offset != start_block) {
+            size_t partial_size = start_offset - start_block;
+
+            backend::buffer_map bmap;
+            f.range_lookup(start_block, start_block + FUSE_BLOCK_SIZE, bmap);
+            assert(bmap.size() == 1);
+
+            data_ptr_t src_buf = bmap.front().m_data;
+
+            memcpy(dst_buf, src_buf, partial_size);
+        }
+    }
+
+    bmap.emplace_back(dst_buf, dst_offset, n*FUSE_BLOCK_SIZE);
+#endif
+}
+
+
+void nvml_backend::write_finalize(backend::file& file, off_t start_offset, size_t size, buffer_map& bmap) const {
+    (void) file;
+
+#ifdef __EFS_DEBUG__
+    m_logger.debug("nvml_backend::write_finalize(file, {}, {})", start_offset, size);
+#endif
+
+    nvml::file& f = dynamic_cast<nvml::file&>(file);
+
+    f.set_size(start_offset + size);
+
+#if 0
+
+#ifdef __EFS_DEBUG__
+    m_logger.debug("nvml_backend::write_finalize(file, {}, {})", start_offset, size);
+#endif
+
+    nvml::file& f = dynamic_cast<nvml::file&>(file);
+
+    // create a new log entry that points to the buffers
+    // created by write_prepare
+    data_ptr_t dst_buf = bmap.front().m_data;
+    off_t dst_offset = bmap.front().m_offset;
+    size_t dst_size = bmap.front().m_size;
+
+#if 0 // not needed because start_offset == b.m_offset in efs-ng.cpp
+    // the file was zero-extended
+    if(dst_offset != start_offset){
+        start_offset = dst_offset;
+    }
+#endif
+
+    off_t end_offset = start_offset + size;
+    off_t start_block = align(start_offset, FUSE_BLOCK_SIZE);
+    off_t end_block = xalign(end_offset, FUSE_BLOCK_SIZE);
+
+    //XXX mutex!
+    //XXX mutex!
+    //XXX mutex!
+    f.m_write_log.emplace_back(dst_offset, dst_size, dst_buf);
+
+    std::cerr << "Before\n";
+    for(auto it = f.m_offset_tree.begin();
+        it != f.m_offset_tree.end();
+        ++it){
+
+        std::cerr << "{" << it->first << ": ";
+        std::cerr << it->second << "}\n";
+    }
+
+    f.m_offset_tree.insert_back(start_block, end_block, {dst_buf, dst_size, dst_size});
+    f.m_offset_tree.build_tree();
+
+    std::cerr << "After\n";
+    for(auto it = f.m_offset_tree.begin();
+        it != f.m_offset_tree.end();
+        ++it){
+
+        std::cerr << "{" << std::dec << it->first << std::hex << " (0x" << it->first << "): ";
+        std::cerr << it->second << "}\n";
+    }
+
+
+    f.m_size = end_offset;
+#endif
 }
 
 backend::iterator nvml_backend::find(const char* path) {

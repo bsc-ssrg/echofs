@@ -56,8 +56,10 @@ public:
     uint64_t capacity() const override;
     void load(const bfs::path& pathname) override;
     bool exists(const char* pathname) const override;
-    void read_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const override;
-    void write_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const override;
+    void read_prepare(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const override;
+    void read_finalize(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const override;
+    void write_prepare(backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const override;
+    void write_finalize(backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const override;
 
     backend::iterator find(const char* path) override;
     backend::iterator begin() override;

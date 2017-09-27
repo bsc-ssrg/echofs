@@ -48,10 +48,12 @@ fi
 _generate_test_id
 
 # create a test subdir for the test, a 'root' directory, 
-# and a 'mnt' directory (sets $TEST_SUBDIR, $TEST_ROOT, and $TEST_MNT)
+# a 'mnt' directory, and a 'tmp' directory for emulating a DAX filesystems
+# (sets $TEST_SUBDIR, $TEST_ROOT, $TEST_MNT, and $TEST_TMP)
 _require_test_subdir
 _require_test_root
 _require_test_mnt
+_require_test_tmp
 
 expected="${TEST_ROOT}/${TESTID}.tmp"
 actual="${TEST_MNT}/${TESTID}.tmp"
@@ -67,7 +69,7 @@ dd if=/dev/urandom of=$expected bs=1MB count=1 > /dev/null 2>&1
 
 NVRAM_BACKEND["type"]="NVRAM-NVML"
 NVRAM_BACKEND["size"]="1.5GiB"
-NVRAM_BACKEND["dax-fs-path"]="/foo/bar/baz"
+NVRAM_BACKEND["dax-fs-path"]="${TEST_TMP}"
 
 # specify the files to be preloaded on mount
 

@@ -24,7 +24,7 @@
 #                                                                         #
 ###########################################################################
 
-TESTS = $(EFSNG_READ_TESTS)
+TESTS = $(EFSNG_READ_TESTS) $(EFSNG_WRITE_TESTS)
 
 AM_TESTS_ENVIRONMENT = \
 	TOP_BUILD_DIR='${top_builddir}'; \

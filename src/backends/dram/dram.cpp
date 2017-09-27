@@ -107,7 +107,7 @@ bool dram_backend::exists(const char* pathname) const {
 }
 
 /* build and return a list of all mapping regions affected by the read() operation */
-void dram_backend::read_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const {
+void dram_backend::read_prepare(const file& file, off_t offset, size_t size, buffer_map& bufmap) const {
 
 
     const dram::file& f = dynamic_cast<const dram::file&>(file);
@@ -192,7 +192,22 @@ void dram_backend::read_data(const backend::file& file, off_t offset, size_t siz
 #endif
 }
 
-void dram_backend::write_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const {
+void dram_backend::read_finalize(const file& file, off_t offset, size_t size, buffer_map& bufmap) const {
+    (void) file;
+    (void) offset;
+    (void) size;
+    (void) bufmap;
+}
+
+void dram_backend::write_prepare(file& file, off_t offset, size_t size, buffer_map& bufmap) const {
+    (void) file;
+    (void) offset;
+    (void) size;
+    (void) bufmap;
+    //TODO
+}
+
+void dram_backend::write_finalize(file& file, off_t offset, size_t size, buffer_map& bufmap) const {
     (void) file;
     (void) offset;
     (void) size;

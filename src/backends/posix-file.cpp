@@ -63,6 +63,10 @@ size_t file::get_size() const {
     return stbuf.st_size;
 }
 
+int file::stat(struct stat& stbuf) {
+    return fstat(m_fd, &stbuf);
+}
+
 void file::close() {
     if(m_fd != -1 && ::close(m_fd) == -1){
         //BOOST_LOG_TRIVIAL(error) << "Error closing file " << m_pathname << ": " << strerror(errno);

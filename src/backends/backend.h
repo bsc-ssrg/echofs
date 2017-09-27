@@ -36,6 +36,7 @@
 #include <logging.h>
 #include <settings.h>
 #include <efs-common.h>
+#include <range_lock.h>
 
 namespace efsng {
 
@@ -46,21 +47,53 @@ namespace efsng {
 class backend {
 
 public:
+
     class file {
 public:
+        enum class type {
+            temporary,
+            persistent
+        };
+
+
+        virtual void stat(struct stat& buf) const = 0;
+        virtual size_t get_size() const = 0;
+        virtual lock_manager::range_lock lock_range(off_t start, off_t end, operation op) = 0;
+        virtual void unlock_range(lock_manager::range_lock& rl) = 0;
+
         virtual ~file(){}
     };
 
     using file_ptr = std::unique_ptr<file>;
-    using buffer = std::pair<data_ptr_t, size_t>;
+    //using buffer = std::pair<data_ptr_t, size_t>;
+
+    struct buffer {
+        buffer(data_ptr_t data, size_t size) // deprecated
+            : m_data(data),
+              m_offset(0),
+              m_size(size) { }
+
+        buffer(data_ptr_t data, off_t offset, size_t size)
+            : m_data(data),
+              m_offset(offset),
+              m_size(size) { }
+
+        data_ptr_t m_data;
+        off_t m_offset;
+        size_t m_size;
+    };
 
     struct buffer_map : public std::list<buffer> {
 
         buffer_map() : m_size(0) {}
 
-
-        void emplace_back(data_ptr_t data, size_t size) {
+        void emplace_back(data_ptr_t data, size_t size) { // deprecated
             this->std::list<buffer>::emplace_back(data, size);
+            m_size += size;
+        }
+
+        void emplace_back(data_ptr_t data, off_t offset, size_t size) {
+            this->std::list<buffer>::emplace_back(data, offset, size);
             m_size += size;
         }
 
@@ -94,8 +127,10 @@ public:
     virtual uint64_t capacity() const = 0;
     virtual void load(const bfs::path& pathname) = 0;
     virtual bool exists(const char* pathname) const = 0;
-    virtual void read_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const = 0;
-    virtual void write_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const = 0;
+    virtual void read_prepare(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const = 0;
+    virtual void read_finalize(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const = 0;
+    virtual void write_prepare(backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const = 0;
+    virtual void write_finalize(backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const = 0;
 
     virtual iterator find(const char* path) = 0;
     virtual iterator begin() = 0;

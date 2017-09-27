@@ -36,7 +36,7 @@
 namespace efsng {
 namespace nvml {
 
-const uint64_t NVML_TRANSFER_SIZE = 0x1000; // 4KiB
+static const uint64_t NVML_TRANSFER_SIZE = 0x1000; // 4KiB
 
 /* copy of a data block */
 struct data_copy {
@@ -52,21 +52,31 @@ struct data_copy {
 
 /* descriptor for an in-NVM mmap()-ed file region */
 struct mapping {
-    std::string                 m_name;     /* mapping name */
-    data_ptr_t                  m_data;     /* mapped data */
-    off_t                       m_offset;   /* base offset within file */
-    size_t                      m_size;     /* mapped size */
-    size_t                      m_bytes;    /* used size */
-    int                         m_is_pmem;  /* NVML-required flag */
-    std::list<data_copy>        m_copies;   /* block copies */
-    std::unique_ptr<std::mutex> m_pmutex;   /* mutex ptr (mutexes are not copyable/movable) */
+
+    //static const size_t s_min_size = 0x2000000; // 32MiB
+    static const size_t s_min_size = 0x1000; // 32MiB
+
+    enum class type {
+        temporary,
+        persistent
+    };
+
+    std::string                 m_name;     /*!< Mapping name */
+    mapping::type               m_type;     /*!< Mapping type */
+    bfs::path                   m_path;     /*!< Mapping's 'filesystem name' */
+    data_ptr_t                  m_data;     /*!< Mapped data */
+    off_t                       m_offset;   /*!< Base offset within file */
+    size_t                      m_size;     /*!< Mapped size */
+    size_t                      m_bytes;    /*!< Used size */
+    int                         m_is_pmem;  /*!< NVML-required flag */
+    std::list<data_copy>        m_copies;   /*!< Block copies */
+    std::unique_ptr<std::mutex> m_pmutex;   /*!< Mutex ptr (mutexes are not copyable/movable) */
 
     explicit mapping(const mapping& mp);
-
     mapping(mapping&& other) noexcept ;
-
+    mapping(const bfs::path& prefix, const bfs::path& base_path, size_t min_size, mapping::type type = mapping::type::persistent);
     ~mapping();
-    mapping(const bfs::path& prefix, const bfs::path& base_path, size_t min_size);
+
     void populate(const posix::file& fdesc);
 
     inline bool overlaps(off_t op_offset, size_t op_size) const {

@@ -50,6 +50,13 @@ struct file : public backend::file {
         std::cerr << "a nvml::file instance died...\n";
     }
 
+    size_t get_size() const { return 0; }
+    void stat(struct stat& buf) const { (void) buf; return ; }
+
+    lock_manager::range_lock lock_range(off_t start, off_t end, operation op) override { (void) start; (void) end; (void) op; };
+    void unlock_range(lock_manager::range_lock& rl) override { (void) rl; };
+
+
     void add(const mapping& mp);
 };
 

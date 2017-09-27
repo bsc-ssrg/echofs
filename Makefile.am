@@ -83,38 +83,12 @@ FUSEXX_CPPFLAGS="-DFUSE_USE_VERSION=28"
 FUSEXX_LIBS=@FUSE_LIBS@
 endif
 
+# convenience library so that we can build both the filesystem's
+# binary and all unit tests
+noinst_LTLIBRARIES = src/libefsng.la
 
-bin_PROGRAMS = src/efs-ng
-
-# we need -DBOOST_ALL_DYN_LINK to correctly link boost::log 
-src_efs_ng_CPPFLAGS =						\
-	$(FUSEXX_CPPFLAGS)						\
-	@BOOST_CPPFLAGS@						\
-	-DBOOST_ALL_DYN_LINK					\
-	-DSPDLOG_ENABLE_SYSLOG  				\
-	-I$(top_srcdir)/src						\
-	-I$(top_srcdir)/src/backends			\
-	$(END)
-
-src_efs_ng_CXXFLAGS =       \
-    $(FUSEXX_CFLAGS)		\
-    -Wall -Wextra			\
-	$(END)
-
-src_efs_ng_LDFLAGS =		\
-    $(FUSEXX_LIBS)			\
-    @BOOST_LDFLAGS@			\
-    @BOOST_SYSTEM_LIB@		\
-    @BOOST_FILESYSTEM_LIB@	\
-    -lboost_log_setup       \
-    @BOOST_LOG_LIB@			\
-    -lboost_thread       	\
-    @LIBCONFIGXX_LIBS@      \
-	@LIBPMEMOBJ_LIBS@       \
-    $(END)
-
-# source files in alphabetical order
-src_efs_ng_SOURCES =        						\
+# filesystem's source files in alphabetical order
+src_libefsng_la_SOURCES = 							\
     src/backends/backend.h    						\
     src/backends/backend.cpp    					\
 	src/backends/posix-file.cpp						\
@@ -135,11 +109,12 @@ src_efs_ng_SOURCES =        						\
 	src/backends/nvram-nvml/nvram-nvml.h			\
 	src/backends/nvram-nvml/snapshot.cpp			\
 	src/backends/nvram-nvml/snapshot.h				\
+	src/range_lock.hpp								\
+	src/range_lock.cpp								\
+	src/avl.hpp										\
     src/command-line.cpp    						\
     src/command-line.h      						\
     src/efs-common.h                        		\
-    src/efs-ng.cpp          						\
-    src/efs-ng.h          							\
     src/logging.h          							\
     src/metadata/dirs.cpp   						\
     src/metadata/dirs.h     						\
@@ -150,3 +125,57 @@ src_efs_ng_SOURCES =        						\
     src/usr-credentials.h   						\
     $(SPDLOG_INCLUDES)								\
     $(END)
+
+src_libefsng_la_CPPFLAGS = 					\
+	$(FUSEXX_CPPFLAGS)						\
+	@BOOST_CPPFLAGS@						\
+	-DBOOST_ALL_DYN_LINK					\
+	-DSPDLOG_ENABLE_SYSLOG  				\
+	-I$(top_srcdir)/src						\
+	-I$(top_srcdir)/src/backends			\
+	$(END)
+
+src_libefsng_la_CXXFLAGS =       \
+    $(FUSEXX_CFLAGS)		\
+    -Wall -Wextra			\
+	$(END)
+
+# filesystem's binary
+bin_PROGRAMS = src/efs-ng
+
+src_efs_ng_SOURCES =\
+    src/efs-ng.cpp          						\
+    src/efs-ng.h          							\
+    $(END)
+
+EXTRA_src_efs_ng_DEPENDENCIES = \
+	src/libefsng.la
+
+# we need -DBOOST_ALL_DYN_LINK to correctly link boost::log 
+src_efs_ng_CPPFLAGS =						\
+	$(FUSEXX_CPPFLAGS)						\
+	@BOOST_CPPFLAGS@						\
+	-DBOOST_ALL_DYN_LINK					\
+	-DSPDLOG_ENABLE_SYSLOG  				\
+	-I$(top_srcdir)/src						\
+	-I$(top_srcdir)/src/backends			\
+	$(END)
+
+src_efs_ng_CXXFLAGS =       \
+    $(FUSEXX_CFLAGS)		\
+    -Wall -Wextra			\
+	$(END)
+
+src_efs_ng_LDFLAGS =		\
+	src/libefsng.la			\
+    $(FUSEXX_LIBS)			\
+    @BOOST_LDFLAGS@			\
+    @BOOST_SYSTEM_LIB@		\
+    @BOOST_FILESYSTEM_LIB@	\
+    -lboost_log_setup       \
+    @BOOST_LOG_LIB@			\
+    -lboost_thread       	\
+    @LIBCONFIGXX_LIBS@      \
+	@LIBPMEMOBJ_LIBS@       \
+    $(END)
+

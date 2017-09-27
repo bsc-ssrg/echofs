@@ -54,8 +54,10 @@ public:
     uint64_t capacity() const;
     void load(const bfs::path& pathname);
     bool exists(const char* pathname) const;
-    void read_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
-    void write_data(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
+    void read_prepare(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
+    void read_finalize(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
+    void write_prepare(backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
+    void write_finalize(backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
 
     efsng::backend::iterator find(const char* path) override;
     efsng::backend::iterator begin() override;
@@ -70,7 +72,7 @@ private:
     /* filename -> data */
     mutable std::mutex m_files_mutex;
     std::unordered_map<std::string, 
-                       std::unique_ptr<efsng::backend::file>> m_files;
+                       std::unique_ptr<backend::file>> m_files;
 }; // dram_backend
 
 } // namespace dram
