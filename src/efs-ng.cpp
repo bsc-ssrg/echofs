@@ -30,6 +30,7 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#include <iostream>
 #include <fuse.h>
 
 #ifdef HAVE_LIBULOCKMGR
@@ -93,8 +94,8 @@ static int efsng_getattr(const char* pathname, struct stat* stbuf){
 static int efsng_getattr(const char* pathname, struct stat* stbuf, struct fuse_file_info* file_info){
 #endif
 
+	efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
 #ifdef __EFS_DEBUG__
-    efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
     efsng_ctx->m_logger->debug("stat(\"{}\")", pathname);
 #endif
 
@@ -963,8 +964,8 @@ static int efsng_fgetattr(const char* pathname, struct stat* stbuf, struct fuse_
 
     (void) pathname;
 
-#ifdef __EFS_DEBUG__
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
+#ifdef __EFS_DEBUG__
     efsng_ctx->m_logger->debug("fstat(\"{}\")", pathname);
 #endif
 

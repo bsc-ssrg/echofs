@@ -27,6 +27,7 @@
 #ifndef __FILE_H__
 #define __FILE_H__
 
+#include <iostream>
 #include <efs-common.h>
 #include <dram/mapping.h>
 #include <backend.h>

@@ -30,6 +30,7 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#include <iostream>
 #include <fuse.h>
 #include <getopt.h>
 

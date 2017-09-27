@@ -24,4 +24,5 @@
 #                                                                         #
 ###########################################################################
 
-SUBDIRS = posix-compliance consistency library unit
+#SUBDIRS = posix-compliance consistency library unit
+SUBDIRS = consistency library unit

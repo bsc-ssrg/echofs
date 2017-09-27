@@ -106,7 +106,7 @@ if [ test "x$with_fuse3" == "xyes" ||
 then
     FUSE3_LIBS+=$LIBS
 else
-    FUSE_LIBS+=$LIBS
+    FUSE_LIBS+=" ${LIBS}"
 fi
 
 LIBS=
