@@ -31,6 +31,7 @@ import os,sys,errno
 import argparse
 import binascii
 import hexdump
+import threading
 
 COMMANDS = dict()
 
@@ -118,13 +119,13 @@ class pwrite_cmd(Command):
               " unless a different write pattern is requested.\n"
               " -i      -- input file, source of data to write (used when writing forward)\n"
               " -p      -- pattern to replicate when writing (size = 1 byte)\n"
-              " -w      -- call fdatasync(2) at the end (included in timing results)\n"
-              " -W      -- call fsync(2) at the end (included in timing results)\n"
-              " -B      -- write backwards through the range from offset (backwards N bytes)\n"
+#              " -w      -- call fdatasync(2) at the end (included in timing results)\n"
+#              " -W      -- call fsync(2) at the end (included in timing results)\n"
+#              " -B      -- write backwards through the range from offset (backwards N bytes)\n"
               " -F      -- write forwards through the range of bytes from offset (default)\n"
-              " -R      -- write at random offsets in the specified range of bytes\n"
-              " -Z N    -- zeed the random number generator (used when writing randomly)\n"
-              "            (heh, zorry, the -s/-S arguments were already in use in pwrite)\n"
+#              " -R      -- write at random offsets in the specified range of bytes\n"
+#              " -Z N    -- zeed the random number generator (used when writing randomly)\n"
+#              "            (heh, zorry, the -s/-S arguments were already in use in pwrite)\n"
               "\n");
 
     def run(self, fd, args):
@@ -138,12 +139,12 @@ class pwrite_cmd(Command):
         parser.add_argument('-p', '--pattern', type=str);
 
         # flags
-        parser.add_argument('-w', action='store_true');
-        parser.add_argument('-W', action='store_true');
-        parser.add_argument('-B', action='store_true');
+#        parser.add_argument('-w', action='store_true');
+#        parser.add_argument('-W', action='store_true');
+#        parser.add_argument('-B', action='store_true');
         parser.add_argument('-F', action='store_true');
-        parser.add_argument('-R', action='store_true');
-        parser.add_argument('-Z', action='store_true');
+#        parser.add_argument('-R', action='store_true');
+#        parser.add_argument('-Z', action='store_true');
 
         pargs = parser.parse_args(args)
 
@@ -184,16 +185,21 @@ def init(argv):
     parser.add_argument('-c', '--command', metavar='CMD',
                         help='run command CMD', action='append')
     parser.add_argument('file', metavar='FILE', type=str, nargs=1)
-    parser.add_argument('-o', '--logfile', metavar='LOGFILE', #default=,
+    parser.add_argument('-l', '--logfile', metavar='LOGFILE', #default=,
                         help="write command output to LOGFILE instead of STDOUT")
+    parser.add_argument('-p', '--parallel', dest='parallel', action='store_true',
+                        help="run multiple commands in parallel")
+    parser.add_argument('-s', '--no-parallel', dest='parallel', action='store_false',
+                        help="run multiple commands sequentially")
+    parser.set_defaults(parallel=False)
     args = parser.parse_args()
 
     commands = args.command
     target_file = args.file
 
-    return (target_file[0], args.logfile, commands)
+    return (target_file[0], args.logfile, args.parallel, commands)
 
-def command_loop(target_file, logfile, commands):
+def sequential_command_loop(target_file, logfile, commands):
 
     # open 'target_file'
     fd = os.open(target_file,  os.O_CREAT | os.O_RDWR, mode=0o666)
@@ -201,6 +207,8 @@ def command_loop(target_file, logfile, commands):
     if logfile is not None:
         saved_stdout = sys.stdout
         sys.stdout = open(logfile, 'w')
+
+    print(commands)
 
     for cmd in commands:
         cmd_fields = cmd.split(' ')
@@ -216,18 +224,59 @@ def command_loop(target_file, logfile, commands):
 
     os.close(fd)
 
-def do_pread(fd, offset, buffersize):
-    try:
-        data = os.pread(fd, buffersize, offset);
-        hexdump.hexdump(data)
-    except OSError as e:
-        print("pread error: [" + errno.errorcode[e.errno] + " \"" + e.strerror + "\"]")
-        sys.exit(1)
+def wait_and_run(e, fd, cmd_name, cmd_args):
+    event_is_set = False
+    
+    while not event_is_set:
+        event_is_set = e.wait()
+
+    COMMANDS[cmd_name].run(fd, cmd_args)
+
+
+def parallel_command_loop(target_file, logfile, commands):
+
+    # open 'target_file'
+    fd = os.open(target_file,  os.O_CREAT | os.O_RDWR, mode=0o666)
+
+    if logfile is not None:
+        saved_stdout = sys.stdout
+        sys.stdout = open(logfile, 'w')
+
+    print(commands)
+    
+    # build a thread for each command, and start them at (roughly) the same time
+    e = threading.Event()
+
+    for cmd in commands:
+        cmd_fields = cmd.split(' ')
+
+        cmd_name = cmd_fields[0]
+        cmd_args = cmd_fields[1:]
+
+        threading.Thread(target=wait_and_run, 
+                         args=(e, fd, cmd_name, cmd_args)).start()
+
+    e.set()
+
+    # wait for threads to complete
+    this_thread = threading.currentThread()
+    for t in threading.enumerate():
+        if t is not this_thread:
+            t.join()
+
+    if logfile is not None:
+        sys.stdout.close()
+        sys.stdout = saved_stdout
+
+    os.close(fd)
 
 if __name__ == "__main__":
 
-    target_file, logfile, commands = init(sys.argv)
+    target_file, logfile, parallel, commands = init(sys.argv)
 
-    command_loop(target_file, logfile, commands)
+    if parallel:
+        parallel_command_loop(target_file, logfile, commands)
+    else:
+        sequential_command_loop(target_file, logfile, commands)
 
     sys.exit(0)

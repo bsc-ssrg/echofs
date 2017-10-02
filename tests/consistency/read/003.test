@@ -84,13 +84,13 @@ _start_test
 
 # run command in efs-ng
 EFSNG_OUTPUT="${TEST_SUBDIR}/data.efsng"
-$IO_RUNNER -c "pread 10 131072" $actual -o "$EFSNG_OUTPUT"
+$IO_RUNNER -c "pread 10 131072" $actual -l "$EFSNG_OUTPUT"
 
 _expect $? 0
 
 # run command in underlying filesystem
 UFS_OUTPUT="${TEST_SUBDIR}/data.ufs"
-$IO_RUNNER -c "pread 10 131072" $expected -o "$UFS_OUTPUT"
+$IO_RUNNER -c "pread 10 131072" $expected -l "$UFS_OUTPUT"
 
 _expect $? 0
 

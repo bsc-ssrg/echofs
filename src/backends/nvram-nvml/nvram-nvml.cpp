@@ -420,9 +420,17 @@ void nvml_backend::write_finalize(backend::file& file, off_t start_offset, size_
     m_logger.debug("nvml_backend::write_finalize(file, {}, {})", start_offset, size);
 #endif
 
+    // XXX avoid this dynamic_cast by adding set_size to backend::file
     nvml::file& f = dynamic_cast<nvml::file&>(file);
 
-    f.set_size(start_offset + size);
+    // XXX we probably need a lock here
+    off_t end_offset = start_offset + size;
+    off_t eof_offset = f.get_size();
+
+    if(end_offset > eof_offset) {
+        f.set_size(end_offset - eof_offset);
+    }
+    // XXX we probably need a lock here
 
 #if 0
 

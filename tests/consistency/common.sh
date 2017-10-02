@@ -299,6 +299,8 @@ _require_test_subdir()
     TEST_ROOT="${TEST_SUBDIR}/test_root"
     TEST_MNT="${TEST_SUBDIR}/test_mnt"
     TEST_TMP="${TEST_SUBDIR}/test_tmp"
+
+    ln -f -s $EFSNG_BIN "${TEST_SUBDIR}"
 }
 
 _remove_test_subdir()
@@ -306,6 +308,34 @@ _remove_test_subdir()
     if [[ -e "$TEST_SUBDIR" ]]; then
         rm -rf "$TEST_SUBDIR"
     fi
+}
+
+_generate_random_file()
+{
+    if [[ $# != 2 ]]; then
+        _abort_test "wrong args to _generate_random_file"
+    fi
+
+    name=$1
+    size=$2
+
+    dd if=/dev/urandom of=$name bs=$size count=1 > /dev/null 2>&1
+
+    return $?
+}
+
+_generate_zero_file()
+{
+    if [[ $# != 2 ]]; then
+        _abort_test "wrong args to _generate_random_file"
+    fi
+
+    name=$1
+    size=$2
+
+    dd if=/dev/zero of=$name bs=$size count=1 > /dev/null 2>&1
+
+    return $?
 }
 
 _start_test()
@@ -354,5 +384,23 @@ _compare()
     else
         return 0
     fi
+}
+
+_multi_compare()
+{
+    if [[ $# -lt 2 ]]; then
+        _abort_test "_multi_compare needs at least two arguments"
+    fi
+
+    candidate="$1"
+
+    for expected in ${@:2}
+    do
+        if diff -qb "$candidate" "$expected"; then
+            return 0
+        fi
+    done
+
+    return 1
 }
 
