@@ -142,9 +142,13 @@ void file::add(mapping&& mp) {
     // get a reference to the instance that we just added to the list
     auto& new_mp = m_mappings.back();
 
+    m_offset_tree_mutex.lock();
+
     std::cerr << "Insert [" << new_mp.m_offset << ", " << new_mp.m_offset + new_mp.m_size << "] = " << &new_mp << "\n";
     m_offset_tree.insert_back(new_mp.m_offset, new_mp.m_offset + new_mp.m_size, &new_mp);
     m_offset_tree.build_tree();
+
+    m_offset_tree_mutex.unlock();
 }
 
 void file::extend(off_t end_offset, const std::string& prefix, const bfs::path& base_path) {
@@ -155,13 +159,15 @@ void file::extend(off_t end_offset, const std::string& prefix, const bfs::path& 
     size_t remaining_bytes = m_mappings.back().m_size - m_mappings.back().m_bytes;
 
     // we need a new mapping
-    if(new_bytes > remaining_bytes){
+    if(new_bytes > remaining_bytes) {
         mapping mp(prefix, base_path, new_bytes - remaining_bytes);
         this->add(std::move(mp));
     }
 }
 
 void file::range_lookup(off_t range_start, off_t range_end, backend::buffer_map& bmap) const {
+
+    m_offset_tree_mutex.lock_shared();
 
     assert(range_start <= range_end);
     assert(m_offset_tree.is_tree_valid());
@@ -221,9 +227,13 @@ void file::range_lookup(off_t range_start, off_t range_end, backend::buffer_map&
         req_size -= s_size;
         ++it;
     } while(true);
+
+    m_offset_tree_mutex.unlock_shared();
 }
 
 void file::find_segments(off_t range_start, off_t range_end, backend::buffer_map& bmap) const {
+
+    m_offset_tree_mutex.lock_shared();
 
     assert(range_start <= range_end);
     assert(m_offset_tree.is_tree_valid());
@@ -273,6 +283,8 @@ void file::find_segments(off_t range_start, off_t range_end, backend::buffer_map
         req_size -= s_size;
         ++it;
     } while(true);
+
+    m_offset_tree_mutex.unlock_shared();
 }
 
 } // namespace nvml

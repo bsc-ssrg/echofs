@@ -24,8 +24,8 @@
  *                                                                       *
  *************************************************************************/
 
-#ifndef __FILE_H__
-#define __FILE_H__
+#ifndef __NVML_FILE_H__
+#define __NVML_FILE_H__
 
 #include <boost/thread/shared_mutex.hpp>
 
@@ -78,6 +78,7 @@ struct file : public backend::file {
     file(const bfs::path& pathname, mapping& mp, struct stat& stbuf, file::type type=file::type::persistent);
     ~file();
 
+    //XXX probably not needed
     void acquire_read_lock() const;
     void acquire_write_lock() const;
     void release_read_lock() const;
@@ -106,7 +107,9 @@ struct file : public backend::file {
     std::list<mapping>  m_mappings; /* list of mappings associated to the file */
 
     offset_tree_t       m_offset_tree; /*!< Interval tree to speed up mapping lookups */
+    mutable boost::shared_mutex m_offset_tree_mutex; /*!< Mutex to synchronize reader/writer access to the tree */
 
+    //XXX probably not needed
     mutable boost::shared_mutex m_mutex; /*!< Mutex to synchronize reader/writer access */
 
     lock_manager m_lock_manager;    /*!< Manager in charge of handling range locks */
@@ -119,4 +122,4 @@ struct file : public backend::file {
 std::ostream& operator<<(std::ostream& os, const efsng::nvml::segment& seg);
 #endif /* __EFS_DEBUG__ */
 
-#endif /* __FILE_H__ */
+#endif /* __NVML_FILE_H__ */

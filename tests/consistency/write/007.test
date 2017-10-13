@@ -1,0 +1,108 @@
+#!/bin/bash
+#
+# -----------------------------------------------------------------------
+# (C) Copyright 2016 Barcelona Supercomputing Center
+#                    Centro Nacional de Supercomputacion
+# 
+# This file is part of the Echo Filesystem NG.
+# 
+# See AUTHORS file in the top level directory for information
+# regarding developers and contributors.
+# 
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 3 of the License, or (at your option) any later version.
+# 
+# The Echo Filesystem NG is distributed in the hope that it will 
+# be useful, but WITHOUT ANY WARRANTY; without even the implied 
+# warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+# PURPOSE.  See the GNU Lesser General Public License for more
+# details.
+# 
+# You should have received a copy of the GNU Lesser General Public
+# License along with Echo Filesystem NG; if not, write to the Free 
+# Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+# -----------------------------------------------------------------------
+#
+# efs-ng Test No. 007
+#
+# Test that data written() to efs-ng is identical to data written() to the
+# mirrored filesystem (this should exercise the prefetched branch of 
+# write_buf).
+#
+# Subtest: verify append writes
+#
+
+# get environment, common functions, etc...
+if [[ -e ${PWD}/./common.sh ]]; then
+    . ${PWD}/./common.sh
+elif [[ -e ${PWD}/../common.sh ]]; then
+    . ${PWD}/../common.sh
+else
+    echo "[FATAL] Failed to source ./common.sh and ../common.sh"
+    echo "[FATAL] Tests should be run by invoking 'prove -r DIR', where DIR is either "
+    echo "[FATAL] the tests base directory or one of its subdirectories"
+    exit 1
+fi
+
+# generate an ID for the test (sets $TESTID)
+_generate_test_id
+
+# create a test subdir for the test, a 'root' directory, 
+# and a 'mnt' directory (sets $TEST_SUBDIR, $TEST_ROOT, and $TEST_MNT)
+_require_test_subdir
+_require_test_tmp
+_require_test_root
+_require_test_mnt
+
+input="${TEST_ROOT}/${TESTID}.tmp"
+expected_output="${TEST_TMP}/${TESTID}.tmp"
+actual_output="${TEST_MNT}/${TESTID}.tmp"
+
+# generate test data
+# WARNING: data generated AFTER mounting efs-ng WILL NOT be prefetched
+# automatically! (At least in this version of efs-ng)
+_generate_random_file $input 1MB
+#_generate_zero_file $input 1MB
+_expect $? 0
+
+cp -v $input $expected_output
+
+# specify the backends to be used by the filesystem
+NVRAM_BACKEND["type"]="NVRAM-NVML"
+NVRAM_BACKEND["size"]="1.5GiB"
+NVRAM_BACKEND["dax-fs-path"]="$TEST_TMP"
+
+# specify the files to be preloaded on mount
+
+NVRAM_PRELOAD_FILES+=($input)
+
+# the test needs efs-ng to be mounted
+_require_efsng_mounted
+
+# actual test starts here
+_start_test
+
+# run command in efs-ng
+$IO_RUNNER -c "pwrite -p 41 2000000 8000" $actual_output
+_expect $? 0
+
+# generate valid outputs by running the commands sequentially in the 
+# underlying filesystem
+$IO_RUNNER -c "pwrite -p 41 2000000 8000" $expected_output
+_expect $? 0
+
+# contents should match one of the expected outputs
+_compare "$actual_output" "$expected_output"
+
+_expect $? 0 "retrieved contents differ from original"
+
+# notify that test was successful
+_test_success
+
+# unmount
+_require_efsng_unmounted
+
+# if the test finished as expected, cleanup 
+_remove_test_subdir

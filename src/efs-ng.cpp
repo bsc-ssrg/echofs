@@ -1175,10 +1175,6 @@ static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t 
 
             efsng::backend::buffer_map bmap;
 
-            if(offset == (off_t)33498112LL){
-                std::cerr << "Ho!\n";
-            }
-
             // e.g. write("/.../root/file2.tmp", 16000000, 2)
             bend->write_prepare(*file_ptr, offset, fuse_buf_size(buf), bmap);
 
@@ -1192,7 +1188,7 @@ static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t 
 #endif
 
 //XXX if posix_consistency:
-            efsng::lock_manager::range_lock rl = file_ptr->lock_range(offset, offset + bmap.m_size, efsng::operation::read);
+            efsng::lock_manager::range_lock rl = file_ptr->lock_range(offset, offset + bmap.m_size, efsng::operation::write);
             ssize_t written = 0;
 
             for(const auto& b : bmap) {

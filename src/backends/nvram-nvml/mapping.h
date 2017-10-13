@@ -88,6 +88,7 @@ private:
     bfs::path generate_pool_path(const bfs::path& prefix, const bfs::path& base_path) const;
     ssize_t copy_data_to_pmem(const posix::file& fdesc);
     ssize_t copy_data_to_non_pmem(const posix::file& fdesc);
+    void zero_fill(off_t offset, size_t size);
 };
 
 } // namespace nvml

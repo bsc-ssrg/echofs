@@ -423,14 +423,14 @@ void nvml_backend::write_finalize(backend::file& file, off_t start_offset, size_
     // XXX avoid this dynamic_cast by adding set_size to backend::file
     nvml::file& f = dynamic_cast<nvml::file&>(file);
 
-    // XXX we probably need a lock here
+    // we don't need a lock here for get_size/set_size because we are in 
+    // the context of a lock_range call
     off_t end_offset = start_offset + size;
     off_t eof_offset = f.get_size();
 
     if(end_offset > eof_offset) {
-        f.set_size(end_offset - eof_offset);
+        f.set_size(end_offset);
     }
-    // XXX we probably need a lock here
 
 #if 0
 

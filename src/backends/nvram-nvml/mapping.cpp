@@ -53,7 +53,7 @@ mapping::mapping(const mapping& mp)
       m_size(mp.m_size),
       m_bytes(mp.m_bytes),
       m_is_pmem(mp.m_is_pmem),
-      m_copies(mp.m_copies),
+      m_copies(mp.m_copies), //XXX m_copies and m_pmutex probably not needed
       m_pmutex(new std::mutex()) {
 }
 
@@ -134,6 +134,13 @@ mapping::mapping(const bfs::path& prefix, const bfs::path& base_path, size_t min
     m_is_pmem = is_pmem;
     // m_copies is default initialized as empty
     m_pmutex = std::unique_ptr<std::mutex>(new std::mutex());
+
+
+    /* zero the mapping so that appends work as expected.
+     * N.B: Note that it would be more efficient to not generate the mapping in the first place,
+     * and only allocate it when it is actually going to be filled with data. For the moment
+     * we stick to this simplified (albeit inefficient) implementation. */
+    zero_fill(0, mapping_length);
 }
 
 mapping::~mapping() {
@@ -158,6 +165,18 @@ mapping::~mapping() {
         }
     }
 
+}
+
+void mapping::zero_fill(off_t offset, size_t size) {
+
+    assert(offset + size <= m_size);
+
+    if(m_is_pmem) {
+        pmem_memset_persist((void*) ((uintptr_t) m_data + offset), 0, size);
+    }
+    else {
+        memset((void*) ((uintptr_t) m_data + offset), 0, size);
+    }
 }
 
 void mapping::populate(const posix::file& fdesc) {
