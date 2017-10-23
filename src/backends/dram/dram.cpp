@@ -110,6 +110,7 @@ bool dram_backend::exists(const char* pathname) const {
 void dram_backend::read_prepare(const file& file, off_t offset, size_t size, buffer_map& bufmap) const {
 
 
+#if 0
     const dram::file& f = dynamic_cast<const dram::file&>(file);
 
     std::list<snapshot> snaps;
@@ -184,6 +185,7 @@ void dram_backend::read_prepare(const file& file, off_t offset, size_t size, buf
 
         bufmap.emplace_back(buf_start, buf_size);
     }
+#endif
 
     // XXX WARNING: the snapshots are currently deleted here. We don't know 
     // (yet) if this is really what we need

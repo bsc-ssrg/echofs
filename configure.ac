@@ -95,7 +95,7 @@ AM_CONDITIONAL([FUSE3_BUILD],
                 test "x$with_fuse3_12mb" = "xyes" ])
 
 # check for several functions and libraries that affect FUSE's behavior 
-AC_CHECK_FUNCS(setxattr fdatasync fstatat utimensat)
+AC_CHECK_FUNCS(setxattr fdatasync splice vmsplice fstatat utimensat)
 AC_CHECK_FUNCS([posix_fallocate])
 AC_CHECK_LIB(ulockmgr, ulockmgr_op)
 

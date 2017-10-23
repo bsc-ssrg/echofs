@@ -37,6 +37,21 @@
 
 namespace bfs = boost::filesystem;
 
+namespace {
+
+/** generate a name for an NVML pool using a prefix and a base_path */
+bfs::path generate_pool_path(const bfs::path& subdir) {
+
+    static boost::random::mt19937 rng;
+
+    boost::uuids::uuid uuid = boost::uuids::random_generator(rng)();
+    bfs::path ppath(boost::uuids::to_string(uuid));
+
+    return subdir / ppath;
+}
+
+}
+
 namespace efsng {
 namespace nvml {
 
@@ -44,159 +59,123 @@ namespace nvml {
 // (see: http://stackoverflow.com/questions/16957458/static-const-in-c-class-undefined-reference)
 const size_t mapping::s_min_size;
 
-mapping::mapping(const mapping& mp) 
-    : m_name(mp.m_name),
-      m_type(mp.m_type),
-      m_path(mp.m_path),
-      m_data(mp.m_data),
-      m_offset(mp.m_offset),
-      m_size(mp.m_size),
-      m_bytes(mp.m_bytes),
-      m_is_pmem(mp.m_is_pmem),
-      m_copies(mp.m_copies), //XXX m_copies and m_pmutex probably not needed
-      m_pmutex(new std::mutex()) {
+pool::pool(const bfs::path& subdir)
+    : m_subdir(subdir),
+      m_path(),
+      m_data(NULL),
+      m_is_pmem(0) {}
+
+pool::~pool() {
+    std::cerr << "Died! (" << m_data << ")\n";
+
+    // release the mapped region
+    if(m_data != NULL) {
+        pmem_unmap(m_data, m_length);
+    }
 }
 
-mapping::mapping(mapping&& other) noexcept
-    : m_name(std::move(other.m_name)),
-      m_type(std::move(other.m_type)),
-      m_path(std::move(other.m_path)),
-      m_data(std::move(other.m_data)),
-      m_offset(std::move(other.m_offset)),
-      m_size(std::move(other.m_size)),
-      m_bytes(std::move(other.m_bytes)),
-      m_is_pmem(std::move(other.m_is_pmem)),
-      m_copies(std::move(other.m_copies)),
-      m_pmutex(std::move(other.m_pmutex)) {
+void pool::allocate(size_t size) {
 
-        // std::move will take care of resetting non-POD members,
-        // let's also make sure to reset PODs, so that the moved 
-        // from instance does not release the internal mapping when 
-        // its destructor is called
-        other.m_data = 0;
-        other.m_offset = 0;
-        other.m_size = 0;
-        other.m_bytes = 0;
-        other.m_is_pmem = 0;
+    assert(m_data == NULL);
 
-        //std::cerr << "mover called!\n";
-        //std::cerr << "<< " << m_pmutex.get() << "\n";
-}
+    bfs::path pool_path; 
+    void* pool_addr = NULL;
+    size_t pool_length = 0;
+    int is_pmem = 0;
 
-mapping::mapping(const bfs::path& prefix, const bfs::path& base_path, size_t min_size, mapping::type type){
-
-    const bfs::path abs_path = generate_pool_path(prefix, base_path);
-
-    std::string mp_name(abs_path.string());
-
-    std::replace(mp_name.begin(), mp_name.end(), '/', '_');
+    pool_path = ::generate_pool_path(m_subdir);
 
     /* if the mapping file already exists delete it, since we can't trust that it's the same file */
     /* TODO: we may need to change this in the future */
-    if(bfs::exists(abs_path)){
-        if(::unlink(abs_path.c_str()) != 0){
+    if(bfs::exists(pool_path)){
+        if(::unlink(pool_path.c_str()) != 0){
             throw std::runtime_error(
-                    logger::build_message("Error removing file: ", abs_path, " (", strerror(errno), ")"));
+                    logger::build_message("Error removing pool file: ", pool_path, " (", strerror(errno), ")"));
         }
     }
 
-    void* pmem_addr;
-    size_t mapping_length;
-    int is_pmem;
-
-    /* ensure that the mapping is aligned to FUSE_BLOCK_SIZE, even if
-     * we don't have (yet) enough data to fill it with 
-     * XXX: this will provoke some waste of storage space for small files
-     * if a large FUSE_BLOCK_SIZE is used */
-    size_t aligned_size = std::max(s_min_size, (size_t) efsng::xalign(min_size, efsng::FUSE_BLOCK_SIZE));
-
-    /* create the mapping */
-    if((pmem_addr = pmem_map_file(abs_path.c_str(), aligned_size, PMEM_FILE_CREATE | PMEM_FILE_EXCL,
-                                  0666, &mapping_length, &is_pmem)) == NULL) {
+    /* create the pool */
+    if((pool_addr = pmem_map_file(pool_path.c_str(), size, PMEM_FILE_CREATE | PMEM_FILE_EXCL,
+                                0666, &pool_length, &is_pmem)) == NULL) {
         throw std::runtime_error(
-                logger::build_message("Fatal error creating pmem file: ", abs_path, " (", strerror(errno), ")"));
+                logger::build_message("Fatal error creating pmem file: ", pool_path, " (", strerror(errno), ")"));
     }
 
     /* check that the range allocated is of the required size */
-    if(mapping_length != aligned_size){
-        pmem_unmap(pmem_addr, mapping_length);
+    if(pool_length != size) {
+        pmem_unmap(pool_addr, pool_length);
         throw std::runtime_error("File mapping of different size than requested");
     }
 
-    /* initialize members */
-    m_name = mp_name;
-    m_type = type;
-    m_path = abs_path;
-    m_data = pmem_addr;
-    m_offset = 0; // will be updated when added to a file
-    m_size = mapping_length;
-    m_bytes = 0; // will be filled by populate()
+    m_path = pool_path;
+    m_data = pool_addr;
+    m_length = pool_length;
     m_is_pmem = is_pmem;
-    // m_copies is default initialized as empty
-    m_pmutex = std::unique_ptr<std::mutex>(new std::mutex());
+}
 
+mapping::mapping(const bfs::path& subdir, off_t offset, size_t size, bool is_gap)
+    : m_offset(offset), 
+      m_size(size),
+      m_is_gap(is_gap),
+      m_pool(subdir) {
 
-    /* zero the mapping so that appends work as expected.
-     * N.B: Note that it would be more efficient to not generate the mapping in the first place,
-     * and only allocate it when it is actually going to be filled with data. For the moment
-     * we stick to this simplified (albeit inefficient) implementation. */
-    zero_fill(0, mapping_length);
+    m_bytes = 0; // will be set by fill_from()
+
+    if(!is_gap) {
+        m_pool.allocate(size);
+    }
 }
 
 mapping::~mapping() {
+}
 
-//    std::cerr << "Died!\n";
+void mapping::allocate(off_t offset, size_t size) {
+    m_offset = offset;
+    m_size = size;
+    m_is_gap = false;
+    m_pool.allocate(size);
+}
 
-    // release the mapped region
-    if(m_data != 0){
-        if(pmem_unmap(m_data, m_size) == -1) {
-            //BOOST_LOG_TRIVIAL(error) << "Error while deleting mapping";
-        }
-//        else{
-//            std::cerr << "Mapping released :P\n";
-//        }
-    }
+void mapping::sync_all() {
+    pmem_drain();
+}
 
-    // if the mapping corresponds to a temporary file, remove
-    // also the file from the filesystem
-    if(m_type == mapping::type::temporary) {
-        if(::unlink(m_path.c_str()) != 0){
-            //BOOST_LOG_TRIVIAL(error) << "Error removing file " << abs_path << ": " << strerror(errno);
-        }
-    }
+bool mapping::is_pmem() const {
+    return m_pool.m_is_pmem;
+}
 
+data_ptr_t mapping::data() const {
+    return m_pool.m_data;
 }
 
 void mapping::zero_fill(off_t offset, size_t size) {
 
+    if(m_is_gap) {
+        return;
+    }
+
     assert(offset + size <= m_size);
 
-    if(m_is_pmem) {
-        pmem_memset_persist((void*) ((uintptr_t) m_data + offset), 0, size);
+    if(m_pool.m_is_pmem) {
+        pmem_memset_persist((void*) ((uintptr_t) m_pool.m_data + offset), 0, size);
     }
     else {
-        memset((void*) ((uintptr_t) m_data + offset), 0, size);
+        memset((void*) ((uintptr_t) m_pool.m_data + offset), 0, size);
     }
 }
 
-void mapping::populate(const posix::file& fdesc) {
-    m_bytes = m_is_pmem ? copy_data_to_pmem(fdesc) : copy_data_to_non_pmem(fdesc);
-}
+size_t mapping::fill_from(const posix::file& fdesc) {
+    m_bytes = m_pool.m_is_pmem ? copy_data_to_pmem(fdesc) : copy_data_to_non_pmem(fdesc);
 
-/** generate a name for an NVML pool using a prefix and a base_path */
-bfs::path mapping::generate_pool_path(const bfs::path& prefix, const bfs::path& base_path) const {
+    // fill the rest of the allocated segment with zeros so that reads beyond EOF work as expected
+    zero_fill(m_bytes, m_size - m_bytes);
 
-    static boost::random::mt19937 rng;
-
-    boost::uuids::uuid uuid = boost::uuids::random_generator(rng)();
-    bfs::path ppath(boost::uuids::to_string(uuid));
-
-    return (base_path / prefix).string() + "-" + ppath.string();
+    return m_bytes;
 }
 
 ssize_t mapping::copy_data_to_pmem(const posix::file& fdesc){
 
-    char* addr = (char*) m_data;
+    char* addr = (char*) m_pool.m_data;
     char* buffer = (char*) malloc(NVML_TRANSFER_SIZE*sizeof(*buffer));
 
     if(buffer == NULL){
@@ -232,7 +211,7 @@ ssize_t mapping::copy_data_to_pmem(const posix::file& fdesc){
 
 ssize_t mapping::copy_data_to_non_pmem(const posix::file& fdesc){
 
-    char* addr = (char*) m_data;
+    char* addr = (char*) m_pool.m_data;
     char* buffer = (char*) malloc(NVML_TRANSFER_SIZE*sizeof(*buffer));
 
     if(buffer == NULL){
@@ -302,15 +281,13 @@ data_copy& data_copy::operator=(const data_copy& orig) {
 
 std::ostream& operator<<(std::ostream& os, const efsng::nvml::mapping& mp) {
     os << "mapping {" << "\n"
-       << "  m_name: " << mp.m_name << "\n"
-       << "  m_data: " << mp.m_data << "\n"
+       << "  m_is_gap: " << mp.m_is_gap << "\n"
+       << "  m_data: " << mp.m_pool.m_data << "\n"
        << "  m_offset: " << mp.m_offset << "\n"
        << "  m_size: " << mp.m_size << "\n"
        << "  m_bytes: " << mp.m_bytes << "\n"
-       << "  m_is_pmem: " << mp.m_is_pmem << "\n"
-       << "  m_copies.size(): " << mp.m_copies.size() << "\n"
-       << "  m_pmutex: " << mp.m_pmutex.get() << "\n"
-       << "};" << "\n";
+       << "  m_is_pmem: " << mp.m_pool.m_is_pmem << "\n"
+       << "};";
 
     return os;
 }

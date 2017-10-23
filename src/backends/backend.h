@@ -37,6 +37,8 @@
 #include <settings.h>
 #include <efs-common.h>
 #include <range_lock.h>
+#include <posix-file.h>
+#include <fuse.h>
 
 namespace efsng {
 
@@ -48,23 +50,6 @@ class backend {
 
 public:
 
-    class file {
-public:
-        enum class type {
-            temporary,
-            persistent
-        };
-
-
-        virtual void stat(struct stat& buf) const = 0;
-        virtual size_t get_size() const = 0;
-        virtual lock_manager::range_lock lock_range(off_t start, off_t end, operation op) = 0;
-        virtual void unlock_range(lock_manager::range_lock& rl) = 0;
-
-        virtual ~file(){}
-    };
-
-    using file_ptr = std::unique_ptr<file>;
     //using buffer = std::pair<data_ptr_t, size_t>;
 
     struct buffer {
@@ -99,6 +84,26 @@ public:
 
         size_t            m_size;
     };
+
+    class file {
+
+public:
+        using callback_ptr = ssize_t (*)(void*, const buffer&);
+
+        enum class type {
+            temporary,
+            persistent
+        };
+
+        virtual void stat(struct stat& buf) const = 0;
+        virtual ssize_t get_data(off_t offset, size_t size, struct fuse_bufvec* fuse_buffer) = 0;
+        virtual ssize_t put_data(off_t offset, size_t size, struct fuse_bufvec* fuse_buffer) = 0;
+        virtual ssize_t append_data(off_t offset, size_t size, struct fuse_bufvec* fuse_buffer) = 0;
+
+        virtual ~file(){}
+    };
+
+    using file_ptr = std::unique_ptr<file>;
     
     /* iterator types */
     typedef std::unordered_map<std::string, file_ptr>::iterator iterator;

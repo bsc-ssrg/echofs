@@ -149,44 +149,28 @@ uint64_t nvml_backend::capacity() const {
 }
 
 /** start the load process of a file requested by the user */
+/* pathname = file path in underlying filesystem */
 void nvml_backend::load(const bfs::path& pathname){
 
 #ifdef __EFS_DEBUG__
     m_logger.debug("Loading file \"{}\" in NVRAM", pathname.string());
 #endif
 
-    /* open the file */
-    posix::file fd(pathname);
-
-    /* compute an appropriate path for the mapping file */
-    std::string mp_prefix = ::compute_prefix(m_root_dir, pathname);
-
-    // save attributes
-    struct stat stbuf;
-    fd.stat(stbuf);
-
-    /* create a mapping and fill it with the current contents of the file */
-    mapping mp(mp_prefix, m_daxfs_mount_point, stbuf.st_size);
-    mp.populate(fd);
-
-
-
-    fd.close();
-
-#ifdef __EFS_DEBUG__
-    m_logger.debug("Transfer complete ({} bytes)", mp.m_bytes);
-#endif
-
     /* add the mapping to a nvml::file descriptor and insert it into m_files */
     std::lock_guard<std::mutex> lock(m_files_mutex);
 
-    //XXX consider using the TBB concurrent_map to discriminate between locking
-    // readers and writers
-    m_files.insert(std::make_pair(
-        pathname.c_str(),
-        std::make_unique<nvml::file>(pathname, mp, stbuf)
-        )
-    );
+    /* create a new file into m_files (the constructor will fill it with
+     * the contents of the pathname) */
+    auto it = m_files.emplace(pathname.c_str(), 
+                              std::make_unique<nvml::file>(m_daxfs_mount_point, pathname));
+
+#ifdef __EFS_DEBUG__
+    const auto& file_ptr = (*(it.first)).second;
+
+    struct stat stbuf;
+    file_ptr->stat(stbuf);
+    m_logger.debug("Transfer complete ({} bytes)", stbuf.st_size);
+#endif
 
     /* lock_guard is automatically released here */
 }
@@ -213,9 +197,9 @@ void nvml_backend::read_prepare(const backend::file& file, off_t offset, size_t 
     m_logger.debug("nvml_backend::read_prepare(file, {}, {})", offset, size);
 #endif
 
-    const nvml::file& f = dynamic_cast<const nvml::file&>(file);
-
-    f.range_lookup(offset, offset+size, bmap);
+//    const nvml::file& f = dynamic_cast<const nvml::file&>(file);
+//
+//    f.range_lookup(offset, offset+size, bmap);
 
 #if 0 // old version with snapshots -- discarded
     std::list<snapshot> snaps;
@@ -309,6 +293,8 @@ void nvml_backend::read_finalize(const backend::file& file, off_t offset, size_t
 void nvml_backend::write_prepare(backend::file& file, off_t start_offset, size_t size, buffer_map& bmap) const {
     (void) file;
 
+#if 0
+
 #ifdef __EFS_DEBUG__
     m_logger.debug("nvml_backend::write_prepare(file, {}, {})", start_offset, size);
 #endif
@@ -316,99 +302,13 @@ void nvml_backend::write_prepare(backend::file& file, off_t start_offset, size_t
     nvml::file& f = dynamic_cast<nvml::file&>(file);
 
     off_t end_offset = start_offset + size;
-    off_t eof_offset = f.get_size();
+    off_t eof_offset = f.size();
 
     if(end_offset > eof_offset) {
-        std::string mp_prefix = ::compute_prefix(m_root_dir, f.m_pathname);
-        f.extend(end_offset, mp_prefix, m_daxfs_mount_point);
+        f.extend(start_offset, size);
     }
 
-    f.find_segments(start_offset, end_offset, bmap);
-
-#if 0 /* old code for write log -- discarded */
-    off_t end_offset = start_offset + size;
-    off_t eof_offset = f.m_size;
-
-    // if we are appending beyond the current EOF we need to take 
-    // into account the additional size of the resulting zeroed region
-    // FIXME in the future, we should not store this kind of file regions
-    if(start_offset > eof_offset) {
-        start_offset = eof_offset;
-        size = end_offset - start_offset;
-    }
-
-    // allocate a buffer for FUSE to fill with the user-provided data
-    int n = block_count(start_offset, size, FUSE_BLOCK_SIZE);
-
-    data_ptr_t dst_buf = new char[n*FUSE_BLOCK_SIZE];
-
-    std::cerr << "XXX " << dst_buf << "\n";
-
-    off_t start_block = align(start_offset, FUSE_BLOCK_SIZE);
-    off_t end_block = xalign(end_offset, FUSE_BLOCK_SIZE);
-    off_t dst_offset = start_block; // dst_offset will end up being start_block in all cases but one
-
-    // check if append or overwrite
-    if(end_offset <= eof_offset) {
-        // overwrite: 
-        // implies (potentially) copying contents from start and 
-        // end blocks if the overwrite is partial
-        if(start_offset != start_block) {
-            size_t partial_size = start_offset - start_block;
-
-            backend::buffer_map bmap;
-            f.range_lookup(start_block, start_block + FUSE_BLOCK_SIZE, bmap);
-            assert(bmap.size() == 1);
-
-            data_ptr_t src_buf = bmap.front().m_data;
-
-            memcpy(dst_buf, src_buf, partial_size);
-        }
-
-        if(end_offset != end_block) {
-            size_t partial_size = end_block - end_offset;
-            size_t partial_delta = end_offset - start_block;
-
-            backend::buffer_map bmap;
-            f.range_lookup(end_block, end_block + FUSE_BLOCK_SIZE, bmap);
-            assert(bmap.size() == 1);
-
-            data_ptr_t src_buf = bmap.front().m_data;
-
-            memcpy((void*) ((uintptr_t) dst_buf + partial_delta), 
-                   (void*) ((uintptr_t) src_buf + partial_delta), 
-                   partial_size);
-        }
-    }
-    else { /* end_offset > (off_t) f.m_size */
-        // append: 
-        // - implies (potentially) copying contents from start block 
-        // if the append starts before EOF and the overwrite is partial
-        // - also (potentially) implies extending the file with a zeroed region
-        // if start_offset is beyond EOF
-
-        if(start_offset > eof_offset) {
-            size_t zero_size = start_offset - eof_offset;
-            size_t zero_delta = eof_offset - start_block;
-            dst_offset = align(eof_offset, FUSE_BLOCK_SIZE);
-
-            memset((void*) ((uintptr_t) dst_buf + zero_delta), 0, zero_size);
-        }
-
-        if(start_offset != start_block) {
-            size_t partial_size = start_offset - start_block;
-
-            backend::buffer_map bmap;
-            f.range_lookup(start_block, start_block + FUSE_BLOCK_SIZE, bmap);
-            assert(bmap.size() == 1);
-
-            data_ptr_t src_buf = bmap.front().m_data;
-
-            memcpy(dst_buf, src_buf, partial_size);
-        }
-    }
-
-    bmap.emplace_back(dst_buf, dst_offset, n*FUSE_BLOCK_SIZE);
+//    f.find_segments(start_offset, end_offset, bmap);
 #endif
 }
 
@@ -416,6 +316,7 @@ void nvml_backend::write_prepare(backend::file& file, off_t start_offset, size_t
 void nvml_backend::write_finalize(backend::file& file, off_t start_offset, size_t size, buffer_map& bmap) const {
     (void) file;
 
+#if 0
 #ifdef __EFS_DEBUG__
     m_logger.debug("nvml_backend::write_finalize(file, {}, {})", start_offset, size);
 #endif
@@ -423,10 +324,10 @@ void nvml_backend::write_finalize(backend::file& file, off_t start_offset, size_
     // XXX avoid this dynamic_cast by adding set_size to backend::file
     nvml::file& f = dynamic_cast<nvml::file&>(file);
 
-    // we don't need a lock here for get_size/set_size because we are in 
+    // we don't need a lock here for size/set_size because we are in 
     // the context of a lock_range call
     off_t end_offset = start_offset + size;
-    off_t eof_offset = f.get_size();
+    off_t eof_offset = f.size();
 
     if(end_offset > eof_offset) {
         f.set_size(end_offset);
@@ -485,6 +386,7 @@ void nvml_backend::write_finalize(backend::file& file, off_t start_offset, size_
 
 
     f.m_size = end_offset;
+#endif
 #endif
 }
 

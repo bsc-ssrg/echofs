@@ -25,13 +25,13 @@
 # Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 # -----------------------------------------------------------------------
 #
-# efs-ng Test No. 007
+# efs-ng Test No. 009
 #
 # Test that data written() to efs-ng is identical to data written() to the
 # mirrored filesystem (this should exercise the prefetched branch of 
 # write_buf).
 #
-# Subtest: verify append writes (start before eof)
+# Subtest: verify append writes (start at eof)
 #
 
 # get environment, common functions, etc...
@@ -85,12 +85,12 @@ _require_efsng_mounted
 _start_test
 
 # run command in efs-ng
-$IO_RUNNER -c "pwrite -p 41 2000000 8000" $actual_output
+$IO_RUNNER -c "pwrite -p 41 1000000 1000000" $actual_output
 _expect $? 0
 
 # generate valid outputs by running the commands sequentially in the 
 # underlying filesystem
-$IO_RUNNER -c "pwrite -p 41 2000000 8000" $expected_output
+$IO_RUNNER -c "pwrite -p 41 1000000 1000000" $expected_output
 _expect $? 0
 
 # contents should match one of the expected outputs

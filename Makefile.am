@@ -99,16 +99,14 @@ src_libefsng_la_SOURCES = 							\
 	src/backends/dram/file.h 						\
 	src/backends/dram/mapping.cpp					\
 	src/backends/dram/mapping.h 					\
-	src/backends/dram/snapshot.cpp					\
-	src/backends/dram/snapshot.h					\
 	src/backends/nvram-nvml/file.cpp 				\
 	src/backends/nvram-nvml/file.h 					\
+	src/backends/nvram-nvml/fuse_buf_copy_pmem.cpp	\
+	src/backends/nvram-nvml/fuse_buf_copy_pmem.h	\
 	src/backends/nvram-nvml/mapping.cpp				\
 	src/backends/nvram-nvml/mapping.h 				\
 	src/backends/nvram-nvml/nvram-nvml.cpp			\
 	src/backends/nvram-nvml/nvram-nvml.h			\
-	src/backends/nvram-nvml/snapshot.cpp			\
-	src/backends/nvram-nvml/snapshot.h				\
 	src/range_lock.hpp								\
 	src/range_lock.cpp								\
 	src/avl.hpp										\

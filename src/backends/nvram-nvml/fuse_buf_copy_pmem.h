@@ -24,33 +24,7 @@
  *                                                                       *
  *************************************************************************/
 
-#include <efs-common.h>
-#include <range_lock.h>
-#include <posix-file.h>
+#include <fuse.h>
 
-#ifndef __FILE_H__
-#define __FILE_H__
-
-namespace efsng {
-
-class file {
-public:
-    enum class type {
-        temporary,
-        persistent
-    };
-
-    virtual void populate_from(posix::file& f) = 0;
-
-    virtual void stat(struct stat* buf) const = 0;
-    virtual size_t get_size() const = 0;
-
-    virtual lock_manager::range_lock lock_range(off_t start, off_t end, efsng::operation op) = 0;
-    virtual void unlock_range(lock_manager::range_lock& rl) = 0;
-
-    virtual ~file(){}
-}; // class file
-
-} // namespace efsng
-
-#endif /* __FILE_H__ */
+ssize_t fuse_buf_copy_pmem(struct fuse_bufvec *dstv, struct fuse_bufvec *srcv,
+		                   enum fuse_buf_copy_flags flags);

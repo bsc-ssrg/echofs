@@ -116,7 +116,7 @@ static int efsng_getattr(const char* pathname, struct stat* stbuf, struct fuse_f
             efsng_ctx->m_logger->debug("File \"{}\" found in {}", pathname, bend->name());
 #endif
 
-            const efsng::backend::file_ptr& file_ptr = it->second;
+            const auto& file_ptr = it->second;
 
             file_ptr->stat(*stbuf);
             std::cerr << "Reported: " << stbuf->st_size << "\n";
@@ -986,7 +986,7 @@ static int efsng_fgetattr(const char* pathname, struct stat* stbuf, struct fuse_
             efsng_ctx->m_logger->debug("File \"{}\" found in {}", pathname, bend->name());
 #endif
 
-            const efsng::backend::file_ptr& file_ptr = it->second;
+            const auto& file_ptr = it->second;
 
             file_ptr->stat(*stbuf);
             std::cerr << "Reported: " << stbuf->st_size << "\n";
@@ -1144,19 +1144,17 @@ static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t 
 
     auto file_record = (efsng::File*) file_info->fh;
 
-//    struct fuse_bufvec dst = FUSE_BUFVEC_INIT(fuse_buf_size(buf));
-
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
+    size_t size = fuse_buf_size(buf);
 
 #ifdef __EFS_DEBUG__
-
-    efsng_ctx->m_logger->debug("write({}, {}, {})", pathname, offset, fuse_buf_size(buf));
+    efsng_ctx->m_logger->debug("write({}, {}, {})", pathname, offset, size);
 #endif
 
     /* search file in available backends */
     /* FIXME it might be better to have this information already cached somewhere
      * IDEA: bloom filter? (see http://blog.michaelschmatz.com/2016/04/11/how-to-write-a-bloom-filter-cpp/) */
-    for(const auto& bend: efsng_ctx->m_backends){
+    for(const auto& bend: efsng_ctx->m_backends) {
 
         // XXX in the future, if it's possible that a file
         // is removed from a backend by another thread 
@@ -1166,101 +1164,27 @@ static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t 
         // is using the file
         const auto& it = bend->find(pathname);
 
-        if(it != bend->end()){
+        if(it != bend->end()) {
 #ifdef __EFS_DEBUG__
             efsng_ctx->m_logger->debug("File \"{}\" found in {}", pathname, bend->name());
 #endif
 
-            const efsng::backend::file_ptr& file_ptr = it->second;
+            const auto& file_ptr = it->second;
 
-            efsng::backend::buffer_map bmap;
+            //if(file_ptr->flags() == O_APPEND) {
+            //    ssize_t rv = file_ptr->append_data(offset, size, buf);
+            //}
+            //else {
+            ssize_t rv = file_ptr->put_data(offset, size, buf);
+            //}
 
-            // e.g. write("/.../root/file2.tmp", 16000000, 2)
-            bend->write_prepare(*file_ptr, offset, fuse_buf_size(buf), bmap);
-
-#ifdef __EFS_DEBUG__
-            efsng_ctx->m_logger->debug("buffer_map = {");
-            for(const auto& b: bmap){
-                efsng_ctx->m_logger->debug("  {}", b);
-            }
-            efsng_ctx->m_logger->debug("   size = {}", bmap.m_size);
-            efsng_ctx->m_logger->debug("};");
-#endif
-
-//XXX if posix_consistency:
-            efsng::lock_manager::range_lock rl = file_ptr->lock_range(offset, offset + bmap.m_size, efsng::operation::write);
-            ssize_t written = 0;
-
-            for(const auto& b : bmap) {
-                assert(b.m_offset <= offset);
-
-                struct fuse_bufvec dst = FUSE_BUFVEC_INIT(b.m_size);
-
-                dst.buf[0].flags = (fuse_buf_flags) (~FUSE_BUF_IS_FD);
-                dst.buf[0].mem = (void*) b.m_data;
-
-                ssize_t n = fuse_buf_copy(&dst, buf, FUSE_BUF_SPLICE_MOVE);
-                written += n;
-            }
-
-            bend->write_finalize(*file_ptr, offset, written, bmap);
-
-//XXX if posix_consistency:
-            file_ptr->unlock_range(rl);
-
-            return written;
+            return rv;
         }
-
     }
 
     // TODO: appropriate return
-    return 0;
-
-
-#if 0 /* old code */
-
-    void* chunk_data = nullptr;
-    size_t chunk_size = 0;
-    bool file_cached = false;
-
-    /* search file in available backends */
-    /* FIXME it would be better to have this information already cached somewhere
-     * IDEA: bloom filter? (see http://blog.michaelschmatz.com/2016/04/11/how-to-write-a-bloom-filter-cpp/) */
-    for(const auto& bend: efsng_ctx->m_backends){
-        if(bend->exists(pathname)){
-            file_cached = true;
-            break;
-        }
-    }
-
-    if(file_cached){
-        /* available in DRAM or NVRAM, write to chunk_data */
-        dst.buf[0].flags = (fuse_buf_flags) (~FUSE_BUF_IS_FD);
-        dst.buf[0].mem = (((uint8_t*)chunk_data) + offset);
-        dst.buf[0].size = fuse_buf_size(buf);
-
-        // fuse_buf_copy(dst, src, flags)
-        //   src = user provided buffer (passed as struct fuse_bufvec* buf)
-        //   dst = NVRAM/DRAM-allocated data_chunk
-        
-#if 0
-
-#if 1
-        void* foo = malloc(fuse_buf_size(buf));
-
-        memcpy(foo, buf->buf[0].mem, fuse_buf_size(buf));
-#else
-        memcpy(dst.buf[0].mem, buf->buf[0].mem, fuse_buf_size(buf));
-#endif
-        return fuse_buf_size(buf);
-#else
-        //BOOST_LOG_TRIVIAL(debug) << "FUSE_BUF_SPLICE_MOVE" << dst.buf[0].size;
-
-        return fuse_buf_copy(&dst, buf, FUSE_BUF_SPLICE_MOVE);
-#endif
-    }
-
     /* not available in DRAM nor NVRAM, write directly to the underlying filesystem */
+    struct fuse_bufvec dst = FUSE_BUFVEC_INIT(fuse_buf_size(buf));
     dst.buf[0].flags = (fuse_buf_flags) (FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
     dst.buf[0].fd = file_record->get_fd();
     dst.buf[0].pos = offset;
@@ -1268,25 +1192,7 @@ static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t 
     // fuse_buf_copy(dst, src, flags)
     //   src = user provided buffer (passed as struct fuse_bufvec* buf)
     //   dst = Underlying FS
-    //BOOST_LOG_TRIVIAL(debug) << "FUSE_BUF_SPLICE_NONBLOCK";
     return fuse_buf_copy(&dst, buf, FUSE_BUF_SPLICE_NONBLOCK);
-
-#endif
-
-
-/*
-    (void) pathname;
-
-    auto file_record = (efsng::File*) file_info->fh;
-
-    struct fuse_bufvec dst = FUSE_BUFVEC_INIT(fuse_buf_size(buf));
-
-	dst.buf[0].flags = (fuse_buf_flags) (FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
-	dst.buf[0].fd = file_record->get_fd();
-	dst.buf[0].pos = offset;
-
-	return fuse_buf_copy(&dst, buf, FUSE_BUF_SPLICE_NONBLOCK);
-*/
 }
 
 /** 
@@ -1305,11 +1211,11 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
 
     auto file_record = (efsng::File*) file_info->fh;
 
-    struct fuse_bufvec* src;
+    struct fuse_bufvec* dst;
 
-    src = (struct fuse_bufvec*) malloc(sizeof(struct fuse_bufvec));
+    dst = (struct fuse_bufvec*) malloc(sizeof(struct fuse_bufvec));
 
-    if(src == NULL){
+    if(dst == NULL){
         return -ENOMEM;
     }
 
@@ -1319,7 +1225,7 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
     efsng_ctx->m_logger->debug("read(\"{}\", {}, {})", pathname, offset, size);
 #endif
 
-    *src = FUSE_BUFVEC_INIT(size);
+    *dst = FUSE_BUFVEC_INIT(size);
 
     /* search file in available backends */
     /* FIXME it might be better to have this information already cached somewhere
@@ -1340,63 +1246,13 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
             efsng_ctx->m_logger->debug("File \"{}\" found in {}", pathname, bend->name());
 #endif
 
-            const efsng::backend::file_ptr& file_ptr = it->second;
+            const auto& file_ptr = it->second;
 
-            efsng::backend::buffer_map bmap;
+            ssize_t rv = file_ptr->get_data(offset, size, dst);
 
-            bend->read_prepare(*file_ptr, offset, size, bmap);
-            
-#ifdef __EFS_DEBUG__
-            efsng_ctx->m_logger->debug("buffer_map = {");
-            for(const auto& b: bmap){
-                efsng_ctx->m_logger->debug("  {}", b);
-            }
-            efsng_ctx->m_logger->debug("   size = {}", bmap.m_size);
-            efsng_ctx->m_logger->debug("};");
-#endif
+            *bufp = dst;
 
-            /* no data available */
-            if(bmap.size() == 0){
-                src->buf[0].flags = (fuse_buf_flags) (~FUSE_BUF_IS_FD);
-                src->buf[0].mem = NULL;
-                src->buf[0].size = 0;
-                *bufp = src;
-
-                return 0;
-            }
-
-            /* the FUSE interface forces us to allocate a buffer using malloc() and 
-             * memcpy() the requested data in order to return it back to the user. meh */
-            void* buffer = (void*) malloc(bmap.m_size);
-
-            if(buffer == NULL) {
-                return -ENOMEM;
-            }
-
-//XXX if posix_consistency:
-            efsng::lock_manager::range_lock rl = file_ptr->lock_range(offset, offset + bmap.m_size, efsng::operation::read);
-
-            size_t copied = 0;
-
-            for(const auto& b : bmap){
-                efsng::data_ptr_t data = b.m_data;
-                size_t size = b.m_size;
-
-                memcpy((void*) ((uintptr_t)buffer + copied), (void*) data, size);
-                copied += size;
-            }
-
-            assert(copied == bmap.m_size);
-
-//XXX if posix_consistency:
-            file_ptr->unlock_range(rl);
-
-            src->buf[0].flags = (fuse_buf_flags) (~FUSE_BUF_IS_FD);
-            src->buf[0].mem = buffer;
-            src->buf[0].size = bmap.m_size;
-            *bufp = src;
-
-            return 0;
+            return rv;
         }
     }
 
@@ -1406,10 +1262,10 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
 #endif
 
     /* not available in a registered backend, read directly from the underlying filesystem */
-    src->buf[0].flags = (fuse_buf_flags) (FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
-    src->buf[0].fd = file_record->get_fd();
-    src->buf[0].pos = offset;
-    *bufp = src;
+    dst->buf[0].flags = (fuse_buf_flags) (FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
+    dst->buf[0].fd = file_record->get_fd();
+    dst->buf[0].pos = offset;
+    *bufp = dst;
 
     return 0;
 }

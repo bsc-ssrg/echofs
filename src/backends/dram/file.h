@@ -31,6 +31,7 @@
 #include <efs-common.h>
 #include <dram/mapping.h>
 #include <backend.h>
+#include <fuse.h>
 
 namespace bfs = boost::filesystem;
 
@@ -51,11 +52,35 @@ struct file : public backend::file {
         std::cerr << "a nvml::file instance died...\n";
     }
 
-    size_t get_size() const { return 0; }
-    void stat(struct stat& buf) const { (void) buf; return ; }
+    void stat(struct stat& buf) const override { 
+        (void) buf; 
+        return ; 
+    }
 
-    lock_manager::range_lock lock_range(off_t start, off_t end, operation op) override { (void) start; (void) end; (void) op; };
-    void unlock_range(lock_manager::range_lock& rl) override { (void) rl; };
+    ssize_t get_data(off_t offset, size_t size, struct fuse_bufvec* fuse_buffer) override { 
+        (void) offset;
+        (void) size;
+        (void) fuse_buffer;
+        return 0; 
+    }
+
+    ssize_t put_data(off_t offset, size_t size, struct fuse_bufvec* fuse_buffer) override { 
+        (void) offset;
+        (void) size;
+        (void) fuse_buffer;
+        return 0; 
+    }
+
+    ssize_t append_data(off_t offset, size_t size, struct fuse_bufvec* fuse_buffer) override { 
+        (void) offset;
+        (void) size;
+        (void) fuse_buffer;
+        return 0; 
+    }
+
+    size_t size() const { return 0; }
+    void set_size(size_t size) { (void) size; }
+    void extend(off_t offset, size_t size) { (void) offset; (void) size; }
 
 
     void add(const mapping& mp);

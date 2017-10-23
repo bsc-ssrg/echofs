@@ -99,7 +99,7 @@ mapping::mapping(size_t min_size){
 
 mapping::~mapping() {
 
-    //std::cerr << "Died!\n";
+    std::cerr << "Died!\n";
 
     if(m_data != 0){
         if(munmap(m_data, m_size) == -1) {

@@ -50,45 +50,53 @@ struct data_copy {
     data_copy& operator=(const data_copy& orig);
 };
 
+struct pool {
+    pool(const bfs::path& subdir);
+    ~pool();
+    void allocate(size_t size);
+
+    bfs::path                   m_subdir;     /*!< Mapping's 'filesystem name' */
+    bfs::path                   m_path;     /*!< Mapping's 'filesystem name' */
+    data_ptr_t                  m_data;     /*!< Mapped data */
+    size_t                      m_length;
+    int                         m_is_pmem;  /*!< NVML-required flag */
+};
+
 /* descriptor for an in-NVM mmap()-ed file region */
 struct mapping {
 
     //static const size_t s_min_size = 0x2000000; // 32MiB
     static const size_t s_min_size = 0x1000; // 32MiB
+    static const size_t s_segment_size = 0x100000; // 1MiB
 
-    enum class type {
-        temporary,
-        persistent
-    };
-
-    std::string                 m_name;     /*!< Mapping name */
-    mapping::type               m_type;     /*!< Mapping type */
-    bfs::path                   m_path;     /*!< Mapping's 'filesystem name' */
-    data_ptr_t                  m_data;     /*!< Mapped data */
     off_t                       m_offset;   /*!< Base offset within file */
     size_t                      m_size;     /*!< Mapped size */
-    size_t                      m_bytes;    /*!< Used size */
-    int                         m_is_pmem;  /*!< NVML-required flag */
-    std::list<data_copy>        m_copies;   /*!< Block copies */
-    std::unique_ptr<std::mutex> m_pmutex;   /*!< Mutex ptr (mutexes are not copyable/movable) */
+    bool                        m_is_gap;   /*!< Segment is a zero-filled gap */
+    struct pool                 m_pool;
 
-    explicit mapping(const mapping& mp);
-    mapping(mapping&& other) noexcept ;
-    mapping(const bfs::path& prefix, const bfs::path& base_path, size_t min_size, mapping::type type = mapping::type::persistent);
+    size_t                      m_bytes;    /*!< Used size */
+
+    mapping(const bfs::path& subdir, off_t offset, size_t size, bool is_gap);
     ~mapping();
 
-    void populate(const posix::file& fdesc);
+    static void sync_all();
+
+    void allocate(off_t offset, size_t size);
+    bool is_pmem() const;
+    data_ptr_t data() const;
+
+    size_t fill_from(const posix::file& fdesc);
 
     inline bool overlaps(off_t op_offset, size_t op_size) const {
         return ((op_offset < (off_t) (m_offset + m_size)) && 
                 (m_offset <  (off_t) (op_offset + op_size)));
     }
 
+    void zero_fill(off_t offset, size_t size);
+
 private:
-    bfs::path generate_pool_path(const bfs::path& prefix, const bfs::path& base_path) const;
     ssize_t copy_data_to_pmem(const posix::file& fdesc);
     ssize_t copy_data_to_non_pmem(const posix::file& fdesc);
-    void zero_fill(off_t offset, size_t size);
 };
 
 } // namespace nvml

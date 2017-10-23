@@ -446,6 +446,16 @@ public:
         return m_init_val;
     }
 
+    value_type front() const
+    {
+        return m_left_leaf->value_leaf.value;
+    }
+
+    value_type back() const
+    {
+        return m_right_leaf->value_leaf.value;
+    }
+
     /**
      * Return the number of leaf nodes.
      *
