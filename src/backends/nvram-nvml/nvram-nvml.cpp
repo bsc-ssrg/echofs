@@ -46,8 +46,7 @@
 #include <utils.h>
 #include <posix-file.h>
 #include <nvram-nvml/file.h>
-#include <nvram-nvml/mapping.h>
-#include <nvram-nvml/snapshot.h>
+#include <nvram-nvml/segment.h>
 #include <nvram-nvml/nvram-nvml.h>
 
 #if BOOST_VERSION <= 106000 // 1.6.0

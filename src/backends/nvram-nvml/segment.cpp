@@ -33,7 +33,7 @@
 #include <logging.h>
 #include <efs-common.h>
 #include <nvram-nvml/file.h>
-#include <nvram-nvml/mapping.h>
+#include <nvram-nvml/segment.h>
 
 namespace bfs = boost::filesystem;
 
@@ -57,7 +57,7 @@ namespace nvml {
 
 // we need a definition of the constant because std::min/max rely on references
 // (see: http://stackoverflow.com/questions/16957458/static-const-in-c-class-undefined-reference)
-const size_t mapping::s_min_size;
+const size_t segment::s_min_size;
 
 pool::pool(const bfs::path& subdir)
     : m_subdir(subdir),
@@ -85,7 +85,7 @@ void pool::allocate(size_t size) {
 
     pool_path = ::generate_pool_path(m_subdir);
 
-    /* if the mapping file already exists delete it, since we can't trust that it's the same file */
+    /* if the segment pool already exists delete it, since we can't trust that it's the same file */
     /* TODO: we may need to change this in the future */
     if(bfs::exists(pool_path)){
         if(::unlink(pool_path.c_str()) != 0){
@@ -104,7 +104,7 @@ void pool::allocate(size_t size) {
     /* check that the range allocated is of the required size */
     if(pool_length != size) {
         pmem_unmap(pool_addr, pool_length);
-        throw std::runtime_error("File mapping of different size than requested");
+        throw std::runtime_error("File segment of different size than requested");
     }
 
     m_path = pool_path;
@@ -113,7 +113,7 @@ void pool::allocate(size_t size) {
     m_is_pmem = is_pmem;
 }
 
-mapping::mapping(const bfs::path& subdir, off_t offset, size_t size, bool is_gap)
+segment::segment(const bfs::path& subdir, off_t offset, size_t size, bool is_gap)
     : m_offset(offset), 
       m_size(size),
       m_is_gap(is_gap),
@@ -126,29 +126,29 @@ mapping::mapping(const bfs::path& subdir, off_t offset, size_t size, bool is_gap
     }
 }
 
-mapping::~mapping() {
+segment::~segment() {
 }
 
-void mapping::allocate(off_t offset, size_t size) {
+void segment::allocate(off_t offset, size_t size) {
     m_offset = offset;
     m_size = size;
     m_is_gap = false;
     m_pool.allocate(size);
 }
 
-void mapping::sync_all() {
+void segment::sync_all() {
     pmem_drain();
 }
 
-bool mapping::is_pmem() const {
+bool segment::is_pmem() const {
     return m_pool.m_is_pmem;
 }
 
-data_ptr_t mapping::data() const {
+data_ptr_t segment::data() const {
     return m_pool.m_data;
 }
 
-void mapping::zero_fill(off_t offset, size_t size) {
+void segment::zero_fill(off_t offset, size_t size) {
 
     if(m_is_gap) {
         return;
@@ -164,7 +164,7 @@ void mapping::zero_fill(off_t offset, size_t size) {
     }
 }
 
-size_t mapping::fill_from(const posix::file& fdesc) {
+size_t segment::fill_from(const posix::file& fdesc) {
     m_bytes = m_pool.m_is_pmem ? copy_data_to_pmem(fdesc) : copy_data_to_non_pmem(fdesc);
 
     // fill the rest of the allocated segment with zeros so that reads beyond EOF work as expected
@@ -173,7 +173,7 @@ size_t mapping::fill_from(const posix::file& fdesc) {
     return m_bytes;
 }
 
-ssize_t mapping::copy_data_to_pmem(const posix::file& fdesc){
+ssize_t segment::copy_data_to_pmem(const posix::file& fdesc){
 
     char* addr = (char*) m_pool.m_data;
     char* buffer = (char*) malloc(NVML_TRANSFER_SIZE*sizeof(*buffer));
@@ -209,7 +209,7 @@ ssize_t mapping::copy_data_to_pmem(const posix::file& fdesc){
     return total;
 }
 
-ssize_t mapping::copy_data_to_non_pmem(const posix::file& fdesc){
+ssize_t segment::copy_data_to_non_pmem(const posix::file& fdesc){
 
     char* addr = (char*) m_pool.m_data;
     char* buffer = (char*) malloc(NVML_TRANSFER_SIZE*sizeof(*buffer));
@@ -242,45 +242,14 @@ ssize_t mapping::copy_data_to_non_pmem(const posix::file& fdesc){
     return total;
 }
 
-
-//data_copy::data_copy()
-//    : m_offset(0), 
-//      m_data(NULL),
-//      m_generation(1),
-//      m_refs(0) {
-//}
-
-data_copy::data_copy(const data_copy& orig)
-    : m_offset(orig.m_offset),
-      m_data(orig.m_data) {
-
-    m_generation.store(m_generation.load());
-    m_refs.store(m_refs.load());
-}
-
-data_copy& data_copy::operator=(const data_copy& orig) {
-
-    if(this != &orig) {
-        m_offset = orig.m_offset;
-        m_data = orig.m_data;
-        m_generation.store(m_generation.load());
-        m_refs.store(m_refs.load());
-    }
-
-    return *this;
-}
-
-
-
-
 } // namespace nvml
 } // namespace efsng
 
 
 #ifdef __EFS_DEBUG__
 
-std::ostream& operator<<(std::ostream& os, const efsng::nvml::mapping& mp) {
-    os << "mapping {" << "\n"
+std::ostream& operator<<(std::ostream& os, const efsng::nvml::segment& mp) {
+    os << "segment {" << "\n"
        << "  m_is_gap: " << mp.m_is_gap << "\n"
        << "  m_data: " << mp.m_pool.m_data << "\n"
        << "  m_offset: " << mp.m_offset << "\n"

@@ -64,7 +64,7 @@ namespace nvml {
 /**********************************************************************************************************************/
 file::file() 
     : backend::file(),
-      m_segments(0, std::numeric_limits<off_t>::max(), std::shared_ptr<mapping>()) {
+      m_segments(0, std::numeric_limits<off_t>::max(), segment_ptr()) {
 }
 
 file::file(const bfs::path& pool_base, const bfs::path& pathname, file::type type, bool populate) 
@@ -72,7 +72,7 @@ file::file(const bfs::path& pool_base, const bfs::path& pathname, file::type typ
       m_type(type),
       m_alloc_offset(0),
       m_used_offset(0),
-      m_segments(0, std::numeric_limits<off_t>::max(), std::shared_ptr<mapping>()) {
+      m_segments(0, std::numeric_limits<off_t>::max(), segment_ptr()) {
 
     /* generate a subdir to store all pools for this file */
     m_pool_subdir = generate_pool_subdir(pool_base, pathname);
@@ -101,7 +101,7 @@ file::file(const bfs::path& pool_base, const bfs::path& pathname, file::type typ
         fd.stat(stbuf);
 
         off_t seg_offset = 0;
-        size_t seg_size = efsng::xalign(stbuf.st_size, mapping::s_segment_size);
+        size_t seg_size = efsng::xalign(stbuf.st_size, segment::s_segment_size);
 
         auto sptr = create_segment(seg_offset, seg_size, /*is_gap=*/false);
 
@@ -177,7 +177,7 @@ void file::update_size(size_t size) {
 
 segment_ptr file::create_segment(off_t base_offset, size_t size, bool is_gap) {
 
-    segment_ptr sptr(new mapping(m_pool_subdir, base_offset, size, is_gap));
+    segment_ptr sptr(new segment(m_pool_subdir, base_offset, size, is_gap));
     sptr->zero_fill(0, sptr->m_size);
 
     return sptr;
@@ -234,9 +234,9 @@ void file::fetch_storage(off_t offset, size_t size, file_region_list& regions) {
     assert((*++m_segments.rbegin()).second == nullptr);
 
     off_t new_segment_offset = (offset <= m_alloc_offset ?  m_alloc_offset : 
-            efsng::align(offset, mapping::s_segment_size));
+            efsng::align(offset, segment::s_segment_size));
     size_t gap_size = new_segment_offset - m_alloc_offset;
-    size_t new_segment_size = efsng::xalign(offset + size, mapping::s_segment_size) - new_segment_offset;
+    size_t new_segment_size = efsng::xalign(offset + size, segment::s_segment_size) - new_segment_offset;
 
     segment_list sl;
 
@@ -302,9 +302,9 @@ void file::lookup_segments(off_t range_start, off_t range_end, file_region_list&
 
         // we found a gap affected by the write operation, create actual storage for it
         if(s->m_is_gap) {
-            off_t seg_offset = efsng::align(range_start, mapping::s_segment_size);
+            off_t seg_offset = efsng::align(range_start, segment::s_segment_size);
             size_t seg_size = (range_start + req_size < s->m_offset + s->m_size) ?
-                efsng::xalign(range_start + req_size, mapping::s_segment_size) - seg_offset :
+                efsng::xalign(range_start + req_size, segment::s_segment_size) - seg_offset :
                 s->m_offset + s->m_size - seg_offset;
 
             segment_list sl;
@@ -440,9 +440,9 @@ void file::lookup_helper(off_t range_start, off_t range_end, bool alloc_gaps_as_
                                     (ssize_t) s->m_size - op_delta});
 
         if(alloc_gaps_as_needed && s->m_is_gap) {
-            off_t seg_offset = efsng::align(range_start, mapping::s_segment_size);
+            off_t seg_offset = efsng::align(range_start, segment::s_segment_size);
             size_t seg_size = (range_start + req_size < s->m_offset + s->m_size) ?
-                efsng::xalign(range_start + req_size, mapping::s_segment_size) - seg_offset :
+                efsng::xalign(range_start + req_size, segment::s_segment_size) - seg_offset :
                 s->m_offset + s->m_size - seg_offset;
 
             segment_list sl;
@@ -615,7 +615,7 @@ ssize_t file::put_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse
 
     // ensure data is persistent
     if(needs_sync) {
-        mapping::sync_all();
+        segment::sync_all();
     }
 
     // update cached attributes

@@ -24,8 +24,8 @@
  *                                                                       *
  *************************************************************************/
 
-#ifndef __MAPPING_H__
-#define __MAPPING_H__
+#ifndef __SEGMENT_H__
+#define __SEGMENT_H__
 
 #include <atomic>
 #include <mutex>
@@ -38,32 +38,20 @@ namespace nvml {
 
 static const uint64_t NVML_TRANSFER_SIZE = 0x1000; // 4KiB
 
-/* copy of a data block */
-struct data_copy {
-    off_t                m_offset;     /* file offset where the block should go */
-    data_ptr_t           m_data;       /* pointer to actual data */
-    std::atomic<int32_t> m_generation; /* generation number (1 == 1st copy, 2 == 2nd copy, ...) */
-    std::atomic<int32_t> m_refs;       /* number of current references to this block */
-
-    data_copy();
-    data_copy(const data_copy& orig);
-    data_copy& operator=(const data_copy& orig);
-};
-
 struct pool {
     pool(const bfs::path& subdir);
     ~pool();
     void allocate(size_t size);
 
-    bfs::path                   m_subdir;     /*!< Mapping's 'filesystem name' */
-    bfs::path                   m_path;     /*!< Mapping's 'filesystem name' */
+    bfs::path                   m_subdir;   /*!< Subdir to store file segments */
+    bfs::path                   m_path;     /*!< Segment's 'filesystem name' */
     data_ptr_t                  m_data;     /*!< Mapped data */
     size_t                      m_length;
     int                         m_is_pmem;  /*!< NVML-required flag */
 };
 
 /* descriptor for an in-NVM mmap()-ed file region */
-struct mapping {
+struct segment {
 
     //static const size_t s_min_size = 0x2000000; // 32MiB
     static const size_t s_min_size = 0x1000; // 32MiB
@@ -72,12 +60,12 @@ struct mapping {
     off_t                       m_offset;   /*!< Base offset within file */
     size_t                      m_size;     /*!< Mapped size */
     bool                        m_is_gap;   /*!< Segment is a zero-filled gap */
-    struct pool                 m_pool;
+    struct pool                 m_pool;     /*!< Pool descriptor for the segment */
 
     size_t                      m_bytes;    /*!< Used size */
 
-    mapping(const bfs::path& subdir, off_t offset, size_t size, bool is_gap);
-    ~mapping();
+    segment(const bfs::path& subdir, off_t offset, size_t size, bool is_gap);
+    ~segment();
 
     static void sync_all();
 
@@ -104,10 +92,8 @@ private:
 
 #ifdef __EFS_DEBUG__
 
-std::ostream& operator<<(std::ostream& os, const efsng::nvml::mapping& mp);
+std::ostream& operator<<(std::ostream& os, const efsng::nvml::segment& mp);
 
 #endif /* __EFS_DEBUG__ */
 
-
-
-#endif /* __MAPPING_H__ */
+#endif /* __SEGMENT_H__ */

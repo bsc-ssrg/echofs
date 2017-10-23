@@ -103,8 +103,8 @@ src_libefsng_la_SOURCES = 							\
 	src/backends/nvram-nvml/file.h 					\
 	src/backends/nvram-nvml/fuse_buf_copy_pmem.cpp	\
 	src/backends/nvram-nvml/fuse_buf_copy_pmem.h	\
-	src/backends/nvram-nvml/mapping.cpp				\
-	src/backends/nvram-nvml/mapping.h 				\
+	src/backends/nvram-nvml/segment.cpp				\
+	src/backends/nvram-nvml/segment.h 				\
 	src/backends/nvram-nvml/nvram-nvml.cpp			\
 	src/backends/nvram-nvml/nvram-nvml.h			\
 	src/range_lock.hpp								\

@@ -30,7 +30,7 @@
 #include <boost/thread/shared_mutex.hpp>
 
 #include <efs-common.h>
-#include <nvram-nvml/mapping.h>
+#include <nvram-nvml/segment.h>
 #include <mdds/flat_segment_tree.hpp>
 #include <range_lock.h>
 #include <backend.h>
@@ -41,7 +41,7 @@ namespace bfs = boost::filesystem;
 namespace efsng {
 namespace nvml {
 
-using segment_ptr = std::shared_ptr<mapping>;
+using segment_ptr = std::shared_ptr<segment>;
 using segment_tree = mdds::flat_segment_tree<off_t, segment_ptr>;
 using segment_list = std::vector<segment_ptr>;
 
