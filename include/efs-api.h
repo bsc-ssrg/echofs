@@ -24,17 +24,52 @@
  *                                                                       *
  *************************************************************************/
 
-#ifndef __EFS_NG_LIB_H__
-#define _EFS_NG_LIB_H__
+#ifndef __EFS_API_H__
+#define __EFS_API_H__
+
+#include <sys/types.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void libefs_ng_init(const  char* mount_point);
+typedef struct {
+    char*   f_backend;
+    char*   f_path;
+    off_t   f_offset;
+    size_t  f_size;
+} EFS_FILE;
+
+#define EFS_FILE_INIT(backend, path, offset, size) \
+{   .f_backend = (backend), \
+    .f_path = (path), \
+    .f_offset = (offset), \
+    .f_size = (size) \
+}
+
+int efs_load(EFS_FILE* handle);
+int efs_unload(EFS_FILE* handle);
+
+
+/** Error codes */
+#define EFS_API_ERRMAX 512
+
+#define EFS_API_SUCCESS            0
+#define EFS_API_ESNAFU            -1
+#define EFS_API_EINVAL            -2
+#define EFS_API_EBADREQUEST       -3
+#define EFS_API_ENOMEM            -4
+#define EFS_API_ECONNFAILED       -5
+#define EFS_API_ERPCSENDFAILED    -6
+#define EFS_API_ERPCRECVFAILED    -7
+#define EFS_API_EPACKFAILED       -8
+#define EFS_API_EUNPACKFAILED     -9
+#define EFS_API_EPENDING         -10
+#define EFS_API_EINPROGRESS      -11
+#define EFS_API_ESUCCEEDED       -12
 
 #ifdef __cplusplus
 }; // extern "C"
 #endif
 
-#endif /* _EFS_NG_LIB_H__ */
+#endif /* __EFS_API_H__ */

@@ -1,6 +1,6 @@
 /*************************************************************************
- * (C) Copyright 2016 Barcelona Supercomputing Center                    *
- *                    Centro Nacional de Supercomputacion                *
+ * (C) Copyright 2016-2017 Barcelona Supercomputing Center               *
+ *                         Centro Nacional de Supercomputacion           *
  *                                                                       *
  * This file is part of the Echo Filesystem NG.                          *
  *                                                                       *
@@ -24,20 +24,14 @@
  *                                                                       *
  *************************************************************************/
 
-#include <libefs-ng.h>
-#include <string.h>
-#include <stdio.h>
-#include <errno.h>
+#ifndef __DEFAULTS_H__
+#define __DEFAULTS_H__
 
-void libefs_ng_init(const char* mount_point) {
+#include <cstdint>
 
-    fprintf(stdout, "Hello Library World!\n");
+namespace defaults {
+    extern const char* api_sockfile;
+    extern const uint32_t workers_in_pool;
+} // namespace defaults
 
-    const char* list = (const char*) malloc(5000);
-
-    if(listxattr(mount_point, list, 5000) == -1){
-        fprintf(stderr, "ERROR: listxattr: %s\n", strerror(errno));
-    }
-
-    fprintf(stdout, "%s\n", list);
-}
+#endif /* __DEFAULTS_H__ */

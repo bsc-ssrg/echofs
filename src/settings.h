@@ -51,6 +51,7 @@ struct settings {
     bfs::path                           m_mount_point;                  /*!< Path to echofs' mount point */
     bfs::path                           m_config_file;                  /*!< Path to configuration file */
     bfs::path                           m_log_file;                     /*!< Path to log file (if any) */
+    bfs::path                           m_api_sockfile;                 /*!< Path to socket for API communication */
     std::map<std::string, kv_list>      m_backend_opts;                 /*!< User configuration options passed to any backends */
     std::map<bfs::path, std::string>    m_files_to_preload;             /*!< Files to stage in */
     int                                 m_fuse_argc;                    /*!< FUSE argc */

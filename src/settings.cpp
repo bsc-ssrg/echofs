@@ -41,6 +41,7 @@
 /* project includes */
 #include "command-line.h"
 #include "configuration.h"
+#include "defaults.h"
 #include "settings.h"
 
 namespace efsng {
@@ -54,6 +55,7 @@ settings::settings()
       m_mount_point("none"),
       m_config_file("none"),
       m_log_file("none"),
+      m_api_sockfile(defaults::api_sockfile),
       m_fuse_argc(0),
       m_fuse_argv() { 
 }
@@ -66,6 +68,8 @@ settings::settings(const settings& other)
       m_mount_point(other.m_mount_point),
       m_config_file(other.m_config_file),
       m_log_file(other.m_log_file),
+      m_api_sockfile(other.m_api_sockfile),
+      m_backend_opts(other.m_backend_opts),
       m_files_to_preload(other.m_files_to_preload),
       m_fuse_argc(other.m_fuse_argc),
       m_fuse_argv() {
@@ -96,6 +100,8 @@ settings& settings::operator=(settings&& other) {
         m_mount_point = std::move(other.m_mount_point);
         m_config_file = std::move(other.m_config_file);
         m_log_file = std::move(other.m_log_file);
+        m_api_sockfile = std::move(other.m_api_sockfile);
+        m_backend_opts = std::move(other.m_backend_opts);
         m_files_to_preload = std::move(other.m_files_to_preload);
 
         // PODs need to be reset after copying

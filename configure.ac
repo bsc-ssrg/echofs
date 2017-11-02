@@ -134,6 +134,21 @@ PKG_CHECK_MODULES([LIBPMEMOBJ], [libpmemobj >= 1.1],,
                   AC_MSG_ERROR(libpmemobj 1.1 or newer not found.)
 )
 
+# check for protobuf-c
+PKG_CHECK_MODULES([PROTOBUF_C], [libprotobuf-c >= 1.0.0])
+
+AC_CHECK_PROG([PROTOC_C], [protoc-c], [protoc-c])
+AS_IF([test "x${PROTOC_C}" == "x"],
+          [AC_MSG_ERROR([ProtoBuf C compiler "protoc-c" not found.])])
+
+# check for protobuf
+PKG_CHECK_MODULES([PROTOBUF], [protobuf >= 2.5.0])
+
+AC_CHECK_PROG([PROTOC], [protoc], [protoc])
+AS_IF([test "x${PROTOC}" == "x"],
+          [AC_MSG_ERROR([ProtoBuf compiler "protoc" not found.])])
+
+
 ## check if documentation should be built and if we have the appropriate
 ## programs to do so
 AC_ARG_ENABLE([docs],
@@ -172,6 +187,8 @@ fi
 AC_CONFIG_FILES([
         Makefile
         doc/Makefile
+        examples/Makefile
+        examples/api/Makefile
         lib/Makefile
         tests/Makefile
         tests/library/Makefile

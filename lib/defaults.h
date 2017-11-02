@@ -23,58 +23,10 @@
  * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.    *
  *                                                                       *
  *************************************************************************/
-#ifndef __EFS_NG_H__
-#define __EFS_NG_H__
 
-#include <vector>
-#include <memory>
-#include <unordered_map>
+#ifndef __DEFAULTS_H__
+#define __DEFAULTS_H__
 
-#include <settings.h>
-#include <logging.h>
-#include "api/requests.h"
-#include "api/message.h"
-#include "api/listener.h"
-#include <backends/backend.h>
-#include "thread-pool.h"
+extern const char* api_sockfile;
 
-namespace efsng {
-
-
-/*! Convenience alias */
-using settings_ptr = std::unique_ptr<settings>;
-using logger_ptr = std::unique_ptr<logger>;
-using api_listener = api::listener<api::message<api::request, api::response>>;
-using api_listener_ptr = std::unique_ptr<api_listener>;
-using backend_ptr = std::unique_ptr<backend>;
-using request_ptr = std::shared_ptr<api::request>;
-using response_ptr = std::shared_ptr<api::response>;
-using request_tracker = api::tracker<api::request_handle, api::progress>;
-
-/*! This class is used to keep the internal state of the filesystem while it's running */
-struct context {
-
-    context(const settings& user_opts);
-    void initialize(void);
-    void force_shutdown(void);
-    response_ptr api_handler(request_ptr request);
-
-    settings_ptr                m_user_args;    /*!< Configuration options passed by the user */
-    logger_ptr                  m_logger;       /*!< Logger */
-    api_listener_ptr            m_api_listener; /*!< API listener */
-    std::vector<backend_ptr>    m_backends;     /*!< Registered backends */
-
-    pool m_thread_pool;
-    request_tracker m_tracker;
-
-
-
-    std::atomic<bool>           m_forced_shutdown;
-
-
-
-}; // struct context
-
-} // namespace efsng
-
-#endif /* __EFS_NG_H__ */
+#endif /* __DEFAULTS_H__ */

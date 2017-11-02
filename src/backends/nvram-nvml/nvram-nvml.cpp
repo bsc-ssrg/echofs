@@ -155,6 +155,10 @@ void nvml_backend::load(const bfs::path& pathname){
     m_logger.debug("Loading file \"{}\" in NVRAM", pathname.string());
 #endif
 
+    if(!bfs::exists(pathname)) {
+        return;
+    }
+
     /* add the mapping to a nvml::file descriptor and insert it into m_files */
     std::lock_guard<std::mutex> lock(m_files_mutex);
 

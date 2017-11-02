@@ -3,6 +3,9 @@
 #include <type_traits>
 #include <utility>
 
+#ifndef __UTILS_H__
+#define __UTILS_H__
+
 // since C++11 doesn't offer make_unique, we borrow the template definition
 // from C++14 (see https://isocpp.org/files/papers/N3656.txt)
 namespace std {
@@ -35,3 +38,5 @@ namespace std {
         typename _Unique_if<T>::_Known_bound
         make_unique(Args&&...) = delete;
 }
+
+#endif /* __UTILS_H__ */

@@ -57,6 +57,7 @@ extern "C" {
 #include <cerrno>
 #include <string>
 #include <sstream>
+#include <functional>
 
 /* internal includes */
 #include <settings.h>
@@ -67,7 +68,9 @@ extern "C" {
 #include <backends/backend.h>
 #include <utils.h>
 #include <logging.h>
-#include <efs-ng.h>
+#include <fuse-mount-helper.h>
+#include "../include/efs-api.h"
+#include "efs-ng.h"
 
 /**********************************************************************************************************************/
 /*   Filesytem operations
@@ -815,9 +818,9 @@ static int efsng_fsyncdir(const char* pathname, int is_datasync, struct fuse_fil
  * destroy() method.
  */
 #if FUSE_USE_VERSION < 30
-static void* efsng_init(struct fuse_conn_info *conn){
+static void* efsng_init(struct fuse_conn_info *conn) {
 #else
-static void* efsng_init(struct fuse_conn_info *conn, struct fuse_config* cfg){
+static void* efsng_init(struct fuse_conn_info *conn, struct fuse_config* cfg) {
 #endif
 
     (void) conn;
@@ -833,6 +836,25 @@ static void* efsng_init(struct fuse_conn_info *conn, struct fuse_config* cfg){
     auto efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
     const auto& user_args = efsng_ctx->m_user_args;
 
+    try {
+        efsng_ctx->initialize();
+    } 
+    catch(const std::exception& e) {
+
+        if(efsng_ctx->m_logger != nullptr) {
+            efsng_ctx->m_logger->error(e.what());
+        }
+        else {
+            std::cerr << e.what() << "\n";
+        }
+
+        efsng_ctx->force_shutdown();
+
+        // since force_shutdown does not stop execution, we need to skip
+        // the next actions
+        goto forced_return;
+    }
+
     /* Load any input files requested by the user to the selected backends */
     for(const auto& kv: user_args->m_files_to_preload){
 
@@ -840,7 +862,7 @@ static void* efsng_init(struct fuse_conn_info *conn, struct fuse_config* cfg){
         const std::string& target = kv.second;
         bool preloaded = false;
 
-        for(auto& bend : efsng_ctx->m_backends){
+        for(auto& bend : efsng_ctx->m_backends) {
             if(bend->name() == target){
                 bend->load(pathname);
                 preloaded = true;
@@ -848,18 +870,39 @@ static void* efsng_init(struct fuse_conn_info *conn, struct fuse_config* cfg){
             }
         }
 
-        if(!preloaded){
+        if(!preloaded) {
             efsng_ctx->m_logger->warn("No configured backend '{}' for input file '{}'. Ignored.", target, pathname.string());
         }
     }
 
+forced_return:
     return (void*) efsng_ctx;
 }
 
 /**
  * Clean up the filesystem. Called on filesystem exit.
  */
-static void efsng_destroy(void *){
+static void efsng_destroy(void *) {
+
+    efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
+
+    if(efsng_ctx->m_forced_shutdown) {
+        efsng_ctx->m_logger->warn("Unrecoverable error: forcing shutdown!");
+    }
+
+    if(efsng_ctx->m_api_listener != nullptr) {
+        efsng_ctx->m_api_listener->stop();
+    }
+
+    if(bfs::exists(efsng_ctx->m_user_args->m_api_sockfile)) {
+        bfs::remove(efsng_ctx->m_user_args->m_api_sockfile);
+    }
+
+    efsng_ctx->m_logger->info("Bye! [status=0]");
+
+    if(efsng_ctx->m_forced_shutdown) {
+        efsng_ctx->m_forced_shutdown = false;
+    }
 }
 
 
@@ -1336,22 +1379,22 @@ static int efsng_fallocate(const char* pathname, int mode, off_t offset, off_t l
 /**********************************************************************************************************************/
 namespace efsng {
 
-void context::initialize(const settings& user_opts) {
+context::context(const settings& user_args) 
+    : m_user_args(std::make_unique<settings>(user_args)),
+      m_forced_shutdown(false) { }
 
-    /* copy user_opts into the context, from now on we will use this copy 
-     * rather than the one passed as an argument */
-    m_user_args = std::make_unique<settings>(user_opts);
+void context::initialize() {
 
+    /* 1. initialize logging facilities */
     std::string log_type;
     std::string log_file;
 
-    /* 1. initialize logging facilities */
-    if(m_user_args->m_log_file != "none"){
+    if(m_user_args->m_log_file != "none") {
         log_type = "file";
         log_file = m_user_args->m_log_file.string();
     }
     else {
-        if(m_user_args->m_daemonize){
+        if(m_user_args->m_daemonize) {
             log_type = "syslog";
         }
         else{
@@ -1360,62 +1403,150 @@ void context::initialize(const settings& user_opts) {
     }
 
     /* this will throw if initialization fails */
-    m_logger = std::make_unique<logger>(logger(user_opts.m_exec_name, log_type, log_file));
+    m_logger = std::make_unique<logger>(logger(m_user_args->m_exec_name, log_type, log_file));
 
-    if(user_opts.m_debug){
+    if(m_user_args->m_debug){
         m_logger->enable_debug();
     }
 
-    m_logger->info("==============================================");
-    m_logger->info("=== echofs (NG) v{}                     ===", VERSION);
-    m_logger->info("==============================================");
-
-    m_logger->info("");
-    m_logger->info("* Creating storage backend handlers...");
-
-    /* 2. setup storage backends */
-    for(const auto& kv : user_opts.m_backend_opts){
-
-        const auto& bend_key = kv.first;
-        efsng::kv_list& bend_opts = const_cast<efsng::kv_list&>(kv.second);
-
-        /* add root_dir as an option for those backends that may need it */
-        bend_opts.push_back({"root-dir", user_opts.m_root_dir.string()});
-
-        efsng::backend* bend = efsng::backend::builder(bend_key, bend_opts, *m_logger);
-
-        m_logger->info("    Backend (type: {})", bend->name());  
-        m_logger->info("      [ capacity: {} bytes ]", bend->capacity());
-
-        if(bend == nullptr){
-            throw std::runtime_error("Unable to create backend'" + kv.first + "'");
-        }
-
-        m_backends.emplace_back(std::unique_ptr<efsng::backend>(bend));
-    }
-
-    /* check that there is at least one backend */
-    if(m_backends.size() == 0){
-        throw std::runtime_error("No valid backends configured. Check configuration file.");
-    }
-
+    /* 2. Some useful output for debugging */
 #ifdef __EFS_DEBUG__
     m_logger->debug("Command line passed to FUSE:");
 #endif
 
     std::stringstream ss;
-    for(int i=0; i<user_opts.m_fuse_argc; ++i){
-        ss << user_opts.m_fuse_argv[i] << " ";
+    for(int i=0; i<m_user_args->m_fuse_argc; ++i){
+        ss << m_user_args->m_fuse_argv[i] << " ";
     }
 
 #ifdef __EFS_DEBUG__
     m_logger->debug("  {}", ss.str());
 #endif
 
+    /* 3. Hail user */
+    m_logger->info("==============================================");
+    m_logger->info("=== echofs (NG) v{}                     ===", VERSION);
+    m_logger->info("==============================================");
+
+    m_logger->info("");
+    m_logger->info("* Deploying storage backend handlers...");
+
+    /* 4. setup storage backends */
+    for(const auto& kv : m_user_args->m_backend_opts){
+
+        const auto& bend_key = kv.first;
+        efsng::kv_list& bend_opts = const_cast<efsng::kv_list&>(kv.second);
+
+        /* add root_dir as an option for those backends that may need it */
+        bend_opts.push_back({"root-dir", m_user_args->m_root_dir.string()});
+
+        efsng::backend* bend = efsng::backend::builder(bend_key, bend_opts, *m_logger);
+
+        m_logger->info("    Backend (type: {})", bend->name());  
+        m_logger->info("      [ capacity: {} bytes ]", bend->capacity());
+
+        if(bend == nullptr) {
+            m_logger->error("Unable to create backend '{}'");
+            throw std::runtime_error(""); // we don't really care about the message
+        }
+
+        m_backends.emplace_back(std::unique_ptr<efsng::backend>(bend));
+    }
+
+    /* check that there is at least one backend */
+    if(m_backends.size() == 0) {
+        m_logger->error("No valid backends configured. Check configuration file.");
+        throw std::runtime_error(""); // we don't really care about the message
+    }
+
+    /* 5. initialize API listener */
+    m_logger->info("* Starting API listener...");
+
+    if(bfs::exists(m_user_args->m_api_sockfile)) {
+        bfs::remove(m_user_args->m_api_sockfile);
+    }
+
+    m_api_listener = std::make_unique<api_listener>(m_user_args->m_api_sockfile, 
+            std::bind(&context::api_handler, this, std::placeholders::_1));
+
+    m_api_listener->run();
 }
 
-} // namespace efsng
+/* fetch a request, unpack it and submit a lambda to process it to the thread pool */
+response_ptr context::api_handler(request_ptr user_req) {
 
+    m_logger->info("API: {}", user_req->to_string());
+
+    auto req_type = user_req->type();
+
+    if(req_type == api::request_type::bad_request) {
+        return std::make_shared<api::response>(api::response_type::bad_request);
+    }
+
+    // generate a handle that we can return to the user so that
+    // they can later refer to this request
+    auto handle = api::request::create_handle(user_req);
+
+    if(m_tracker.exists(handle)) {
+        return std::make_shared<api::response>(api::response_type::rejected, 0/*EXISTS*/);
+    }
+
+    m_tracker.add(handle, EFS_API_EPENDING);
+
+    auto handler = [&] (void) -> void {
+        switch(req_type) {
+            case api::request_type::load_path:
+            {
+                auto target = user_req->backend();
+                auto pathname = user_req->path();
+
+                for(auto& backend : m_backends) {
+                    if(backend->name() == target) {
+                        m_tracker.set(handle, EFS_API_EINPROGRESS);
+                        backend->load(pathname);
+                        //TODO check for errors
+                        m_tracker.set(handle, EFS_API_ESUCCEEDED);
+                        return;
+                    }
+                }
+                break;
+            }
+            case api::request_type::unload_path:
+            {
+                auto target = user_req->backend();
+                auto pathname = user_req->path();
+
+                for(auto& backend : m_backends) {
+                    if(backend->name() == target){
+                        m_tracker.set(handle, EFS_API_EINPROGRESS);
+                        //backend->unload(pathname); TODO
+                        m_tracker.set(handle, EFS_API_ESUCCEEDED);
+                        return;
+                    }
+                }
+                break;
+            }
+            case api::request_type::status:
+                break;
+            case api::request_type::get_config:
+                break;
+            case api::request_type::bad_request:
+                break;
+        }
+    };
+
+    m_thread_pool.submit(handler);
+
+    return std::make_shared<api::response>(api::response_type::accepted, handle, 0);
+}
+
+void context::force_shutdown(void) {
+    m_forced_shutdown = true;
+    kill(getpid(), SIGTERM);
+}
+
+
+} // namespace efsng
 
 
 /**********************************************************************************************************************/
@@ -1441,22 +1572,7 @@ int main (int argc, char *argv[]){
         return EXIT_FAILURE;
     }
 
-    /* 2. create a context object to maintain the internal state of the filesystem 
-     * so that we can later pass it around to the filesystem operations */
-    auto efsng_ctx = std::make_unique<efsng::context>(efsng::context());
-
-    try {
-        efsng_ctx->initialize(user_opts);
-    } 
-    catch(const std::exception& e) {
-        // use std::cerr since logger might not have been correctly initialized
-        std::cerr << exec_name << ": " << e.what() << "\n";
-        return EXIT_FAILURE;
-    }
-
-    const auto& logger = efsng_ctx->m_logger;
-
-    /* 3. prepare operations */
+    /* 2. prepare operations */
     fuse_operations efsng_ops;
     memset(&efsng_ops, 0, sizeof(fuse_operations));
 
@@ -1522,16 +1638,11 @@ int main (int argc, char *argv[]){
     efsng_ops.fallocate = efsng_fallocate;
 #endif /* HAVE_POSIX_FALLOCATE */
     
-    /* 4. set the umask */
+    /* 3. set the umask */
     umask(0);
 
-    /* 5. start the FUSE filesystem and pass efsng_ctx to efsng_init() */
-    int res = fuse_main(user_opts.m_fuse_argc, 
-                        const_cast<char **>(user_opts.m_fuse_argv), 
-                        &efsng_ops, 
-                        (void*) efsng_ctx.get());
+    /* 4. start the FUSE filesystem */
+    int res = fuse_custom_mounter(user_opts, &efsng_ops);
 
-    logger->info("Bye! [status={}]", res);
-
-    return EXIT_SUCCESS;
+    return res;
 }
