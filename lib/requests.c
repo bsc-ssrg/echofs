@@ -32,7 +32,7 @@
 static Efsng__Api__UserRequest* build_request_msg(request_type_t type, 
         va_list ap);
 static void free_request_msg(Efsng__Api__UserRequest* reqmsg);
-static Efsng__Api__UserRequest__LoadPath* build_load_path_msg(const EFS_FILE* handle);
+static Efsng__Api__UserRequest__LoadPath* build_load_path_msg(const struct efs_iocb* cbp);
 static void free_load_path_msg(Efsng__Api__UserRequest__LoadPath* loadmsg);
 static int remap_request_type(request_type_t type);
 
@@ -95,18 +95,24 @@ int unpack_from_buffer(msgbuffer_t* buf, response_t* resp) {
             break;
         case EFSNG__API__USER_RESPONSE__TYPE__REJECTED:
             resp->r_type = EFS_REQUEST_REJECTED;
+            break;
+        default:
+            return EFS_API_EBADRESPONSE;
+    }
 
-            if(respmsg->has_status) {
-                resp->r_status = respmsg->status;
-            }
-            break;
-        case EFSNG__API__USER_RESPONSE__TYPE__BAD_REQUEST:
-            resp->r_type = EFS_BAD_REQUEST;
-            break;
+    if(!respmsg->has_tid && !respmsg->has_status) {
+        return EFS_API_EUNPACKFAILED;
+    }
+
+    if(respmsg->has_tid) {
+        resp->r_tid = respmsg->tid;
+    }
+
+    if(respmsg->has_status) {
+        resp->r_status = respmsg->status;
     }
 
     return EFS_API_SUCCESS;
-
 }
 
 int remap_request_type(request_type_t type) {
@@ -115,6 +121,8 @@ int remap_request_type(request_type_t type) {
             return EFSNG__API__USER_REQUEST__TYPE__LOAD_PATH;
         case EFS_UNLOAD_PATH:
             return EFSNG__API__USER_REQUEST__TYPE__UNLOAD_PATH;
+        case EFS_STATUS:
+            return EFSNG__API__USER_REQUEST__TYPE__STATUS;
         default:
             return -1;
     }
@@ -134,19 +142,43 @@ build_request_msg(request_type_t type, va_list ap) {
     switch(type) {
         case EFS_LOAD_PATH:
         {
-            const EFS_FILE* handle = va_arg(ap, const EFS_FILE*);
+            const struct efs_iocb* cbp = va_arg(ap, const struct efs_iocb*);
 
             if((reqmsg->type = remap_request_type(type)) < 0) {
                 goto cleanup_on_error;
             }
 
-            if((reqmsg->load_desc = build_load_path_msg(handle)) == NULL) {
+            if((reqmsg->load_desc = build_load_path_msg(cbp)) == NULL) {
                 goto cleanup_on_error;
-            };
+            }
             break;
         }
         case EFS_UNLOAD_PATH:
+        {
+            const struct efs_iocb* cbp = va_arg(ap, const struct efs_iocb*);
+
+            if((reqmsg->type = remap_request_type(type)) < 0) {
+                goto cleanup_on_error;
+            }
+
+            if((reqmsg->load_desc = build_load_path_msg(cbp)) == NULL) {
+                goto cleanup_on_error;
+            }
             break;
+        }
+        case EFS_STATUS:
+        {
+            const struct efs_iocb* cbp = va_arg(ap, const struct efs_iocb*);
+
+            if((reqmsg->type = remap_request_type(type)) < 0) {
+                goto cleanup_on_error;
+            }
+
+            reqmsg->has_tid = true;
+            reqmsg->tid = cbp->__tid;
+
+            break;
+        }
     }
 
     return reqmsg;
@@ -173,7 +205,7 @@ free_request_msg(Efsng__Api__UserRequest* reqmsg) {
 }
 
 Efsng__Api__UserRequest__LoadPath*
-build_load_path_msg(const EFS_FILE* handle) {
+build_load_path_msg(const struct efs_iocb* cbp) {
 
     Efsng__Api__UserRequest__LoadPath* loadmsg =
         (Efsng__Api__UserRequest__LoadPath*) xmalloc(sizeof(*loadmsg));
@@ -184,20 +216,20 @@ build_load_path_msg(const EFS_FILE* handle) {
 
     efsng__api__user_request__load_path__init(loadmsg);
 
-    loadmsg->backend = xstrdup(handle->f_backend);
+    loadmsg->backend = xstrdup(cbp->efs_backend);
 
     if(loadmsg->backend == NULL) {
         goto cleanup_on_error;
     }
 
-    loadmsg->path = xstrdup(handle->f_path);
+    loadmsg->path = xstrdup(cbp->efs_path);
 
     if(loadmsg->path == NULL) {
         goto cleanup_on_error;
     }
 
-    loadmsg->offset = handle->f_offset;
-    loadmsg->size = handle->f_size;
+    loadmsg->offset = cbp->efs_offset;
+    loadmsg->size = cbp->efs_size;
 
     return loadmsg;
 

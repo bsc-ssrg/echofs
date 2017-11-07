@@ -31,19 +31,28 @@
 
 #include "communication.h"
 
-int efs_load(EFS_FILE* handle) {
+int efs_load(struct efs_iocb* cbp) {
 
-    if(handle != NULL && handle->f_path != NULL && handle->f_offset >= 0) {
-        return send_load_request(handle);
+    if(cbp != NULL && cbp->efs_path != NULL && cbp->efs_offset >= 0) {
+        return send_load_request(cbp);
     }
 
     return EFS_API_EINVAL;
 }
 
-int efs_unload(EFS_FILE* handle) {
+int efs_status(struct efs_iocb* cbp) {
 
-    if(handle != NULL) {
-        return send_unload_request(handle);
+    if(cbp != NULL) {
+        return send_status_request(cbp);
+    }
+
+    return EFS_API_EINVAL;
+}
+
+int efs_unload(struct efs_iocb* cbp) {
+
+    if(cbp != NULL) {
+        return send_unload_request(cbp);
     }
 
     return EFS_API_EINVAL;

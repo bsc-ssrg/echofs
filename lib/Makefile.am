@@ -18,6 +18,7 @@ libefs_api_la_SOURCES = \
 	communication.h \
 	defaults.h \
 	efs-api.c \
+	errors.c \
 	requests.c \
 	requests.h \
 	xstring.c \

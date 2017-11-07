@@ -53,7 +53,7 @@ typedef struct {
 
 typedef struct {
     response_type_t r_type;
-    size_t r_handle;
+    size_t r_tid;
     int r_status;
 } response_t;
 

@@ -24,8 +24,8 @@
  *                                                                       *
  *************************************************************************/
 
-#ifndef __NVRAM_CACHE_H__
-#define  __NVRAM_CACHE_H__
+#ifndef __NVML_BACKEND_H__
+#define  __NVML_BACKEND_H__
 
 /* C++ includes */
 #include <string>
@@ -36,7 +36,8 @@
 /* internal includes */
 #include <efs-common.h>
 #include <logging.h>
-#include <backend.h>
+#include "backend-base.h"
+#include "errors.h"
 
 namespace bfs = boost::filesystem;
 
@@ -46,6 +47,9 @@ namespace nvml {
 /* class to manage file allocations in NVRAM based on the NVML library */
 class nvml_backend : public efsng::backend {
 
+    // some aliases for convenience
+    using file_ptr = std::unique_ptr<backend::file>;
+
     static constexpr const char* s_name = "NVRAM-NVML";
 
 public:
@@ -54,12 +58,9 @@ public:
 
     std::string name() const override;
     uint64_t capacity() const override;
-    void load(const bfs::path& pathname) override;
+    error_code load(const bfs::path& pathname) override;
+    error_code unload(const bfs::path& pathname) override;
     bool exists(const char* pathname) const override;
-    void read_prepare(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const override;
-    void read_finalize(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const override;
-    void write_prepare(backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const override;
-    void write_finalize(backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const override;
 
     backend::iterator find(const char* path) override;
     backend::iterator begin() override;
@@ -76,11 +77,10 @@ private:
     bfs::path m_root_dir;
 
     mutable std::mutex                    m_files_mutex;
-    std::unordered_map<std::string, 
-                       std::unique_ptr<backend::file>> m_files;
+    std::unordered_map<std::string, file_ptr> m_files;
 }; // nvml_backend
 
 } // namespace nvml
 } // namespace efsng
 
-#endif /* __NVRAM_CACHE_H__ */
+#endif /* __NVML_BACKEND_H__ */

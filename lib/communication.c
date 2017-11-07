@@ -1,25 +1,28 @@
-/* * Copyright (C) 2017 Barcelona Supercomputing Center
- *                    Centro Nacional de Supercomputacion
- *
- * This file is part of the Data Scheduler, a daemon for tracking and managing
- * requests for asynchronous data transfer in a hierarchical storage environment.
- *
- * See AUTHORS file in the top level directory for information
- * regarding developers and contributors.
- *
- * The Data Scheduler is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * Data Scheduler is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with Data Scheduler.  If not, see <http://www.gnu.org/licenses/>.
- */
+/*************************************************************************
+ * (C) Copyright 2016-2017 Barcelona Supercomputing Center               *
+ *                         Centro Nacional de Supercomputacion           *
+ *                                                                       *
+ * This file is part of the Echo Filesystem NG.                          *
+ *                                                                       *
+ * See AUTHORS file in the top level directory for information           *
+ * regarding developers and contributors.                                *
+ *                                                                       *
+ * This library is free software; you can redistribute it and/or         *
+ * modify it under the terms of the GNU Lesser General Public            *
+ * License as published by the Free Software Foundation; either          *
+ * version 3 of the License, or (at your option) any later version.      *
+ *                                                                       *
+ * The Echo Filesystem NG is distributed in the hope that it will        *
+ * be useful, but WITHOUT ANY WARRANTY; without even the implied         *
+ * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR               *
+ * PURPOSE.  See the GNU Lesser General Public License for more          *
+ * details.                                                              *
+ *                                                                       *
+ * You should have received a copy of the GNU Lesser General Public      *
+ * License along with Echo Filesystem NG; if not, write to the Free      *
+ * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.    *
+ *                                                                       *
+ *************************************************************************/
 
 #include <sys/un.h>
 #include <sys/socket.h>
@@ -48,18 +51,56 @@ static inline uint64_t ntohll(uint64_t x) {
     return ((1==ntohl(1)) ? (x) : ((uint64_t)ntohl((x) & 0xFFFFFFFF) << 32) | ntohl((x) >> 32));
 }
 
-int
-send_load_request(EFS_FILE* handle) {
+static int
+send_request(request_type_t type, response_t* resp, ...) {
 
+    int res;
     msgbuffer_t req_buf = MSGBUFFER_INIT();
     msgbuffer_t resp_buf = MSGBUFFER_INIT();
-    response_t resp;
-    int res;
 
-    if((res = pack_to_buffer(EFS_LOAD_PATH, &req_buf, handle)) != EFS_API_SUCCESS) {
-        return res;
+    va_list ap;
+    va_start(ap, resp);
+
+    // fetch args and pack them into a buffer
+    switch(type) {
+        case EFS_LOAD_PATH:
+        {
+            const struct efs_iocb* cbp = va_arg(ap, const struct efs_iocb*);
+
+            if((res = pack_to_buffer(type, &req_buf, cbp)) 
+                    != EFS_API_SUCCESS) {
+                return res;
+            }
+            break;
+        }
+
+        case EFS_UNLOAD_PATH:
+        {
+            const struct efs_iocb* cbp = va_arg(ap, const struct efs_iocb*);
+
+            if((res = pack_to_buffer(type, &req_buf, cbp)) 
+                    != EFS_API_SUCCESS) {
+                return res;
+            }
+            break;
+        }
+
+        case EFS_STATUS:
+        {
+            const struct efs_iocb* cbp = va_arg(ap, const struct efs_iocb*);
+
+            if((res = pack_to_buffer(type, &req_buf, cbp)) 
+                    != EFS_API_SUCCESS) {
+                return res;
+            }
+            break;
+        }
+
+        default:
+            return EFS_API_ESNAFU;
     }
 
+    // connect to echofs
     int conn = connect_to_daemon();
 
     if(conn == -1) {
@@ -73,32 +114,65 @@ send_load_request(EFS_FILE* handle) {
 	    goto cleanup_on_error;
     }
 
-    // wait for the daemon's response
+    // wait for the echofs' response
     if(recv_message(conn, &resp_buf) < 0) {
         res = EFS_API_ERPCRECVFAILED;
 	    goto cleanup_on_error;
     }
 
-    if((res = unpack_from_buffer(&resp_buf, &resp)) != EFS_API_SUCCESS) {
+    if((res = unpack_from_buffer(&resp_buf, resp)) != EFS_API_SUCCESS) {
 	    goto cleanup_on_error;
     }
 
-    if(resp.r_type == EFS_REQUEST_ACCEPTED) {
-        return EFS_API_SUCCESS;
-    }
+    va_end(ap);
 
+    close(conn);
+
+    return res;
 
 cleanup_on_error:
+    va_end(ap);
     return res;
 }
 
+int
+send_load_request(struct efs_iocb* cbp) {
+
+    int res;
+    response_t resp;
+
+    if((res = send_request(EFS_LOAD_PATH, &resp, cbp)) != EFS_API_SUCCESS) {
+        return res;
+    }
+    
+    if(resp.r_type == EFS_REQUEST_ACCEPTED) {
+        cbp->__tid = resp.r_tid;
+        return EFS_API_SUCCESS;
+    }
+
+    return resp.r_status;
+}
+
+int
+send_status_request(struct efs_iocb* cbp) {
+
+    int res;
+    response_t resp;
+
+    if((res = send_request(EFS_STATUS, &resp, cbp)) != EFS_API_SUCCESS) {
+        return res;
+    }
+
+    return resp.r_status;
+}
+
 int 
-send_unload_request(EFS_FILE* handle) {
+send_unload_request(struct efs_iocb* cbp) {
 
     msgbuffer_t buffer;
     int res;
 
-    if((res = pack_to_buffer(EFS_UNLOAD_PATH, &buffer, handle)) != EFS_API_SUCCESS) {
+    if((res = pack_to_buffer(EFS_UNLOAD_PATH, &buffer, cbp)) != EFS_API_SUCCESS) {
         return res;
     }
 
@@ -167,7 +241,7 @@ recv_message(int conn, msgbuffer_t* buffer) {
         goto recv_error;
     }
 
-    print_hex(&prefix, sizeof(prefix));
+//    print_hex(&prefix, sizeof(prefix));
 
     size_t msg_size = ntohll(prefix);
 
@@ -186,7 +260,7 @@ recv_message(int conn, msgbuffer_t* buffer) {
         goto recv_error;
     }
 
-    print_hex(msg_data, msg_size);
+//    print_hex(msg_data, msg_size);
 
     buffer->b_data = msg_data;
     buffer->b_size = msg_size;
@@ -209,8 +283,6 @@ recv_data(int conn, void* data, size_t size) {
 
 	while(brecvd < size) {
 		n = read(conn, data + brecvd, bleft);
-
-		fprintf(stdout, "read %zd\n", n);
 
 		if(n == -1 || n == 0) {
 		    if(errno == EINTR) {

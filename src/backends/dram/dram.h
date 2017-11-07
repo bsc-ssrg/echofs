@@ -34,7 +34,7 @@
 
 #include <logging.h>
 #include <efs-common.h>
-#include <backend.h>
+#include "backend-base.h"
 
 namespace bfs = boost::filesystem;
 
@@ -44,20 +44,20 @@ namespace dram {
 /* class to manage file allocations in DRAM */
 class dram_backend : public efsng::backend {
 
+    // some aliases for convenience
+    using file_ptr = std::unique_ptr<backend::file>;
+
     static constexpr const char* s_name = "DRAM";
 
 public:
     dram_backend(uint64_t capacity, logger& logger);
     ~dram_backend();
 
-    std::string name() const;
-    uint64_t capacity() const;
-    void load(const bfs::path& pathname);
-    bool exists(const char* pathname) const;
-    void read_prepare(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
-    void read_finalize(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
-    void write_prepare(backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
-    void write_finalize(backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const;
+    std::string name() const override;
+    uint64_t capacity() const override;
+    error_code load(const bfs::path& pathname) override;
+    error_code unload(const bfs::path& pathname) override;
+    bool exists(const char* pathname) const override;
 
     efsng::backend::iterator find(const char* path) override;
     efsng::backend::iterator begin() override;
@@ -71,8 +71,7 @@ private:
     logger& m_logger;
     /* filename -> data */
     mutable std::mutex m_files_mutex;
-    std::unordered_map<std::string, 
-                       std::unique_ptr<backend::file>> m_files;
+    std::unordered_map<std::string, file_ptr> m_files;
 }; // dram_backend
 
 } // namespace dram

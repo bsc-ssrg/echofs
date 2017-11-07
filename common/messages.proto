@@ -1,0 +1,50 @@
+package efsng.api;
+
+message UserRequest {
+
+    // oneof would be better here, but the version of protoc provided by
+    // CentOS 7 does not support it yet
+    enum Type {
+        LOAD_PATH = 1;
+        UNLOAD_PATH = 2;
+        STATUS = 3;
+        GET_CONFIG = 4;
+    }
+
+    message LoadPath {
+        required string backend = 1;
+        required string path = 2;
+        required bool is_directory = 3;
+        required int64 offset = 4;
+        required uint64 size = 5;
+    }
+
+    message UnloadPath {
+        required string id = 1;
+    }
+
+    required Type type = 1;
+
+    // descriptor for efs_load
+    optional LoadPath load_desc = 2;
+
+    // descriptor for efs_unload
+    optional UnloadPath unload_desc = 3; 
+
+    // task id for efs_status
+    optional uint64 tid = 4;
+}
+
+message UserResponse {
+
+    // oneof would be better here, but the version of protoc provided by
+    // CentOS 7 does not support it yet
+    enum Type {
+        ACCEPTED = 1;
+        REJECTED = 2;
+    }
+
+    required Type type = 1;
+    optional uint64 tid = 2;
+    optional uint32 status = 3;
+}

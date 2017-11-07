@@ -28,27 +28,36 @@
 #define __EFS_API_H__
 
 #include <sys/types.h>
+#include <stdarg.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct {
-    char*   f_backend;
-    char*   f_path;
-    off_t   f_offset;
-    size_t  f_size;
-} EFS_FILE;
+/* echofs I/O control block */
+struct efs_iocb {
+    char*   efs_backend;    /* Backend prefix */
+    char*   efs_path;       /* Path to resource in backend */
+    off_t   efs_offset;     /* Offset */
+    size_t  efs_size;       /* Size */
 
-#define EFS_FILE_INIT(backend, path, offset, size) \
-{   .f_backend = (backend), \
-    .f_path = (path), \
-    .f_offset = (offset), \
-    .f_size = (size) \
+    /* Internal members */
+    int __tid;
+};
+
+#define EFS_IOCB_INIT(backend, path, offset, size) \
+{   .efs_backend = (backend), \
+    .efs_path = (path), \
+    .efs_offset = (offset), \
+    .efs_size = (size), \
+    .__tid = 0, \
 }
 
-int efs_load(EFS_FILE* handle);
-int efs_unload(EFS_FILE* handle);
+int efs_load(struct efs_iocb* cbp);
+int efs_status(struct efs_iocb* cbp);
+int efs_unload(struct efs_iocb* cbp);
+
+char* efs_strerror(int errnum);
 
 
 /** Error codes */
@@ -58,15 +67,19 @@ int efs_unload(EFS_FILE* handle);
 #define EFS_API_ESNAFU            -1
 #define EFS_API_EINVAL            -2
 #define EFS_API_EBADREQUEST       -3
-#define EFS_API_ENOMEM            -4
-#define EFS_API_ECONNFAILED       -5
-#define EFS_API_ERPCSENDFAILED    -6
-#define EFS_API_ERPCRECVFAILED    -7
-#define EFS_API_EPACKFAILED       -8
-#define EFS_API_EUNPACKFAILED     -9
-#define EFS_API_EPENDING         -10
-#define EFS_API_EINPROGRESS      -11
-#define EFS_API_ESUCCEEDED       -12
+#define EFS_API_EBADRESPONSE      -4
+#define EFS_API_ENOMEM            -5
+#define EFS_API_ECONNFAILED       -6
+#define EFS_API_ERPCSENDFAILED    -7
+#define EFS_API_ERPCRECVFAILED    -8
+#define EFS_API_EPACKFAILED       -9
+#define EFS_API_EUNPACKFAILED    -10
+#define EFS_API_ENOSUCHTASK      -12
+#define EFS_API_ETASKPENDING     -11
+#define EFS_API_ETASKINPROGRESS  -13
+#define EFS_API_ENOTFOUND        -14
+
+#define EFS_API_UNKNOWN          -(EFS_API_ERRMAX)
 
 #ifdef __cplusplus
 }; // extern "C"

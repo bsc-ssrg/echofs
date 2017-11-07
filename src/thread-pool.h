@@ -129,6 +129,7 @@ public:
         destroy();
     }
 
+#if 0
     template <typename FuncType, typename... Args>
     auto submit(FuncType&& func, Args&&... args) -> 
         task_future<typename std::result_of<decltype(std::bind(std::forward<FuncType>(func), std::forward<Args>(args)...))()>::type> {
@@ -144,6 +145,19 @@ public:
 
         return result;
     }
+#endif
+
+    template <typename FuncType, typename... Args>
+    void submit(FuncType&& func, Args&&... args) {
+
+        auto bound_task = std::bind(std::forward<FuncType>(func), std::forward<Args>(args)...);
+        using TaskType = task<decltype(std::bind(std::declval<FuncType>(), std::declval<Args>()...))>;
+
+        TaskType task{std::move(bound_task)};
+
+        m_work_queue.push(std::make_unique<TaskType>(std::move(task)));
+    }
+
     
 private:
 

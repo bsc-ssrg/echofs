@@ -65,11 +65,11 @@ extern "C" {
 #include <metadata/dirs.h>
 #include <usr-credentials.h>
 #include <command-line.h>
-#include <backends/backend.h>
+#include "backends/backend-base.h"
 #include <utils.h>
 #include <logging.h>
-#include <fuse-mount-helper.h>
-#include "../include/efs-api.h"
+#include "fuse-mount-helper.h"
+#include "errors.h"
 #include "efs-ng.h"
 
 /**********************************************************************************************************************/
@@ -1475,37 +1475,70 @@ void context::initialize() {
 /* fetch a request, unpack it and submit a lambda to process it to the thread pool */
 response_ptr context::api_handler(request_ptr user_req) {
 
-    m_logger->info("API: {}", user_req->to_string());
-
     auto req_type = user_req->type();
 
     if(req_type == api::request_type::bad_request) {
-        return std::make_shared<api::response>(api::response_type::bad_request);
+        return std::make_shared<api::response>(
+                api::response_type::rejected,
+                error_code::bad_request);
     }
 
-    // generate a handle that we can return to the user so that
-    // they can later refer to this request
-    auto handle = api::request::create_handle(user_req);
+    // serve those requests that were we need to give a synchronous
+    // response to the user, i.e. STATUS and GET_CONFIG
+    switch(req_type) {
+        case api::request_type::status:
+        {
+            auto tid = user_req->tid();
 
-    if(m_tracker.exists(handle)) {
-        return std::make_shared<api::response>(api::response_type::rejected, 0/*EXISTS*/);
+            auto progress = m_tracker.get(tid);
+
+            efsng::error_code status;
+
+            if(progress) {
+                status = progress->m_status;
+            }
+            else {
+                status = error_code::no_such_task;
+            }
+
+            m_logger->info("API_REQUEST: {} = {}", user_req->to_string(), status);
+            return std::make_shared<api::response>(api::response_type::accepted, status);
+
+        }
+
+        case api::request_type::get_config:
+        {
+            break;
+        }
+        
+        default:
+            break;
     }
 
-    m_tracker.add(handle, EFS_API_EPENDING);
+    // for asynchronous requests, generate a tid that we can return 
+    // to the user so that they can later refer to them and check
+    // their status
+    auto tid = api::request::create_tid();
 
-    auto handler = [&] (void) -> void {
-        switch(req_type) {
+    assert(!m_tracker.exists(tid));
+
+    m_tracker.add(tid, error_code::task_pending);
+
+    auto handler = [this, tid] (request_ptr req) -> void {
+
+        m_logger->info("API_REQUEST: {}", req->to_string());
+
+        switch(req->type()) {
             case api::request_type::load_path:
             {
-                auto target = user_req->backend();
-                auto pathname = user_req->path();
+                auto target = req->backend();
+                auto pathname = req->path();
 
                 for(auto& backend : m_backends) {
                     if(backend->name() == target) {
-                        m_tracker.set(handle, EFS_API_EINPROGRESS);
-                        backend->load(pathname);
-                        //TODO check for errors
-                        m_tracker.set(handle, EFS_API_ESUCCEEDED);
+                        m_tracker.set(tid, error_code::task_in_progress);
+                        auto ec = backend->load(pathname);
+                        m_tracker.set(tid, ec);
                         return;
                     }
                 }
@@ -1513,31 +1546,27 @@ response_ptr context::api_handler(request_ptr user_req) {
             }
             case api::request_type::unload_path:
             {
-                auto target = user_req->backend();
-                auto pathname = user_req->path();
+                auto target = req->backend();
+                auto pathname = req->path();
 
                 for(auto& backend : m_backends) {
-                    if(backend->name() == target){
-                        m_tracker.set(handle, EFS_API_EINPROGRESS);
-                        //backend->unload(pathname); TODO
-                        m_tracker.set(handle, EFS_API_ESUCCEEDED);
+                    if(backend->name() == target) {
+                        m_tracker.set(tid, error_code::task_in_progress);
+                        auto ec = backend->unload(pathname);
+                        m_tracker.set(tid, ec);
                         return;
                     }
                 }
                 break;
             }
-            case api::request_type::status:
-                break;
-            case api::request_type::get_config:
-                break;
-            case api::request_type::bad_request:
-                break;
+            default:
+                return;
         }
     };
 
-    m_thread_pool.submit(handler);
+    m_thread_pool.submit(handler, user_req);
 
-    return std::make_shared<api::response>(api::response_type::accepted, handle, 0);
+    return std::make_shared<api::response>(api::response_type::accepted, tid, error_code::success);
 }
 
 void context::force_shutdown(void) {

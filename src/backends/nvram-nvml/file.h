@@ -33,7 +33,7 @@
 #include <nvram-nvml/segment.h>
 #include <mdds/flat_segment_tree.hpp>
 #include <range_lock.h>
-#include <backend.h>
+#include "backend-base.h"
 #include <fuse.h>
 
 namespace bfs = boost::filesystem;

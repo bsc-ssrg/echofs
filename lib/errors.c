@@ -1,6 +1,6 @@
 /*************************************************************************
- * (C) Copyright 2016 Barcelona Supercomputing Center                    *
- *                    Centro Nacional de Supercomputacion                *
+ * (C) Copyright 2016-2017 Barcelona Supercomputing Center               *
+ *                         Centro Nacional de Supercomputacion           *
  *                                                                       *
  * This file is part of the Echo Filesystem NG.                          *
  *                                                                       *
@@ -23,58 +23,38 @@
  * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.    *
  *                                                                       *
  *************************************************************************/
-#ifndef __EFS_NG_H__
-#define __EFS_NG_H__
 
-#include <vector>
-#include <memory>
-#include <unordered_map>
+#include <efs-api.h>
 
-#include <settings.h>
-#include <logging.h>
-#include "api/requests.h"
-#include "api/message.h"
-#include "api/listener.h"
-#include "backends/backend-base.h"
-#include "thread-pool.h"
+#define ERR_REMAP(n) ((n) < 0 ? -(n) : (n))
 
-namespace efsng {
+const char* const norns_errlist[EFS_API_ERRMAX + 1] = {
+    [ERR_REMAP(EFS_API_SUCCESS)] = "Success",
+    [ERR_REMAP(EFS_API_ESNAFU)] = "Internal error",
+    [ERR_REMAP(EFS_API_EINVAL)] = "Invalid arguments",
+    [ERR_REMAP(EFS_API_EBADREQUEST)] = "Bad request",
+    [ERR_REMAP(EFS_API_EBADRESPONSE)] = "Bad response",
+    [ERR_REMAP(EFS_API_ENOMEM)] = "Cannot allocate memory",
+    [ERR_REMAP(EFS_API_ECONNFAILED)] = "Cannot connect to daemon",
+    [ERR_REMAP(EFS_API_ERPCSENDFAILED)] = "Cannot send requests to daemon",
+    [ERR_REMAP(EFS_API_ERPCRECVFAILED)] = "Cannot receive responses from daemon",
+    [ERR_REMAP(EFS_API_EPACKFAILED)] = "Cannot pack request",
+    [ERR_REMAP(EFS_API_EUNPACKFAILED)] = "Cannot unpack response",
+    [ERR_REMAP(EFS_API_ENOSUCHTASK)] = "Task does not exist",
+    [ERR_REMAP(EFS_API_ETASKPENDING)] = "Task pending",
+    [ERR_REMAP(EFS_API_ETASKINPROGRESS)] = "Task in progress",
+    [ERR_REMAP(EFS_API_ENOTFOUND)] = "Resource not found",
 
+    [ERR_REMAP(EFS_API_ERRMAX)] = "Unknown error",
 
-/*! Convenience alias */
-using settings_ptr = std::unique_ptr<settings>;
-using logger_ptr = std::unique_ptr<logger>;
-using api_listener = api::listener<api::message<api::request, api::response>>;
-using api_listener_ptr = std::unique_ptr<api_listener>;
-using backend_ptr = std::unique_ptr<backend>;
-using request_ptr = std::shared_ptr<api::request>;
-using response_ptr = std::shared_ptr<api::response>;
-using request_tracker = api::tracker<api::task_id, api::progress>;
+};
 
-/*! This class is used to keep the internal state of the filesystem while it's running */
-struct context {
+char*
+efs_strerror(int errnum) {
 
-    context(const settings& user_opts);
-    void initialize(void);
-    void force_shutdown(void);
-    response_ptr api_handler(request_ptr request);
+    if(errnum > EFS_API_ERRMAX) {
+        errnum = EFS_API_ERRMAX;
+    }
 
-    settings_ptr                m_user_args;    /*!< Configuration options passed by the user */
-    logger_ptr                  m_logger;       /*!< Logger */
-    api_listener_ptr            m_api_listener; /*!< API listener */
-    std::vector<backend_ptr>    m_backends;     /*!< Registered backends */
-
-    pool m_thread_pool;
-    request_tracker m_tracker;
-
-
-
-    std::atomic<bool>           m_forced_shutdown;
-
-
-
-}; // struct context
-
-} // namespace efsng
-
-#endif /* __EFS_NG_H__ */
+    return (char*) norns_errlist[ERR_REMAP(errnum)];
+}

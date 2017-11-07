@@ -32,13 +32,16 @@
 
 #include <unordered_map>
 
+/* C includes */
+#include <fuse.h>
+
 /* internal includes */
 #include <logging.h>
 #include <settings.h>
 #include <efs-common.h>
 #include <range_lock.h>
 #include <posix-file.h>
-#include <fuse.h>
+#include "errors.h"
 
 namespace efsng {
 
@@ -128,14 +131,12 @@ public:
     static Type name_to_type(const std::string& name); // probably deprecated
 
     static backend* builder(const std::string& type, const kv_list& backend_opts, logger& logger);
+
     virtual std::string name() const = 0;
     virtual uint64_t capacity() const = 0;
-    virtual void load(const bfs::path& pathname) = 0;
+    virtual error_code load(const bfs::path& pathname) = 0;
+    virtual error_code unload(const bfs::path& pathname) = 0;
     virtual bool exists(const char* pathname) const = 0;
-    virtual void read_prepare(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const = 0;
-    virtual void read_finalize(const backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const = 0;
-    virtual void write_prepare(backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const = 0;
-    virtual void write_finalize(backend::file& file, off_t offset, size_t size, buffer_map& bufmap) const = 0;
 
     virtual iterator find(const char* path) = 0;
     virtual iterator begin() = 0;

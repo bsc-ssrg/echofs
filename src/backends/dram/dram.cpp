@@ -59,36 +59,21 @@ uint64_t dram_backend::capacity() const {
 }
 
 /** start the load process of a file requested by the user */
-void dram_backend::load(const bfs::path& pathname){
+error_code dram_backend::load(const bfs::path& pathname){
 
 #ifdef __EFS_DEBUG__
     m_logger.debug("Loading file \"{}\" in RAM", pathname.string());
 #endif
 
-    /* open the file */
-    posix::file fd(pathname);
+    m_logger.error("Not implemented yet!");
 
-    /* create a mapping and fill it with the current contents of the file */
-    mapping mp(fd.get_size());
-    mp.populate(fd);
-    fd.close();
+    return error_code::success;
+}
 
-#ifdef __EFS_DEBUG__
-    m_logger.debug("Transfer complete ({} bytes)", mp.m_bytes);
-#endif
-
-    /* add the mapping to a nvml::file descriptor and insert it into m_files */
-    std::lock_guard<std::mutex> lock(m_files_mutex);
-
-    //XXX consider using the TBB concurrent_map to discriminate between locking
-    // readers and writers
-    m_files.insert(std::make_pair(
-        pathname.c_str(),
-        std::make_unique<dram::file>(mp)
-        )
-    );
-
-    /* lock_guard is automatically released here */
+/** start the load process of a file requested by the user */
+error_code dram_backend::unload(const bfs::path& pathname){
+    m_logger.error("Unload not implemented!");
+    return error_code::success;
 }
 
 bool dram_backend::exists(const char* pathname) const {
@@ -104,117 +89,6 @@ bool dram_backend::exists(const char* pathname) const {
     // this is done in a thread-safe manner). If this assumption ever
     // changes, we may NEED to revise this.
     return it != m_files.end();
-}
-
-/* build and return a list of all mapping regions affected by the read() operation */
-void dram_backend::read_prepare(const file& file, off_t offset, size_t size, buffer_map& bufmap) const {
-
-
-#if 0
-    const dram::file& f = dynamic_cast<const dram::file&>(file);
-
-    std::list<snapshot> snaps;
-
-    for(const auto& mp : f.m_mappings) {
-
-        // lock the mapping to make sure that there are no changes between
-        // checking if we should process it and creating an snapshot for it
-        std::lock_guard<std::mutex> lock(*mp.m_pmutex);
-
-        // if the mapping exceeds the region affected by 
-        // the operation, we can stop
-        if(mp.m_offset >= (off_t) (offset + size)) {
-            break;
-        }
-
-        // check if the mapping is affected by the operation and, if so,
-        // create a snapshot of its current state and store it for later use
-        if(mp.overlaps(offset, size)) {
-            snaps.emplace_back(mp);
-        }
-
-        // lock is released here
-    }
-
-#ifdef __EFS_DEBUG__
-    m_logger.debug("snapshots = {");
-    for(const auto& sn : snaps){
-        m_logger.debug("  {}", sn);
-    }
-    m_logger.debug("};");
-#endif
-
-    // from this point on, threads should work EXCLUSIVELY with 
-    // the snapshots to compute the data that must be returned to the user,
-    // for the sake of reducing contention. We now build a buffer map based 
-    // on the snapshots collected
-    for(const auto& sn : snaps) {
-
-        data_ptr_t buf_start = 0;
-        size_t buf_size = 0;
-
-        data_ptr_t mp_data = sn.m_data;
-        off_t mp_offset = sn.m_offset;
-        size_t mp_size = sn.m_size;
-        size_t mp_bytes = sn.m_bytes;
-        off_t delta = 0;
-
-        /* compute the address where the read should start */
-        if(offset <= mp_offset){
-            delta = 0;
-        }
-        else { /* offset > mp_offset */
-            delta = offset - mp_offset;
-        }
-        
-        buf_start = (data_ptr_t)((uintptr_t) mp_data + delta);
-
-        assert(mp_bytes <= mp_size);
-
-        /* compute how much to read from this mapping */
-        if(offset + size <= mp_offset + mp_bytes) {
-            buf_size = offset + size - mp_offset - delta;
-        }
-        else { /* offset + size > mp_offset + mp_bytes */
-            buf_size = mp_bytes - delta;
-        }
-
-#ifdef __EFS_DEBUG__
-        m_logger.debug("{} + {} => {}, {}", offset, size, buf_start, buf_size);
-#endif
-
-        bufmap.emplace_back(buf_start, buf_size);
-    }
-#endif
-
-    // XXX WARNING: the snapshots are currently deleted here. We don't know 
-    // (yet) if this is really what we need
-#ifdef __EFS_DEBUG__
-    m_logger.debug("Deleting snapshots!");
-#endif
-}
-
-void dram_backend::read_finalize(const file& file, off_t offset, size_t size, buffer_map& bufmap) const {
-    (void) file;
-    (void) offset;
-    (void) size;
-    (void) bufmap;
-}
-
-void dram_backend::write_prepare(file& file, off_t offset, size_t size, buffer_map& bufmap) const {
-    (void) file;
-    (void) offset;
-    (void) size;
-    (void) bufmap;
-    //TODO
-}
-
-void dram_backend::write_finalize(file& file, off_t offset, size_t size, buffer_map& bufmap) const {
-    (void) file;
-    (void) offset;
-    (void) size;
-    (void) bufmap;
-    //TODO
 }
 
 efsng::backend::iterator dram_backend::find(const char* path) {

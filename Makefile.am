@@ -103,8 +103,8 @@ src_libefs_aux_la_SOURCES = \
 	src/api/message.h \
 	src/api/requests.h \
 	src/api/requests.cpp \
-    src/backends/backend.h \
-    src/backends/backend.cpp \
+    src/backends/backend-base.h \
+    src/backends/backend-base.cpp \
 	src/backends/posix-file.cpp	\
 	src/backends/posix-file.h \
 	src/backends/dram/dram.cpp \
@@ -122,6 +122,8 @@ src_libefs_aux_la_SOURCES = \
 	src/backends/nvram-nvml/nvram-nvml.cpp \
 	src/backends/nvram-nvml/nvram-nvml.h \
 	src/defaults.h \
+	src/errors.h \
+	src/errors.cpp \
 	src/range_lock.hpp \
 	src/range_lock.cpp \
 	src/avl.hpp	\
@@ -155,6 +157,7 @@ src_libefs_aux_la_CPPFLAGS = 					\
 	-DBOOST_ALL_DYN_LINK					\
 	-DSPDLOG_ENABLE_SYSLOG  				\
 	-I$(top_srcdir)/src						\
+	-I$(top_srcdir)/include	\
 	-I$(top_srcdir)/src/backends			\
 	$(END)
 
@@ -196,6 +199,7 @@ src_efs_ng_CPPFLAGS =						\
 	-DBOOST_ALL_DYN_LINK					\
 	-DSPDLOG_ENABLE_SYSLOG  				\
 	-I$(top_srcdir)/src						\
+	-I$(top_srcdir)/include	\
 	-I$(top_srcdir)/src/backends			\
 	$(END)
 

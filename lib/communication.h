@@ -31,8 +31,8 @@
 
 #define API_MESSAGE_HEADER_LENGTH sizeof(uint64_t)
 
-int load(EFS_FILE* handle);
-int send_unload_request(EFS_FILE* handle);
+int load(struct efs_iocb* cbp);
+int send_unload_request(struct efs_iocb* cbp);
 
 #pragma GCC visibility pop
 

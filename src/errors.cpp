@@ -24,69 +24,68 @@
  *                                                                       *
  *************************************************************************/
 
-#ifndef __FILE_H__
-#define __FILE_H__
-
-#include <iostream>
-#include <efs-common.h>
-#include <dram/mapping.h>
-#include "backend-base.h"
-#include <fuse.h>
-
-namespace bfs = boost::filesystem;
+#include <efs-api.h>
+#include "errors.h"
 
 namespace efsng {
-namespace dram {
 
-/* descriptor for a file loaded in DRAM */
-struct file : public backend::file {
-    /* TODO skip lists might be a good choice here.
-     * e.g. see: https://github.com/khizmax/libcds 
-     *      for lock-free skip lists */
-    std::list<mapping>   m_mappings; /* list of mappings associated to the file */
+int make_api_error(error_code ec) {
 
-    file();
-    file(mapping& mp);
-
-    ~file(){
-        std::cerr << "a nvml::file instance died...\n";
+    switch(ec) {
+        case error_code::success:
+            return EFS_API_SUCCESS;
+        case error_code::internal_error:
+             return EFS_API_ESNAFU;
+        case error_code::invalid_arguments:
+             return EFS_API_EINVAL;
+        case error_code::bad_request:
+            return EFS_API_EBADREQUEST;
+        case error_code::no_such_task:
+            return EFS_API_ENOSUCHTASK;
+        case error_code::task_pending:
+            return EFS_API_ETASKPENDING;
+        case error_code::task_in_progress:
+            return EFS_API_ETASKINPROGRESS;
+        case error_code::path_not_found:
+            return EFS_API_ENOTFOUND;
+        default:
+            return EFS_API_UNKNOWN;
     }
 
-    void stat(struct stat& buf) const override { 
-        (void) buf; 
-        return ; 
-    }
+    return 0;
+}
 
-    ssize_t get_data(off_t offset, size_t size, struct fuse_bufvec* fuse_buffer) override { 
-        (void) offset;
-        (void) size;
-        (void) fuse_buffer;
-        return 0; 
-    }
-
-    ssize_t put_data(off_t offset, size_t size, struct fuse_bufvec* fuse_buffer) override { 
-        (void) offset;
-        (void) size;
-        (void) fuse_buffer;
-        return 0; 
-    }
-
-    ssize_t append_data(off_t offset, size_t size, struct fuse_bufvec* fuse_buffer) override { 
-        (void) offset;
-        (void) size;
-        (void) fuse_buffer;
-        return 0; 
-    }
-
-    size_t size() const { return 0; }
-    void set_size(size_t size) { (void) size; }
-    void extend(off_t offset, size_t size) { (void) offset; (void) size; }
-
-
-    void add(const mapping& mp);
-};
-
-} // namespace dram
 } // namespace efsng
 
-#endif /* __FILE_H__ */
+std::ostream& operator << (std::ostream& os, const efsng::error_code& ec) {
+
+    switch(ec) {
+
+        case efsng::error_code::success:
+            os << "success";
+            break;
+        case efsng::error_code::internal_error:
+            os << "internal error";
+            break;
+        case efsng::error_code::invalid_arguments:
+            os << "invalid arguments";
+            break;
+        case efsng::error_code::bad_request:
+            os << "bad request";
+            break;
+        case efsng::error_code::no_such_task:
+            os << "no such task";
+            break;
+        case efsng::error_code::task_pending:
+            os << "task pending";
+            break;
+        case efsng::error_code::task_in_progress:
+            os << "task in progress";
+            break;
+        case efsng::error_code::path_not_found:
+            os << "path to resource not found";
+            break;
+    }
+
+    return os;
+}

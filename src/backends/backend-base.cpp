@@ -30,7 +30,7 @@
 namespace bfs = boost::filesystem;
 
 #include <logging.h>
-#include <backend.h>
+#include "backend-base.h"
 #include <dram/dram.h>
 #include <nvram-nvml/nvram-nvml.h>
 
