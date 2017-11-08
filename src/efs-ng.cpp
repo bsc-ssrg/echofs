@@ -886,23 +886,10 @@ static void efsng_destroy(void *) {
 
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
 
-    if(efsng_ctx->m_forced_shutdown) {
-        efsng_ctx->m_logger->warn("Unrecoverable error: forcing shutdown!");
-    }
-
-    if(efsng_ctx->m_api_listener != nullptr) {
-        efsng_ctx->m_api_listener->stop();
-    }
-
-    if(bfs::exists(efsng_ctx->m_user_args->m_api_sockfile)) {
-        bfs::remove(efsng_ctx->m_user_args->m_api_sockfile);
-    }
-
-    efsng_ctx->m_logger->info("Bye! [status=0]");
-
-    if(efsng_ctx->m_forced_shutdown) {
-        efsng_ctx->m_forced_shutdown = false;
-    }
+    // this will block until all pending tasks have finished so that we can safely
+    // destroy the filesystem structures when we return from efsng_destroy() to
+    // fuse_custom_mounter()
+    efsng_ctx->teardown();
 }
 
 
@@ -1471,6 +1458,40 @@ void context::initialize() {
 
     m_api_listener->run();
 }
+
+void context::teardown() {
+
+    if(m_forced_shutdown) {
+        m_logger->warn("Unrecoverable error: forcing shutdown!");
+    }
+
+    m_logger->info("==============================================");
+    m_logger->info("=== Shutting down filesystem!!!            ===");
+    m_logger->info("==============================================");
+    m_logger->info("");
+
+    m_logger->info("* Disabling API listener...");
+
+    if(m_api_listener != nullptr) {
+        m_api_listener->stop();
+    }
+
+    if(bfs::exists(m_user_args->m_api_sockfile)) {
+        bfs::remove(m_user_args->m_api_sockfile);
+    }
+
+    m_logger->info("* Waiting for workers to complete...");
+
+    m_thread_pool.stop();
+
+    m_logger->info("Bye! [status=0]");
+
+    if(m_forced_shutdown) {
+        m_forced_shutdown = false;
+    }
+}
+
+
 
 /* fetch a request, unpack it and submit a lambda to process it to the thread pool */
 response_ptr context::api_handler(request_ptr user_req) {

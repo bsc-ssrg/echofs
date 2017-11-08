@@ -115,7 +115,7 @@ file::file(const bfs::path& pool_base, const bfs::path& pathname, file::type typ
 }
 
 file::~file() {
-    std::cerr << "a nvml::file instance died...\n";
+    //std::cerr << "a nvml::file instance died...\n";
 
     //TODO if the file is temporary, we need to delete all its segments
 }

@@ -56,6 +56,7 @@ struct context {
 
     context(const settings& user_opts);
     void initialize(void);
+    void teardown(void);
     void force_shutdown(void);
     response_ptr api_handler(request_ptr request);
 

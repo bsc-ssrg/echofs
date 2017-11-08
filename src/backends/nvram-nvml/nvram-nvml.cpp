@@ -75,11 +75,11 @@ error_code nvml_backend::load(const bfs::path& pathname) {
     m_logger.debug("Loading file \"{}\" in NVRAM", pathname.string());
 #endif
 
-#if 1
+#if 1 //XXX simulate long running task
     static int foo = 0;
 
     if(foo++ > 1) {
-        std::this_thread::sleep_for(std::chrono::seconds(50));
+        std::this_thread::sleep_for(std::chrono::seconds(20));
     }
 
     if(!bfs::exists(pathname)) {

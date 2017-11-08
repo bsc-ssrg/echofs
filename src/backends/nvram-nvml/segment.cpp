@@ -66,7 +66,7 @@ pool::pool(const bfs::path& subdir)
       m_is_pmem(0) {}
 
 pool::~pool() {
-    std::cerr << "Died! (" << m_data << ")\n";
+//    std::cerr << "Died! (" << m_data << ")\n";
 
     // release the mapped region
     if(m_data != NULL) {

@@ -136,7 +136,6 @@ struct tracker {
     tracker() = default;
     ~tracker() = default;
 
-
     template <typename... Args>
     void add(const IdType& key, Args&&... args) {
 

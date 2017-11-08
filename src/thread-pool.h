@@ -158,6 +158,10 @@ public:
         m_work_queue.push(std::make_unique<TaskType>(std::move(task)));
     }
 
+    void stop() {
+        destroy();
+    }
+
     
 private:
 
