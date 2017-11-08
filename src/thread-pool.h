@@ -129,9 +129,8 @@ public:
         destroy();
     }
 
-#if 0
     template <typename FuncType, typename... Args>
-    auto submit(FuncType&& func, Args&&... args) -> 
+    auto submit_and_track(FuncType&& func, Args&&... args) -> 
         task_future<typename std::result_of<decltype(std::bind(std::forward<FuncType>(func), std::forward<Args>(args)...))()>::type> {
 
         auto bound_task = std::bind(std::forward<FuncType>(func), std::forward<Args>(args)...);
@@ -145,10 +144,9 @@ public:
 
         return result;
     }
-#endif
 
     template <typename FuncType, typename... Args>
-    void submit(FuncType&& func, Args&&... args) {
+    void submit_and_forget(FuncType&& func, Args&&... args) {
 
         auto bound_task = std::bind(std::forward<FuncType>(func), std::forward<Args>(args)...);
         using TaskType = task<decltype(std::bind(std::declval<FuncType>(), std::declval<Args>()...))>;

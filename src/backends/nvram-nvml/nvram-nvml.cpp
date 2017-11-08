@@ -72,20 +72,12 @@ uint64_t nvml_backend::capacity() const {
 error_code nvml_backend::load(const bfs::path& pathname) {
 
 #ifdef __EFS_DEBUG__
-    m_logger.debug("Loading file \"{}\" in NVRAM", pathname.string());
+    m_logger.debug("Import {} to NVRAM", pathname);
 #endif
-
-#if 1 //XXX simulate long running task
-    static int foo = 0;
-
-    if(foo++ > 1) {
-        std::this_thread::sleep_for(std::chrono::seconds(20));
-    }
 
     if(!bfs::exists(pathname)) {
-        return error_code::path_not_found;
+        return error_code::no_such_path;
     }
-#endif
 
     /* add the mapping to a nvml::file descriptor and insert it into m_files */
     std::lock_guard<std::mutex> lock(m_files_mutex);

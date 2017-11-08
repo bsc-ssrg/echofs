@@ -46,8 +46,8 @@ int make_api_error(error_code ec) {
             return EFS_API_ETASKPENDING;
         case error_code::task_in_progress:
             return EFS_API_ETASKINPROGRESS;
-        case error_code::path_not_found:
-            return EFS_API_ENOTFOUND;
+        case error_code::no_such_path:
+            return EFS_API_ENOSUCHPATH;
         default:
             return EFS_API_UNKNOWN;
     }
@@ -82,7 +82,7 @@ std::ostream& operator << (std::ostream& os, const efsng::error_code& ec) {
         case efsng::error_code::task_in_progress:
             os << "task in progress";
             break;
-        case efsng::error_code::path_not_found:
+        case efsng::error_code::no_such_path:
             os << "path to resource not found";
             break;
     }

@@ -77,7 +77,7 @@ char* efs_strerror(int errnum);
 #define EFS_API_ENOSUCHTASK      -12
 #define EFS_API_ETASKPENDING     -11
 #define EFS_API_ETASKINPROGRESS  -13
-#define EFS_API_ENOTFOUND        -14
+#define EFS_API_ENOSUCHPATH      -14
 
 #define EFS_API_UNKNOWN          -(EFS_API_ERRMAX)
 

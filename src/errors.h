@@ -41,7 +41,7 @@ enum class error_code {
     task_pending,
     task_in_progress,
 
-    path_not_found = 2000,
+    no_such_path = 2000,
 };
 
 int make_api_error(error_code ec);

@@ -834,7 +834,6 @@ static void* efsng_init(struct fuse_conn_info *conn, struct fuse_config* cfg) {
 
 
     auto efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
-    const auto& user_args = efsng_ctx->m_user_args;
 
     try {
         efsng_ctx->initialize();
@@ -848,34 +847,10 @@ static void* efsng_init(struct fuse_conn_info *conn, struct fuse_config* cfg) {
             std::cerr << e.what() << "\n";
         }
 
-        efsng_ctx->force_shutdown();
-
-        // since force_shutdown does not stop execution, we need to skip
-        // the next actions
-        goto forced_return;
+        // WARNING! trigger_shutdown() does not stop execution!
+        efsng_ctx->trigger_shutdown();
     }
 
-    /* Load any input files requested by the user to the selected backends */
-    for(const auto& kv: user_args->m_files_to_preload){
-
-        const bfs::path& pathname = kv.first;
-        const std::string& target = kv.second;
-        bool preloaded = false;
-
-        for(auto& bend : efsng_ctx->m_backends) {
-            if(bend->name() == target){
-                bend->load(pathname);
-                preloaded = true;
-                break;
-            }
-        }
-
-        if(!preloaded) {
-            efsng_ctx->m_logger->warn("No configured backend '{}' for input file '{}'. Ignored.", target, pathname.string());
-        }
-    }
-
-forced_return:
     return (void*) efsng_ctx;
 }
 
@@ -1440,13 +1415,59 @@ void context::initialize() {
         m_backends.emplace_back(std::unique_ptr<efsng::backend>(bend));
     }
 
-    /* check that there is at least one backend */
+    // check that there is at least one backend
     if(m_backends.size() == 0) {
         m_logger->error("No valid backends configured. Check configuration file.");
         throw std::runtime_error(""); // we don't really care about the message
     }
 
-    /* 5. initialize API listener */
+    m_logger->info("* Importing resources...");
+
+    /* 5. Import any files or directories defined by the user */
+    std::vector<pool::task_future<efsng::error_code>> return_values;
+
+    /* Load any input files requested by the user to the selected backends */
+    for(const auto& kv: m_user_args->m_files_to_preload){
+
+        const bfs::path& pathname = kv.first;
+        const std::string& target = kv.second;
+        bool target_found = false;
+
+        for(auto& bend : m_backends) {
+            if(bend->name() == target){
+                target_found = true;
+                
+                return_values.emplace_back(
+                    m_thread_pool.submit_and_track(
+                            // service lambda to load files
+                            [&] () -> efsng::error_code {
+                                auto rv = bend->load(pathname);
+
+                                if(rv != efsng::error_code::success) {
+                                    m_logger->error("Error importing {} into '{}': {}", pathname, target, rv);
+                                }
+
+                                return rv;
+                            }
+                    )
+                );
+                break;
+            }
+        }
+
+        if(!target_found) {
+            m_logger->warn("No configured backend '{}' for input file '{}'. Ignored.", target, pathname.string());
+        }
+    }
+
+    // wait until all import tasks are complete before proceeding
+    for(auto& rv : return_values) {
+        if(rv.get() != efsng::error_code::success) {
+            throw std::runtime_error("Fatal error importing resources");
+        }
+    }
+
+    /* 6. initialize API listener */
     m_logger->info("* Starting API listener...");
 
     if(bfs::exists(m_user_args->m_api_sockfile)) {
@@ -1585,12 +1606,12 @@ response_ptr context::api_handler(request_ptr user_req) {
         }
     };
 
-    m_thread_pool.submit(handler, tid, user_req);
+    m_thread_pool.submit_and_forget(handler, tid, user_req);
 
     return std::make_shared<api::response>(api::response_type::accepted, tid, error_code::success);
 }
 
-void context::force_shutdown(void) {
+void context::trigger_shutdown(void) {
     m_forced_shutdown = true;
     kill(getpid(), SIGTERM);
 }

@@ -43,7 +43,7 @@ const char* const norns_errlist[EFS_API_ERRMAX + 1] = {
     [ERR_REMAP(EFS_API_ENOSUCHTASK)] = "Task does not exist",
     [ERR_REMAP(EFS_API_ETASKPENDING)] = "Task pending",
     [ERR_REMAP(EFS_API_ETASKINPROGRESS)] = "Task in progress",
-    [ERR_REMAP(EFS_API_ENOTFOUND)] = "Resource not found",
+    [ERR_REMAP(EFS_API_ENOSUCHPATH)] = "Resource not found",
 
     [ERR_REMAP(EFS_API_ERRMAX)] = "Unknown error",
 
