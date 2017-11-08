@@ -154,7 +154,7 @@ std::string request::to_string() const {
             break;
     }
 
-    ss << "};";
+    ss << "}";
 
     return ss.str();
 }

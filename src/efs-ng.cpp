@@ -1518,13 +1518,13 @@ response_ptr context::api_handler(request_ptr user_req) {
     // for asynchronous requests, generate a tid that we can return 
     // to the user so that they can later refer to them and check
     // their status
-    auto tid = api::request::create_tid();
+    api::task_id tid = api::request::create_tid();
 
     assert(!m_tracker.exists(tid));
 
     m_tracker.add(tid, error_code::task_pending);
 
-    auto handler = [this, tid] (request_ptr req) -> void {
+    auto handler = [this] (const api::task_id tid, const request_ptr req) -> void {
 
         m_logger->info("API_REQUEST: {}", req->to_string());
 
@@ -1564,7 +1564,7 @@ response_ptr context::api_handler(request_ptr user_req) {
         }
     };
 
-    m_thread_pool.submit(handler, user_req);
+    m_thread_pool.submit(handler, tid, user_req);
 
     return std::make_shared<api::response>(api::response_type::accepted, tid, error_code::success);
 }
