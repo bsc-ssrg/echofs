@@ -130,7 +130,7 @@ src_libefs_aux_la_SOURCES = \
     src/command-line.cpp \
     src/command-line.h \
     src/efs-common.h \
-    src/logging.h \
+    src/logger.h \
     src/metadata/dirs.cpp \
     src/metadata/dirs.h \
     src/metadata/files.cpp \

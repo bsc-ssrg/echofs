@@ -31,7 +31,7 @@
 #include <fcntl.h>
 
 /* internal includes */
-#include <logging.h>
+#include <logger.h>
 #include <utils.h>
 #include <posix-file.h>
 #include <dram/file.h>
@@ -42,9 +42,8 @@
 namespace efsng {
 namespace dram {
 
-dram_backend::dram_backend(uint64_t capacity, logger& logger)
-    : m_capacity(capacity),
-      m_logger(logger) {
+dram_backend::dram_backend(uint64_t capacity)
+    : m_capacity(capacity) {
 }
 
 dram_backend::~dram_backend(){
@@ -61,18 +60,16 @@ uint64_t dram_backend::capacity() const {
 /** start the load process of a file requested by the user */
 error_code dram_backend::load(const bfs::path& pathname){
 
-#ifdef __EFS_DEBUG__
-    m_logger.debug("Loading file \"{}\" in RAM", pathname.string());
-#endif
+    LOGGER_DEBUG("Loading file \"{}\" in RAM", pathname.string());
 
-    m_logger.error("Not implemented yet!");
+    LOGGER_ERROR("Not implemented yet!");
 
     return error_code::success;
 }
 
 /** start the load process of a file requested by the user */
 error_code dram_backend::unload(const bfs::path& pathname){
-    m_logger.error("Unload not implemented!");
+    LOGGER_ERROR("Unload not implemented!");
     return error_code::success;
 }
 

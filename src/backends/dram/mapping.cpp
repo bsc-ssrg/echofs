@@ -31,7 +31,7 @@
 #include <sys/mman.h>
 
 
-#include <logging.h>
+#include <logger.h>
 #include <efs-common.h>
 #include <dram/file.h>
 #include <dram/mapping.h>

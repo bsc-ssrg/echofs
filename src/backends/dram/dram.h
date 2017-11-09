@@ -32,7 +32,6 @@
 #include <boost/filesystem.hpp>
 #include <mutex>
 
-#include <logging.h>
 #include <efs-common.h>
 #include "backend-base.h"
 
@@ -50,7 +49,7 @@ class dram_backend : public efsng::backend {
     static constexpr const char* s_name = "DRAM";
 
 public:
-    dram_backend(uint64_t capacity, logger& logger);
+    dram_backend(uint64_t capacity);
     ~dram_backend();
 
     std::string name() const override;
@@ -68,7 +67,6 @@ public:
 private:
     /* maximum allocatable size in bytes */
     uint64_t m_capacity;
-    logger& m_logger;
     /* filename -> data */
     mutable std::mutex m_files_mutex;
     std::unordered_map<std::string, file_ptr> m_files;

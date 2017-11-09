@@ -48,6 +48,8 @@ int make_api_error(error_code ec) {
             return EFS_API_ETASKINPROGRESS;
         case error_code::no_such_path:
             return EFS_API_ENOSUCHPATH;
+        case error_code::path_already_imported:
+            return EFS_API_EPATHEXISTS;
         default:
             return EFS_API_UNKNOWN;
     }
@@ -84,6 +86,9 @@ std::ostream& operator << (std::ostream& os, const efsng::error_code& ec) {
             break;
         case efsng::error_code::no_such_path:
             os << "path to resource not found";
+            break;
+        case efsng::error_code::path_already_imported:
+            os << "path already exists";
             break;
     }
 

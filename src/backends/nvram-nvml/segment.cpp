@@ -30,7 +30,7 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <libpmem.h>
 
-#include <logging.h>
+#include <logger.h>
 #include <efs-common.h>
 #include <nvram-nvml/file.h>
 #include <nvram-nvml/segment.h>

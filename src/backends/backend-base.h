@@ -36,7 +36,7 @@
 #include <fuse.h>
 
 /* internal includes */
-#include <logging.h>
+#include <logger.h>
 #include <settings.h>
 #include <efs-common.h>
 #include <range_lock.h>
@@ -130,7 +130,7 @@ public:
 public:
     static Type name_to_type(const std::string& name); // probably deprecated
 
-    static backend* builder(const std::string& type, const kv_list& backend_opts, logger& logger);
+    static backend* create_from_options(const std::string& type, const kv_list& backend_opts);
 
     virtual std::string name() const = 0;
     virtual uint64_t capacity() const = 0;

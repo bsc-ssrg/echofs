@@ -27,7 +27,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include <logging.h>
+#include <logger.h>
 #include <posix-file.h>
 
 namespace efsng {

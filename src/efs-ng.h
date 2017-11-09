@@ -30,8 +30,7 @@
 #include <memory>
 #include <unordered_map>
 
-#include <settings.h>
-#include <logging.h>
+#include "settings.h"
 #include "api/requests.h"
 #include "api/message.h"
 #include "api/listener.h"
@@ -43,7 +42,6 @@ namespace efsng {
 
 /*! Convenience alias */
 using settings_ptr = std::unique_ptr<settings>;
-using logger_ptr = std::unique_ptr<logger>;
 using api_listener = api::listener<api::message<api::request, api::response>>;
 using api_listener_ptr = std::unique_ptr<api_listener>;
 using backend_ptr = std::unique_ptr<backend>;
@@ -61,7 +59,6 @@ struct context {
     response_ptr api_handler(request_ptr request);
 
     settings_ptr                m_user_args;    /*!< Configuration options passed by the user */
-    logger_ptr                  m_logger;       /*!< Logger */
     api_listener_ptr            m_api_listener; /*!< API listener */
     std::vector<backend_ptr>    m_backends;     /*!< Registered backends */
 

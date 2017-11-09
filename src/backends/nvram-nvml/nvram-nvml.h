@@ -35,7 +35,6 @@
 
 /* internal includes */
 #include <efs-common.h>
-#include <logging.h>
 #include "backend-base.h"
 #include "errors.h"
 
@@ -53,7 +52,7 @@ class nvml_backend : public efsng::backend {
     static constexpr const char* s_name = "NVRAM-NVML";
 
 public:
-    nvml_backend(uint64_t capacity, bfs::path daxfs_mount, bfs::path root_dir, logger& logger);
+    nvml_backend(uint64_t capacity, bfs::path daxfs_mount, bfs::path root_dir);
     ~nvml_backend();
 
     std::string name() const override;
@@ -71,7 +70,6 @@ public:
 private:
     /* maximum allocatable size in bytes */
     uint64_t m_capacity;
-    logger& m_logger;
     /* mount point of the DAX filesystem needed to access NVRAM */
     bfs::path m_daxfs_mount_point;
     bfs::path m_root_dir;

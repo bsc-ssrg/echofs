@@ -24,8 +24,8 @@
  *                                                                       *
  *************************************************************************/
 
-#ifndef __LOGGING_H__
-#define __LOGGING_H__
+#ifndef __LOGGER_H__
+#define __LOGGER_H__
 
 #include <spdlog/spdlog.h>
 #include <spdlog/fmt/ostr.h>
@@ -76,22 +76,66 @@ public:
             // %v - message
             m_internal_logger->set_pattern("[%Y-%m-%d %T.%f] [%E] [%n] [%t] [%l] %v");
 
-
             spdlog::drop_all();
 
             // globally register the logger so that it can be accessed 
             // using spdlog::get(logger_name)
-            spdlog::register_logger(m_internal_logger);
+            //spdlog::register_logger(m_internal_logger);
         }
         catch(const spdlog::spdlog_ex& ex) {
             throw std::runtime_error("logger initialization failed: " + std::string(ex.what()));
         }
     }
 
-    ~logger(){
+    logger(const logger& rhs) = delete;
+    logger& operator=(const logger& rhs) = delete;
+    logger(logger&& other) = default;
+    logger& operator=(logger&& other) = default;
+
+    ~logger() {
         spdlog::drop_all();
     }
 
+    // the following static functions can be used to interact 
+    // with a globally registered logger instance
+
+    template <typename... Args>
+    static inline void create_global_logger(Args&&... args) {
+        global_logger() = std::make_shared<logger>(args...);
+    }
+
+    static inline void register_global_logger(logger&& lg) {
+        global_logger() = std::make_shared<logger>(std::move(lg));
+    }
+
+    static inline std::shared_ptr<logger>& get_global_logger() {
+        return global_logger();
+    }
+
+    // some macros to make it more convenient to use the global logger
+
+#define LOGGER_INFO(...) \
+    efsng::logger::get_global_logger()->info(__VA_ARGS__)
+
+#ifdef __LOGGER_ENABLE_DEBUG__
+#define LOGGER_DEBUG(...) \
+    efsng::logger::get_global_logger()->debug(__VA_ARGS__)
+#else
+#define LOGGER_DEBUG(...) \
+    do {} while(0)
+#endif
+
+#define LOGGER_WARN(...) \
+    efsng::logger::get_global_logger()->warn(__VA_ARGS__)
+
+#define LOGGER_ERROR(...) \
+    efsng::logger::get_global_logger()->error(__VA_ARGS__)
+
+#define LOGGER_CRITICAL(...) \
+    efsng::logger::get_global_logger()->critical(__VA_ARGS__)
+
+    // the following member functions can be used to interact 
+    // with a specific logger instance
     inline void enable_debug() const {
         m_internal_logger->set_level(spdlog::level::debug);
     }
@@ -166,10 +210,17 @@ public:
     }
 
 private:
+
+    static std::shared_ptr<logger>& global_logger() {
+        static std::shared_ptr<logger> s_global_logger;
+        return s_global_logger;
+    }
+
+private:
     std::shared_ptr<spdlog::logger> m_internal_logger;
     std::string                     m_type;
 };
 
 } // namespace efsng
 
-#endif /* __LOGGING_H__ */
+#endif /* __LOGGER_H__ */

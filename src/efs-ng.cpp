@@ -60,6 +60,10 @@ extern "C" {
 #include <functional>
 
 /* internal includes */
+#ifdef __EFS_DEBUG__
+#define __LOGGER_ENABLE_DEBUG__
+#endif
+
 #include <settings.h>
 #include <metadata/files.h>
 #include <metadata/dirs.h>
@@ -67,7 +71,8 @@ extern "C" {
 #include <command-line.h>
 #include "backends/backend-base.h"
 #include <utils.h>
-#include <logging.h>
+
+#include <logger.h>
 #include "fuse-mount-helper.h"
 #include "errors.h"
 #include "efs-ng.h"
@@ -98,9 +103,8 @@ static int efsng_getattr(const char* pathname, struct stat* stbuf, struct fuse_f
 #endif
 
 	efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
-#ifdef __EFS_DEBUG__
-    efsng_ctx->m_logger->debug("stat(\"{}\")", pathname);
-#endif
+
+    LOGGER_DEBUG("stat(\"{}\")", pathname);
 
     /* search file in available backends */
     for(const auto& bend: efsng_ctx->m_backends){
@@ -114,10 +118,7 @@ static int efsng_getattr(const char* pathname, struct stat* stbuf, struct fuse_f
         const auto& it = bend->find(pathname);
 
         if(it != bend->end()){
-
-#ifdef __EFS_DEBUG__
-            efsng_ctx->m_logger->debug("File \"{}\" found in {}", pathname, bend->name());
-#endif
+            LOGGER_DEBUG("File \"{}\" found in {}", pathname, bend->name());
 
             const auto& file_ptr = it->second;
 
@@ -840,8 +841,8 @@ static void* efsng_init(struct fuse_conn_info *conn, struct fuse_config* cfg) {
     } 
     catch(const std::exception& e) {
 
-        if(efsng_ctx->m_logger != nullptr) {
-            efsng_ctx->m_logger->error(e.what());
+        if(efsng::logger::get_global_logger() != nullptr) {
+            LOGGER_ERROR(e.what());
         }
         else {
             std::cerr << e.what() << "\n";
@@ -970,9 +971,8 @@ static int efsng_fgetattr(const char* pathname, struct stat* stbuf, struct fuse_
     (void) pathname;
 
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
-#ifdef __EFS_DEBUG__
-    efsng_ctx->m_logger->debug("fstat(\"{}\")", pathname);
-#endif
+
+    LOGGER_DEBUG("fstat(\"{}\")", pathname);
 
     /* search file in available backends */
     for(const auto& bend: efsng_ctx->m_backends) {
@@ -986,10 +986,7 @@ static int efsng_fgetattr(const char* pathname, struct stat* stbuf, struct fuse_
         const auto& it = bend->find(pathname);
 
         if(it != bend->end()){
-
-#ifdef __EFS_DEBUG__
-            efsng_ctx->m_logger->debug("File \"{}\" found in {}", pathname, bend->name());
-#endif
+            LOGGER_DEBUG("File \"{}\" found in {}", pathname, bend->name());
 
             const auto& file_ptr = it->second;
 
@@ -1152,9 +1149,7 @@ static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t 
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
     size_t size = fuse_buf_size(buf);
 
-#ifdef __EFS_DEBUG__
-    efsng_ctx->m_logger->debug("write({}, {}, {})", pathname, offset, size);
-#endif
+    LOGGER_DEBUG("write({}, {}, {})", pathname, offset, size);
 
     /* search file in available backends */
     /* FIXME it might be better to have this information already cached somewhere
@@ -1170,9 +1165,7 @@ static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t 
         const auto& it = bend->find(pathname);
 
         if(it != bend->end()) {
-#ifdef __EFS_DEBUG__
-            efsng_ctx->m_logger->debug("File \"{}\" found in {}", pathname, bend->name());
-#endif
+            LOGGER_DEBUG("File \"{}\" found in {}", pathname, bend->name());
 
             const auto& file_ptr = it->second;
 
@@ -1226,9 +1219,7 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
 
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
 
-#ifdef __EFS_DEBUG__
-    efsng_ctx->m_logger->debug("read(\"{}\", {}, {})", pathname, offset, size);
-#endif
+    LOGGER_DEBUG("read(\"{}\", {}, {})", pathname, offset, size);
 
     *dst = FUSE_BUFVEC_INIT(size);
 
@@ -1246,10 +1237,7 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
         const auto& it = bend->find(pathname);
 
         if(it != bend->end()){
-
-#ifdef __EFS_DEBUG__
-            efsng_ctx->m_logger->debug("File \"{}\" found in {}", pathname, bend->name());
-#endif
+            LOGGER_DEBUG("File \"{}\" found in {}", pathname, bend->name());
 
             const auto& file_ptr = it->second;
 
@@ -1261,10 +1249,8 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
         }
     }
 
-#ifdef __EFS_DEBUG__
-    efsng_ctx->m_logger->debug("File \"{}\" not found", pathname);
-    efsng_ctx->m_logger->debug("Reading \"{}\" from filesystem", pathname);
-#endif
+    LOGGER_DEBUG("File \"{}\" not found", pathname);
+    LOGGER_DEBUG("Reading \"{}\" from filesystem", pathname);
 
     /* not available in a registered backend, read directly from the underlying filesystem */
     dst->buf[0].flags = (fuse_buf_flags) (FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
@@ -1365,33 +1351,29 @@ void context::initialize() {
     }
 
     /* this will throw if initialization fails */
-    m_logger = std::make_unique<logger>(logger(m_user_args->m_exec_name, log_type, log_file));
+    logger::create_global_logger(m_user_args->m_exec_name, log_type, log_file);
 
-    if(m_user_args->m_debug){
-        m_logger->enable_debug();
+    if(m_user_args->m_debug) {
+        logger::get_global_logger()->enable_debug();
     }
 
     /* 2. Some useful output for debugging */
-#ifdef __EFS_DEBUG__
-    m_logger->debug("Command line passed to FUSE:");
-#endif
+    LOGGER_DEBUG("Command line passed to FUSE:");
 
     std::stringstream ss;
     for(int i=0; i<m_user_args->m_fuse_argc; ++i){
         ss << m_user_args->m_fuse_argv[i] << " ";
     }
 
-#ifdef __EFS_DEBUG__
-    m_logger->debug("  {}", ss.str());
-#endif
+    LOGGER_DEBUG("  {}", ss.str());
 
     /* 3. Hail user */
-    m_logger->info("==============================================");
-    m_logger->info("=== echofs (NG) v{}                     ===", VERSION);
-    m_logger->info("==============================================");
+    LOGGER_INFO("==============================================");
+    LOGGER_INFO("=== echofs (NG) v{}                     ===", VERSION);
+    LOGGER_INFO("==============================================");
 
-    m_logger->info("");
-    m_logger->info("* Deploying storage backend handlers...");
+    LOGGER_INFO("");
+    LOGGER_INFO("* Deploying storage backend handlers...");
 
     /* 4. setup storage backends */
     for(const auto& kv : m_user_args->m_backend_opts){
@@ -1402,13 +1384,13 @@ void context::initialize() {
         /* add root_dir as an option for those backends that may need it */
         bend_opts.push_back({"root-dir", m_user_args->m_root_dir.string()});
 
-        efsng::backend* bend = efsng::backend::builder(bend_key, bend_opts, *m_logger);
+        efsng::backend* bend = efsng::backend::create_from_options(bend_key, bend_opts);
 
-        m_logger->info("    Backend (type: {})", bend->name());  
-        m_logger->info("      [ capacity: {} bytes ]", bend->capacity());
+        LOGGER_INFO("    Backend (type: {})", bend->name());  
+        LOGGER_INFO("      [ capacity: {} bytes ]", bend->capacity());
 
         if(bend == nullptr) {
-            m_logger->error("Unable to create backend '{}'");
+            LOGGER_ERROR("Unable to create backend '{}'");
             throw std::runtime_error(""); // we don't really care about the message
         }
 
@@ -1417,11 +1399,11 @@ void context::initialize() {
 
     // check that there is at least one backend
     if(m_backends.size() == 0) {
-        m_logger->error("No valid backends configured. Check configuration file.");
+        LOGGER_ERROR("No valid backends configured. Check configuration file.");
         throw std::runtime_error(""); // we don't really care about the message
     }
 
-    m_logger->info("* Importing resources...");
+    LOGGER_INFO("* Importing resources...");
 
     /* 5. Import any files or directories defined by the user */
     std::vector<pool::task_future<efsng::error_code>> return_values;
@@ -1444,7 +1426,7 @@ void context::initialize() {
                                 auto rv = bend->load(pathname);
 
                                 if(rv != efsng::error_code::success) {
-                                    m_logger->error("Error importing {} into '{}': {}", pathname, target, rv);
+                                    LOGGER_ERROR("Error importing {} into '{}': {}", pathname, target, rv);
                                 }
 
                                 return rv;
@@ -1456,7 +1438,7 @@ void context::initialize() {
         }
 
         if(!target_found) {
-            m_logger->warn("No configured backend '{}' for input file '{}'. Ignored.", target, pathname.string());
+            LOGGER_WARN("No configured backend '{}' for input file '{}'. Ignored.", target, pathname.string());
         }
     }
 
@@ -1468,7 +1450,7 @@ void context::initialize() {
     }
 
     /* 6. initialize API listener */
-    m_logger->info("* Starting API listener...");
+    LOGGER_INFO("* Starting API listener...");
 
     if(bfs::exists(m_user_args->m_api_sockfile)) {
         bfs::remove(m_user_args->m_api_sockfile);
@@ -1483,15 +1465,15 @@ void context::initialize() {
 void context::teardown() {
 
     if(m_forced_shutdown) {
-        m_logger->warn("Unrecoverable error: forcing shutdown!");
+        LOGGER_CRITICAL("Unrecoverable error: forcing shutdown!");
     }
 
-    m_logger->info("==============================================");
-    m_logger->info("=== Shutting down filesystem!!!            ===");
-    m_logger->info("==============================================");
-    m_logger->info("");
+    LOGGER_INFO("==============================================");
+    LOGGER_INFO("=== Shutting down filesystem!!!            ===");
+    LOGGER_INFO("==============================================");
+    LOGGER_INFO("");
 
-    m_logger->info("* Disabling API listener...");
+    LOGGER_INFO("* Disabling API listener...");
 
     if(m_api_listener != nullptr) {
         m_api_listener->stop();
@@ -1501,11 +1483,11 @@ void context::teardown() {
         bfs::remove(m_user_args->m_api_sockfile);
     }
 
-    m_logger->info("* Waiting for workers to complete...");
+    LOGGER_INFO("* Waiting for workers to complete...");
 
     m_thread_pool.stop();
 
-    m_logger->info("Bye! [status=0]");
+    LOGGER_INFO("Bye! [status=0]");
 
     if(m_forced_shutdown) {
         m_forced_shutdown = false;
@@ -1543,7 +1525,7 @@ response_ptr context::api_handler(request_ptr user_req) {
                 status = error_code::no_such_task;
             }
 
-            m_logger->info("API_REQUEST: {} = {}", user_req->to_string(), status);
+            LOGGER_INFO("API_REQUEST: {} = {}", user_req->to_string(), status);
             return std::make_shared<api::response>(api::response_type::accepted, status);
 
         }
@@ -1568,7 +1550,7 @@ response_ptr context::api_handler(request_ptr user_req) {
 
     auto handler = [this] (const api::task_id tid, const request_ptr req) -> void {
 
-        m_logger->info("API_REQUEST: {}", req->to_string());
+        LOGGER_INFO("API_REQUEST: {}", req->to_string());
 
         switch(req->type()) {
             case api::request_type::load_path:

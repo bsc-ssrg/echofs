@@ -27,9 +27,8 @@
 #ifndef __API_LISTENER_H__
 #define __API_LISTENER_H__
 
+#include <thread>
 #include <boost/asio.hpp>
-//#include <norns.h>
-//#include <norns-rpc.h>
 
 namespace efsng {
 namespace api {

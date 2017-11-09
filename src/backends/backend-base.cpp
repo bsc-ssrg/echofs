@@ -25,18 +25,16 @@
  *************************************************************************/
 
 #include <boost/filesystem.hpp>
-#include <boost/log/trivial.hpp>
 
 namespace bfs = boost::filesystem;
 
-#include <logging.h>
 #include "backend-base.h"
 #include <dram/dram.h>
 #include <nvram-nvml/nvram-nvml.h>
 
 namespace efsng {
 
-backend* backend::builder(const std::string& type, const kv_list& backend_opts, logger& logger){
+backend* backend::create_from_options(const std::string& type, const kv_list& backend_opts){
 
     if(type == "DRAM"){
 
@@ -58,7 +56,7 @@ backend* backend::builder(const std::string& type, const kv_list& backend_opts, 
             throw std::runtime_error("Mandatory arguments missing for " + type + " backend");
         }
 
-        return new dram::dram_backend(bend_size, logger);
+        return new dram::dram_backend(bend_size);
 
     }
     else if(type == "NVRAM-NVML"){
@@ -89,7 +87,7 @@ backend* backend::builder(const std::string& type, const kv_list& backend_opts, 
             throw std::runtime_error("Mandatory arguments missing for " + type + " backend");
         }
 
-        return new nvml::nvml_backend(bend_size, dax_fs_path, root_dir, logger);
+        return new nvml::nvml_backend(bend_size, dax_fs_path, root_dir);
 
     }
 

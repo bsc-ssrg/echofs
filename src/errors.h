@@ -42,6 +42,7 @@ enum class error_code {
     task_in_progress,
 
     no_such_path = 2000,
+    path_already_imported,
 };
 
 int make_api_error(error_code ec);

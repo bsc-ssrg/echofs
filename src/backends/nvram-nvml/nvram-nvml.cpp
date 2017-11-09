@@ -39,7 +39,7 @@
 #include <thread>
 
 /* internal includes */
-#include <logging.h>
+#include <logger.h>
 #include <utils.h>
 #include <posix-file.h>
 #include <nvram-nvml/file.h>
@@ -49,9 +49,8 @@
 namespace efsng {
 namespace nvml {
 
-nvml_backend::nvml_backend(uint64_t capacity, bfs::path daxfs_mount, bfs::path root_dir, logger& logger)
+nvml_backend::nvml_backend(uint64_t capacity, bfs::path daxfs_mount, bfs::path root_dir)
     : m_capacity(capacity),
-      m_logger(logger),
       m_daxfs_mount_point(daxfs_mount),
       m_root_dir(root_dir) {
 }
@@ -71,9 +70,7 @@ uint64_t nvml_backend::capacity() const {
 /* pathname = file path in underlying filesystem */
 error_code nvml_backend::load(const bfs::path& pathname) {
 
-#ifdef __EFS_DEBUG__
-    m_logger.debug("Import {} to NVRAM", pathname);
-#endif
+    LOGGER_DEBUG("Import {} to NVRAM", pathname);
 
     if(!bfs::exists(pathname)) {
         return error_code::no_such_path;
@@ -82,9 +79,13 @@ error_code nvml_backend::load(const bfs::path& pathname) {
     /* add the mapping to a nvml::file descriptor and insert it into m_files */
     std::lock_guard<std::mutex> lock(m_files_mutex);
 
+    if(m_files.find(pathname.string()) != m_files.end()) {
+        return error_code::path_already_imported;
+    }
+
     /* create a new file into m_files (the constructor will fill it with
      * the contents of the pathname) */
-    auto it = m_files.emplace(pathname.c_str(), 
+    auto it = m_files.emplace(pathname.string(), 
                               std::make_unique<nvml::file>(m_daxfs_mount_point, pathname));
 
 #ifdef __EFS_DEBUG__
@@ -92,16 +93,15 @@ error_code nvml_backend::load(const bfs::path& pathname) {
 
     struct stat stbuf;
     file_ptr->stat(stbuf);
-    m_logger.debug("Transfer complete ({} bytes)", stbuf.st_size);
+    LOGGER_DEBUG("Transfer complete ({} bytes)", stbuf.st_size);
 #endif
 
-    return error_code::success;
-
     /* lock_guard is automatically released here */
+    return error_code::success;
 }
 
 error_code nvml_backend::unload(const bfs::path& pathname) {
-    m_logger.error("Unload not implemented!");
+    LOGGER_ERROR("Unload not implemented!");
     return error_code::success;
 }
 
@@ -111,12 +111,6 @@ bool nvml_backend::exists(const char* pathname) const {
 
     const auto& it = m_files.find(pathname);
 
-    // XXX it is safe to unlock the mutex here BECAUSE WE KNOW
-    // that no other threads are going to remove a mapping from
-    // the list; this happens because mappings are ONLY destroyed
-    // when the std::list destructor is called (and we make sure that
-    // this is done in a thread-safe manner). If this assumption ever
-    // changes, we may NEED to revise this.
     return it != m_files.end();
 }
 
