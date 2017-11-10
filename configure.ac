@@ -119,7 +119,8 @@ AX_BOOST_BASE([1.54],, [
 ])
 AX_BOOST_SYSTEM
 AX_BOOST_FILESYSTEM
-AX_BOOST_LOG
+AX_BOOST_ASIO
+AX_BOOST_THREAD
 
 # check for the presence of libconfig++
 PKG_CHECK_MODULES([LIBCONFIGXX], [libconfig++ >= 1.4],,

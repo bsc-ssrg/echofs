@@ -213,16 +213,15 @@ src_efs_ng_CXXFLAGS =       \
 	$(END)
 
 src_efs_ng_LDFLAGS =		\
-	src/libefs_aux.la		\
-    $(FUSEXX_LIBS)			\
-    @BOOST_LDFLAGS@			\
-    @BOOST_SYSTEM_LIB@		\
-    @BOOST_FILESYSTEM_LIB@	\
-    -lboost_log_setup       \
-    @BOOST_LOG_LIB@			\
-    -lboost_thread       	\
-    @LIBCONFIGXX_LIBS@      \
-	@LIBPMEMOBJ_LIBS@       \
+	src/libefs_aux.la \
+    $(FUSEXX_LIBS)\
+    @BOOST_LDFLAGS@	\
+    @BOOST_SYSTEM_LIB@ \
+    @BOOST_FILESYSTEM_LIB@ \
+    @BOOST_ASIO_LIB@ \
+    @BOOST_THREAD_LIB@ \
+    @LIBCONFIGXX_LIBS@ \
+	@LIBPMEMOBJ_LIBS@ \
 	@PROTOBUF_LIBS@ \
     $(END)
 
