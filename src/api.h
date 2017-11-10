@@ -1,6 +1,6 @@
 /*************************************************************************
- * (C) Copyright 2016 Barcelona Supercomputing Center                    *
- *                    Centro Nacional de Supercomputacion                *
+ * (C) Copyright 2016-2017 Barcelona Supercomputing Center               *
+ *                         Centro Nacional de Supercomputacion           *
  *                                                                       *
  * This file is part of the Echo Filesystem NG.                          *
  *                                                                       *
@@ -23,10 +23,13 @@
  * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.    *
  *                                                                       *
  *************************************************************************/
-#ifndef __EFS_NG_H__
-#define __EFS_NG_H__
 
-namespace efsng {
-} // namespace efsng
+#ifndef __EFS_API_H__
+#define __EFS_API_H__
 
-#endif /* __EFS_NG_H__ */
+#include "api/requests.h"
+#include "api/message.h"
+#include "api/listener.h"
+
+#endif /* __EFS_API_H__ */
+

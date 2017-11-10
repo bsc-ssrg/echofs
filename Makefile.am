@@ -99,10 +99,12 @@ BUILT_SOURCES = \
 
 # filesystem's source files in alphabetical order
 src_libefs_aux_la_SOURCES = \
+	src/api.h \
 	src/api/listener.h \
 	src/api/message.h \
 	src/api/requests.h \
 	src/api/requests.cpp \
+    src/backends.h \
     src/backends/backend-base.h \
     src/backends/backend-base.cpp \
 	src/backends/posix-file.cpp	\
@@ -121,6 +123,8 @@ src_libefs_aux_la_SOURCES = \
 	src/backends/nvram-nvml/segment.h \
 	src/backends/nvram-nvml/nvram-nvml.cpp \
 	src/backends/nvram-nvml/nvram-nvml.h \
+	src/context.h \
+	src/context.cpp \
 	src/defaults.h \
 	src/errors.h \
 	src/errors.cpp \
