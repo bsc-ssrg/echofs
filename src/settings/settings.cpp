@@ -36,6 +36,7 @@
 
 /* C++ includes */
 #include <libconfig.h++>
+#include <yaml-cpp/yaml.h>
 #include <sstream>
 
 /* project includes */
@@ -43,8 +44,11 @@
 #include "configuration.h"
 #include "defaults.h"
 #include "settings.h"
+#include "file-options.h"
+#include "config-schema.h"
 
 namespace efsng {
+namespace config {
 
 /*! Whatever */
 settings::settings() 
@@ -52,9 +56,12 @@ settings::settings()
       m_daemonize(false),
       m_debug(false),
       m_root_dir("none"),
-      m_mount_point("none"),
+      m_mount_dir("none"),
+      m_results_dir("none"),
       m_config_file("none"),
       m_log_file("none"),
+      m_workers(0),
+      m_transfer_size(0),
       m_api_sockfile(defaults::api_sockfile),
       m_fuse_argc(0),
       m_fuse_argv() { 
@@ -65,12 +72,15 @@ settings::settings(const settings& other)
       m_daemonize(other.m_daemonize),
       m_debug(other.m_debug),
       m_root_dir(other.m_root_dir),
-      m_mount_point(other.m_mount_point),
+      m_mount_dir(other.m_mount_dir),
+      m_results_dir(other.m_results_dir),
       m_config_file(other.m_config_file),
       m_log_file(other.m_log_file),
+      m_workers(other.m_workers),
+      m_transfer_size(other.m_transfer_size),
       m_api_sockfile(other.m_api_sockfile),
       m_backend_opts(other.m_backend_opts),
-      m_files_to_preload(other.m_files_to_preload),
+      m_resources(other.m_resources),
       m_fuse_argc(other.m_fuse_argc),
       m_fuse_argv() {
 
@@ -97,12 +107,15 @@ settings& settings::operator=(settings&& other) {
         // non-PODs can be moved with std::move
         m_exec_name = std::move(other.m_exec_name);
         m_root_dir = std::move(other.m_root_dir);
-        m_mount_point = std::move(other.m_mount_point);
+        m_mount_dir = std::move(other.m_mount_dir);
+        m_results_dir = std::move(other.m_results_dir);
         m_config_file = std::move(other.m_config_file);
         m_log_file = std::move(other.m_log_file);
+        m_workers = std::move(other.m_workers);
+        m_transfer_size = std::move(other.m_transfer_size);
         m_api_sockfile = std::move(other.m_api_sockfile);
         m_backend_opts = std::move(other.m_backend_opts);
-        m_files_to_preload = std::move(other.m_files_to_preload);
+        m_resources = std::move(other.m_resources);
 
         // PODs need to be reset after copying
         m_daemonize = other.m_daemonize;
@@ -134,9 +147,12 @@ void settings::reset() {
     m_daemonize = false;
     m_debug = false;
     m_root_dir = "none";
-    m_mount_point = "none";
+    m_mount_dir = "none";
+    m_results_dir = "none";
     m_config_file = "none";
     m_log_file = "none";
+    m_workers = 0;
+    m_transfer_size = 0;
     m_fuse_argc = 0;
 
     for(int i=0; i<s_max_fuse_args; ++i){
@@ -242,7 +258,7 @@ void settings::from_cmdline(int argc, char* argv[]){
                 m_root_dir = std::string(optarg);
                 break;
             case 'm':
-                m_mount_point = std::string(optarg);
+                m_mount_dir = std::string(optarg);
                 break;
             case 'c':
                 m_config_file = std::string(optarg);
@@ -320,7 +336,7 @@ void settings::from_cmdline(int argc, char* argv[]){
         settings backup(*this);
 
         try {
-            from_file(m_config_file);
+            load_from_yaml_file(m_config_file);
         }
         catch(const std::exception& e) {
             *this = std::move(backup);
@@ -331,7 +347,7 @@ void settings::from_cmdline(int argc, char* argv[]){
         }
     }
 
-    if(m_root_dir == m_mount_point) {
+    if(m_root_dir == m_mount_dir) {
         throw std::invalid_argument("The root directory and the mount point must be different.");
     }
 
@@ -366,146 +382,86 @@ void settings::from_cmdline(int argc, char* argv[]){
     }
 
     /* fill in the mount point for FUSE */
-    push_arg(m_mount_point.string().c_str(), 1 /*fuse_argv[1]*/);
+    push_arg(m_mount_dir.string().c_str(), 1 /*fuse_argv[1]*/);
 }
 
-void settings::from_file(const bfs::path& config_file) {
+void settings::load_from_yaml_file(const bfs::path& config_file) {
 
-    libconfig::Config cfg;
+    file_options::options_map opt_map;
+    file_options::parse_yaml_file(config_file, config_schema, opt_map);
 
-    try {
-        cfg.readFile(config_file.c_str());
-    }
-    catch(const libconfig::FileIOException& fioex){
-        throw std::invalid_argument("I/O error while reading configuration file");
-    }
-    catch(const libconfig::ParseException& pex){
-        std::stringstream ss;
-        ss << "Parse error at " << pex.getFile() << ":" << pex.getLine();
-        throw std::invalid_argument(ss.str());
+    auto& parsed_global_settings = opt_map.get_as<file_options::options_group>("global-settings");
+
+    // 1. initialize global settings keeping in mind that command-line 
+    // arguments must override any options passed in the configuration file. 
+    if(m_root_dir == "none") {
+        m_root_dir = parsed_global_settings.get_as<bfs::path>(keywords::root_dir);
     }
 
-    const libconfig::Setting& root = cfg.getRoot();
-
-    /* parse 'root-dir' */
-    try{
-        const libconfig::Setting& cfg_root_dir = root["efs-ng"]["root-dir"];
-        std::string optval = cfg_root_dir;
-
-        /* command-line arguments override the options passed in the configuration file. 
-         * Thus, if 'root_dir' already has a value different from the default one, ignore the passed cfg_value */
-        if(m_root_dir == "none"){
-            m_root_dir = std::string(optval);
-        }
+    if(m_mount_dir == "none") {
+        m_mount_dir = parsed_global_settings.get_as<bfs::path>(keywords::mount_dir);
     }
-    catch(const libconfig::SettingNotFoundException& nfex){
-        if(m_root_dir == "none") {
-            throw std::runtime_error("No root-dir defined");
+
+    if(m_results_dir == "none" && parsed_global_settings.count(keywords::results_dir)) {
+        m_results_dir = parsed_global_settings.get_as<bfs::path>(keywords::results_dir);
+    }
+
+    if(m_log_file == "none" && parsed_global_settings.count(keywords::log_file)) {
+        if(!m_debug) { // if the FUSE debug flag was passed, we ignore the log file
+            m_log_file = parsed_global_settings.get_as<bfs::path>(keywords::log_file);
         }
     }
 
-    /* parse 'mount-point' */
-    try{
-        const libconfig::Setting& cfg_mount_point = root["efs-ng"]["mount-point"];
-        std::string optval = cfg_mount_point;
+    // 'workers' and 'transfer-size' don't have a command line option, 
+    // no need to check if they have been already set
+    // Also, we have set a default value for them so they HAVE TO be 
+    // in parsed_global_settings
+    m_workers = parsed_global_settings.get_as<uint32_t>(keywords::workers);
+    m_transfer_size = parsed_global_settings.get_as<uint32_t>(keywords::transfer_size);
 
-        /* command-line arguments override the options passed in the configuration file. 
-         * Thus, if 'root_dir' already has a value different from the default one, ignore the passed cfg_value */
-        if(m_mount_point == "none"){
-            m_mount_point = std::string(optval);
-        }
-    }
-    catch(const libconfig::SettingNotFoundException& nfex){
-        if(m_mount_point == "none") {
-            throw std::runtime_error("No mount-point defined");
-        }
-    }
+    // 2. initialize m_backend_opts with the parsed information
+    // about any configured backends
+    auto& parsed_backends = opt_map.get_as<file_options::options_list>(keywords::backends);
 
-    /* parse 'log-file' */
-    try {
-        const libconfig::Setting& cfg_logfile = root["efs-ng"]["log-file"];
-        std::string optval = cfg_logfile;
+    for(const auto& pb : parsed_backends) {
 
-        /* command-line arguments override the options passed in the configuration file. 
-         * Thus, if 'log_file' already has a value different from the default one, ignore the passed cfg_value */
-        if(m_log_file == "none"){
-            m_log_file = std::string(optval);
-        }
-    }
-    catch(const libconfig::SettingNotFoundException& nfex){
-        /* ignore, not a problem */
-    }
+        std::string id = pb.get_as<std::string>(keywords::id);
+        std::string type = pb.get_as<std::string>(keywords::type);
+        uint32_t capacity = pb.get_as<uint32_t>(keywords::capacity);
 
-    /* parse 'backend-stores' */
-    try{
-        const libconfig::Setting& cfg_backend_stores = root["efs-ng"]["backend-stores"];
-        int count = cfg_backend_stores.getLength();
+        kv_list extra_opts;
 
-        for(int i=0; i<count; ++i){
+        for(const auto& kv : pb) {
 
-            const libconfig::Setting& cfg_backend_store = cfg_backend_stores[i];
-            std::string bend_type;
-            kv_list bend_opts;
-
-            for(int j=0; j<cfg_backend_store.getLength(); ++j){
-                const libconfig::Setting& opt = cfg_backend_store[j];
-
-                std::string opt_name = opt.getName();
-                std::string opt_value = opt;
-
-                if(opt_name == "type"){
-                    bend_type = opt_value;
-                }
-
-                bend_opts.push_back({opt_name, opt_value});
+            // ignore options we already know
+            if(kv.first == keywords::id || kv.first == keywords::type || kv.first == keywords::capacity) {
+                continue;
             }
 
-            if(bend_type != ""){
-                m_backend_opts.insert({bend_type, bend_opts});
-            }
+            extra_opts.emplace(kv.first, kv.second.get_as<std::string>());
         }
+
+        m_backend_opts.emplace(
+                id, 
+                backend_options {
+                    id, type, capacity, m_root_dir, 
+                    m_mount_dir, m_results_dir, extra_opts
+                });
     }
-    catch(const libconfig::SettingNotFoundException& nfex){
-        throw std::runtime_error("No backend-stores defined");
-    }
 
-    /* parse 'preload-files' */
-    try{
-        const libconfig::Setting& cfg_files_to_preload = root["efs-ng"]["preload"];
+    // 3. initialize m_resources
+    auto& parsed_resources = opt_map.get_as<file_options::options_list>(keywords::resources);
 
-        for(int i=0; i<cfg_files_to_preload.getLength(); ++i){
+    for(const auto& res : parsed_resources) {
+        kv_list res_opts;
 
-            const libconfig::Setting& filedef = cfg_files_to_preload[i];
-
-            bfs::path filename;
-            std::string backend;
-
-            for(int j=0; j<filedef.getLength(); ++j){
-
-                const libconfig::Setting& opt = filedef[j];
-
-                std::string opt_name = opt.getName();
-                std::string opt_value = opt;
-
-                if(opt_name == "path"){
-                    filename = opt_value;
-                }
-                else if(opt_name == "backend"){
-                    backend = opt_value;
-                }
-                else{
-                    std::stringstream ss;
-                    ss << "Unsuported parameter '" << opt_name << "'";
-                    throw std::invalid_argument(ss.str());
-                }
-            }
-
-            m_files_to_preload.insert({filename, backend});
+        for(const auto& kv : res) {
+            res_opts.emplace(kv.first, kv.second.get_as<std::string>());
         }
-    }
-    catch(const libconfig::SettingNotFoundException& nfex){
-        /* ignore, not a problem */
+
+        m_resources.emplace_back(res_opts);
     }
 }
 
+} // namespace config
 } // namespace efsng

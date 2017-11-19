@@ -139,8 +139,16 @@ src_libefs_aux_la_SOURCES = \
     src/metadata/dirs.h \
     src/metadata/files.cpp \
     src/metadata/files.h \
-    src/settings.cpp \
     src/settings.h \
+    src/settings/config-schema.h \
+    src/settings/file-options.h \
+    src/settings/file_options/file-schema.h \
+    src/settings/file_options/options-map.h \
+    src/settings/file_options/yaml-parser.h \
+    src/settings/parsers.h \
+    src/settings/parsers.cpp \
+    src/settings/settings.cpp \
+    src/settings/settings.h \
     src/usr-credentials.h \
     src/fuse-mount-helper.cpp \
     src/fuse-mount-helper.h \
@@ -200,7 +208,6 @@ EXTRA_src_efs_ng_DEPENDENCIES = \
 src_efs_ng_CPPFLAGS =						\
 	$(FUSEXX_CPPFLAGS)						\
 	@BOOST_CPPFLAGS@						\
-	-DBOOST_ALL_DYN_LINK					\
 	-DSPDLOG_ENABLE_SYSLOG  				\
 	-I$(top_srcdir)/src						\
 	-I$(top_srcdir)/include	\
@@ -220,7 +227,7 @@ src_efs_ng_LDFLAGS =		\
     @BOOST_FILESYSTEM_LIB@ \
     @BOOST_ASIO_LIB@ \
     @BOOST_THREAD_LIB@ \
-    @LIBCONFIGXX_LIBS@ \
+    @LIBYAMLCPP_LIBS@ \
 	@LIBPMEMOBJ_LIBS@ \
 	@PROTOBUF_LIBS@ \
     $(END)

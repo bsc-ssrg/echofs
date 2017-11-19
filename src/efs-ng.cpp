@@ -60,10 +60,6 @@ extern "C" {
 #include <functional>
 
 /* internal includes */
-#ifdef __EFS_DEBUG__
-#define __LOGGER_ENABLE_DEBUG__
-#endif
-
 #include "settings.h"
 #include <metadata/files.h>
 #include <metadata/dirs.h>
@@ -108,7 +104,10 @@ static int efsng_getattr(const char* pathname, struct stat* stbuf, struct fuse_f
     LOGGER_DEBUG("stat(\"{}\")", pathname);
 
     /* search file in available backends */
-    for(const auto& bend: efsng_ctx->m_backends){
+    for(const auto& kv: efsng_ctx->m_backends) {
+
+        const auto& backend_id = kv.first;
+        const auto& backend_ptr = kv.second;
 
         // XXX in the future, if it's possible that a file
         // is removed from a backend by another thread 
@@ -116,10 +115,10 @@ static int efsng_getattr(const char* pathname, struct stat* stbuf, struct fuse_f
         // lock_guard and add a reference count to the file
         // so that the removal doesn't happen while someone
         // is using the file
-        const auto& it = bend->find(pathname);
+        const auto& it = backend_ptr->find(pathname);
 
-        if(it != bend->end()){
-            LOGGER_DEBUG("File \"{}\" found in {}", pathname, bend->name());
+        if(it != backend_ptr->end()) {
+            LOGGER_DEBUG("File \"{}\" found in {}", pathname, backend_id);
 
             const auto& file_ptr = it->second;
 
@@ -129,8 +128,6 @@ static int efsng_getattr(const char* pathname, struct stat* stbuf, struct fuse_f
             return 0;
         }
     }
-
-
 
     auto old_credentials = efsng::assume_user_credentials();
 
@@ -976,7 +973,10 @@ static int efsng_fgetattr(const char* pathname, struct stat* stbuf, struct fuse_
     LOGGER_DEBUG("fstat(\"{}\")", pathname);
 
     /* search file in available backends */
-    for(const auto& bend: efsng_ctx->m_backends) {
+    for(const auto& kv: efsng_ctx->m_backends) {
+
+        const auto& backend_id = kv.first;
+        const auto& backend_ptr = kv.second;
 
         // XXX in the future, if it's possible that a file
         // is removed from a backend by another thread 
@@ -984,10 +984,10 @@ static int efsng_fgetattr(const char* pathname, struct stat* stbuf, struct fuse_
         // lock_guard and add a reference count to the file
         // so that the removal doesn't happen while someone
         // is using the file
-        const auto& it = bend->find(pathname);
+        const auto& it = backend_ptr->find(pathname);
 
-        if(it != bend->end()){
-            LOGGER_DEBUG("File \"{}\" found in {}", pathname, bend->name());
+        if(it != backend_ptr->end()){
+            LOGGER_DEBUG("File \"{}\" found in {}", pathname, backend_id);
 
             const auto& file_ptr = it->second;
 
@@ -1155,7 +1155,10 @@ static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t 
     /* search file in available backends */
     /* FIXME it might be better to have this information already cached somewhere
      * IDEA: bloom filter? (see http://blog.michaelschmatz.com/2016/04/11/how-to-write-a-bloom-filter-cpp/) */
-    for(const auto& bend: efsng_ctx->m_backends) {
+    for(const auto& kv: efsng_ctx->m_backends) {
+
+        const auto& backend_id = kv.first;
+        const auto& backend_ptr = kv.second;
 
         // XXX in the future, if it's possible that a file
         // is removed from a backend by another thread 
@@ -1163,10 +1166,10 @@ static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t 
         // lock_guard and add a reference count to the file
         // so that the removal doesn't happen while someone
         // is using the file
-        const auto& it = bend->find(pathname);
+        const auto& it = backend_ptr->find(pathname);
 
-        if(it != bend->end()) {
-            LOGGER_DEBUG("File \"{}\" found in {}", pathname, bend->name());
+        if(it != backend_ptr->end()) {
+            LOGGER_DEBUG("File \"{}\" found in {}", pathname, backend_id);
 
             const auto& file_ptr = it->second;
 
@@ -1227,7 +1230,10 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
     /* search file in available backends */
     /* FIXME it might be better to have this information already cached somewhere
      * IDEA: bloom filter? (see http://blog.michaelschmatz.com/2016/04/11/how-to-write-a-bloom-filter-cpp/) */
-    for(const auto& bend: efsng_ctx->m_backends){
+    for(const auto& kv: efsng_ctx->m_backends){
+
+        const auto& backend_id = kv.first;
+        const auto& backend_ptr = kv.second;
 
         // XXX in the future, if it's possible that a file
         // is removed from a backend by another thread 
@@ -1235,10 +1241,10 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
         // lock_guard and add a reference count to the file
         // so that the removal doesn't happen while someone
         // is using the file
-        const auto& it = bend->find(pathname);
+        const auto& it = backend_ptr->find(pathname);
 
-        if(it != bend->end()){
-            LOGGER_DEBUG("File \"{}\" found in {}", pathname, bend->name());
+        if(it != backend_ptr->end()){
+            LOGGER_DEBUG("File \"{}\" found in {}", pathname, backend_id);
 
             const auto& file_ptr = it->second;
 
@@ -1330,7 +1336,7 @@ int main (int argc, char *argv[]){
     std::string exec_name = bfs::basename(argv[0]);
 
     /* 1. parse command-line arguments */
-    efsng::settings user_opts;
+    efsng::config::settings user_opts;
 
     if(argc == 1) {
         cmdline::usage(exec_name, true);
@@ -1415,7 +1421,7 @@ int main (int argc, char *argv[]){
     umask(0);
 
     /* 4. start the FUSE filesystem */
-    int res = fuse_custom_mounter(user_opts, &efsng_ops);
+    int res = efsng::fuse_custom_mounter(user_opts, &efsng_ops);
 
     return res;
 }

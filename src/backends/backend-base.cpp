@@ -29,72 +29,35 @@
 namespace bfs = boost::filesystem;
 
 #include "backend-base.h"
-#include <dram/dram.h>
-#include <nvram-nvml/nvram-nvml.h>
+#include "utils.h"
+#include "dram/dram.h"
+#include "nvram-nvml/nvram-nvml.h"
 
 namespace efsng {
 
-backend* backend::create_from_options(const std::string& type, const kv_list& backend_opts){
+backend::backend_ptr backend::create_from_options(const config::backend_options& opts) {
 
-    if(type == "DRAM"){
+    const std::string id = opts.m_id;
+    const std::string type = opts.m_type;
 
-        int64_t bend_size = -1;
-
-        /* parse the options provided by the user */
-        for(const auto& kv : backend_opts){
-
-            if(kv.first == "size"){
-                bend_size = parse_size(kv.second);
-
-                if(bend_size == -1){
-                    throw std::invalid_argument("Error parsing backend-store size '" + kv.second + "'");
-                }
-            }
-        }
-
-        if(bend_size == -1){
-            throw std::runtime_error("Mandatory arguments missing for " + type + " backend");
-        }
-
-        return new dram::dram_backend(bend_size);
-
+    if(type == "DRAM") {
+        return std::make_unique<dram::dram_backend>(opts.m_capacity);
     }
-    else if(type == "NVRAM-NVML"){
+    else if(type == "NVRAM-NVML") {
 
-        int64_t bend_size = -1;
-        bfs::path dax_fs_path;
-        bfs::path root_dir;
-
-        /* parse the options provided by the user */
-        for(const auto& kv : backend_opts){
-
-            if(kv.first == "size"){
-                bend_size = parse_size(kv.second);
-
-                if(bend_size == -1){
-                    throw std::invalid_argument("Error parsing backend-store size '" + kv.second + "'");
-                }
-            }
-            else if(kv.first == "dax-fs-path"){
-                dax_fs_path = kv.second;
-            }
-            else if(kv.first == "root-dir"){
-                root_dir = kv.second;
-            }
+        if(opts.m_extra_options.count("daxfs") == 0) {
+            throw std::runtime_error("Mandatory option 'daxfs' missing in definition of backend '" + id + "'");
         }
 
-        if(bend_size == -1 || dax_fs_path == ""){
-            throw std::runtime_error("Mandatory arguments missing for " + type + " backend");
-        }
+        const bfs::path& daxfs = opts.m_extra_options.at("daxfs");
 
-        return new nvml::nvml_backend(bend_size, dax_fs_path, root_dir);
-
+        return std::make_unique<nvml::nvml_backend>(opts.m_capacity, daxfs, opts.m_root_dir);
     }
 
-    return nullptr;
+    return std::unique_ptr<backend>(nullptr);
 }
 
-backend::Type backend::name_to_type(const std::string& name){
+backend::Type backend::name_to_type(const std::string& name) {
 
     if(name == "DRAM"){
         return DRAM;
@@ -107,7 +70,7 @@ backend::Type backend::name_to_type(const std::string& name){
     return UNKNOWN;
 }
 
-int64_t backend::parse_size(const std::string& str){
+int64_t backend::parse_size(const std::string& str) {
 
     const uint64_t B_FACTOR = 1;
     const uint64_t KB_FACTOR = 1e3;
@@ -130,26 +93,26 @@ int64_t backend::parse_size(const std::string& str){
     std::size_t found;
     uint64_t factor;
 
-    if((found = scopy.find("KB")) != std::string::npos){
+    if((found = scopy.find("KB")) != std::string::npos) {
         factor = KB_FACTOR;
     }
-    else if((found = scopy.find("KiB")) != std::string::npos){
+    else if((found = scopy.find("KiB")) != std::string::npos) {
         factor = KiB_FACTOR;
     }
-    else if((found = scopy.find("MB")) != std::string::npos){
+    else if((found = scopy.find("MB")) != std::string::npos) {
         factor = MB_FACTOR;
     }
-    else if((found = scopy.find("MiB")) != std::string::npos){
+    else if((found = scopy.find("MiB")) != std::string::npos) {
         factor = MiB_FACTOR;
     }
-    else if((found = scopy.find("GB")) != std::string::npos){
+    else if((found = scopy.find("GB")) != std::string::npos) {
         factor = GB_FACTOR;
     }
-    else if((found = scopy.find("GiB")) != std::string::npos){
+    else if((found = scopy.find("GiB")) != std::string::npos) {
         factor = GiB_FACTOR;
     }
-    else{
-        if(!std::all_of(scopy.begin(), scopy.end(), ::isdigit)){
+    else {
+        if(!std::all_of(scopy.begin(), scopy.end(), ::isdigit)) {
             return -1;
         }
         factor = B_FACTOR;
@@ -165,7 +128,7 @@ int64_t backend::parse_size(const std::string& str){
 } // namespace efsng
 
 #ifdef __EFS_DEBUG__
-std::ostream& operator<<(std::ostream& os, const efsng::backend::buffer& buf){
+std::ostream& operator<<(std::ostream& os, const efsng::backend::buffer& buf) {
 
     os << "{ "
        << "m_data_ptr: " << buf.m_data << ", "
@@ -175,7 +138,7 @@ std::ostream& operator<<(std::ostream& os, const efsng::backend::buffer& buf){
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const efsng::backend::buffer_map& bmap){
+std::ostream& operator<<(std::ostream& os, const efsng::backend::buffer_map& bmap) {
 
     os << "buffer_map {\n";
 

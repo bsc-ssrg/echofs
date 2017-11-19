@@ -122,9 +122,9 @@ AX_BOOST_FILESYSTEM
 AX_BOOST_ASIO
 AX_BOOST_THREAD
 
-# check for the presence of libconfig++
-PKG_CHECK_MODULES([LIBCONFIGXX], [libconfig++ >= 1.4],,
-                  AC_MSG_ERROR([libconfig++ 1.4 or newer not found.])
+# check for the presence of libyaml-cpp
+PKG_CHECK_MODULES([LIBYAMLCPP], [yaml-cpp >= 0.5.1],,
+                  AC_MSG_ERROR([libyaml-cpp 0.5.1 or newer not found.])
 )
 
 # check for the presence of the NVML libraries

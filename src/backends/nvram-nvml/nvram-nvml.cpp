@@ -79,7 +79,7 @@ error_code nvml_backend::load(const bfs::path& pathname) {
     /* add the mapping to a nvml::file descriptor and insert it into m_files */
     std::lock_guard<std::mutex> lock(m_files_mutex);
 
-    if(m_files.find(pathname.string()) != m_files.end()) {
+    if(m_files.count(pathname.string()) != 0) {
         return error_code::path_already_imported;
     }
 

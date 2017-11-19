@@ -36,8 +36,8 @@
 #include <fuse.h>
 
 /* internal includes */
-#include <logger.h>
-#include <settings.h>
+#include "logger.h"
+#include "settings.h"
 #include <efs-common.h>
 #include <range_lock.h>
 #include <posix-file.h>
@@ -128,9 +128,12 @@ public:
     virtual ~backend() {}
 
 public:
+
+    using backend_ptr = std::unique_ptr<backend>;
+
     static Type name_to_type(const std::string& name); // probably deprecated
 
-    static backend* create_from_options(const std::string& type, const kv_list& backend_opts);
+    static backend_ptr create_from_options(const config::backend_options& opts);
 
     virtual std::string name() const = 0;
     virtual uint64_t capacity() const = 0;

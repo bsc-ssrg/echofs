@@ -26,6 +26,8 @@
 #ifndef __EFS_NG_H__
 #define __EFS_NG_H__
 
+#include "settings.h"
+
 namespace efsng {
 } // namespace efsng
 

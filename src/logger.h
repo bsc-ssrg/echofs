@@ -27,6 +27,10 @@
 #ifndef __LOGGER_H__
 #define __LOGGER_H__
 
+#ifdef __EFS_DEBUG__
+#define __LOGGER_ENABLE_DEBUG__
+#endif
+
 #include <spdlog/spdlog.h>
 #include <spdlog/fmt/ostr.h>
 #include <sstream>
