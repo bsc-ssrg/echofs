@@ -157,6 +157,10 @@ public:
         do_accept();
     }
 
+    ~listener() {
+        Message::cleanup();
+    }
+
     void run() {
 
         if(m_thread != nullptr) {

@@ -26,6 +26,7 @@
 
 #include <atomic>
 #include <sstream>
+#include <google/protobuf/stubs/common.h>
 #include "api/messages.pb.h"
 #include "api/requests.h"
 #include "errors.h"
@@ -97,6 +98,10 @@ request_ptr request::create_from_buffer(const std::vector<uint8_t>& buffer, int 
 task_id request::create_tid() {
     static std::atomic<uint32_t> id(0);
     return static_cast<task_id>(++id);
+}
+
+void request::cleanup() {
+    google::protobuf::ShutdownProtobufLibrary();
 }
 
 request_type request::type() const {
@@ -216,6 +221,10 @@ bool response::store_to_buffer(response_ptr response, std::vector<uint8_t>& buff
     buffer.resize(buffer_size);
 
     return user_resp.SerializeToArray(&buffer[reserved_size], message_size);
+}
+
+void response::cleanup() {
+    google::protobuf::ShutdownProtobufLibrary();
 }
 
 } //namespace api

@@ -70,6 +70,11 @@ public:
         m_body_length(0),
         m_expected_body_length(0) { }
 
+    static void cleanup() {
+        Request::cleanup();
+        Response::cleanup();
+    }
+
     std::size_t expected_length(const message::part part) const {
 
         switch(part) {

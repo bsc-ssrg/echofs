@@ -76,6 +76,7 @@ struct request {
 
     static request_ptr create_from_buffer(const std::vector<uint8_t>& data, int size);
     static task_id create_tid();
+    static void cleanup();
 
 private:
     request_type m_type;
@@ -109,6 +110,7 @@ struct response {
     task_id tid() const;
 
     static bool store_to_buffer(response_ptr response, std::vector<uint8_t>& buffer);
+    static void cleanup();
 
 private:
     response_type m_type;
