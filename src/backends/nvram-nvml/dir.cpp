@@ -1,6 +1,6 @@
 /*************************************************************************
- * (C) Copyright 2016 Barcelona Supercomputing Center                    *
- *                    Centro Nacional de Supercomputacion                *
+ * (C) Copyright 2016-2017 Barcelona Supercomputing Center               *
+ *                         Centro Nacional de Supercomputacion           *
  *                                                                       *
  * This file is part of the Echo Filesystem NG.                          *
  *                                                                       *
@@ -24,38 +24,53 @@
  *                                                                       *
  *************************************************************************/
 
-#ifndef __FILES_H__
-#define __FILES_H__
+#include <libpmem.h>
 
-#include <sys/types.h>
+#include "fuse_buf_copy_pmem.h"
+#include <nvram-nvml/dir.h>
 
-namespace efsng{
+//#define __PRINT_TREE__
 
-/* records metadata about an open file */
-class File{
 
-public:
-    File(ino_t inode, int fd, mode_t mode);
-    ~File();
 
-    ino_t get_inode() const;
-    int get_fd() const;
-    mode_t get_mode() const;
-    off_t get_size() const;
+namespace efsng {
+namespace nvml {
+
+/**********************************************************************************************************************/
+/* class implementation                                                                                               */
+/**********************************************************************************************************************/
+dir::dir() 
+    : backend::dir() {
+}
+
+dir::dir(const bfs::path& pathname, bool populate) 
+    : m_pathname(pathname) {
+}
+
+dir::~dir() {
+   
+}
+
+void dir::add_file (const std::string file) {
+    if ( std::find(m_files.begin(), m_files.end(), file ) == m_files.end() )
+        m_files.push_back( file );
+}
+
+
+void dir::list_files(std::list <std::string> & m_f) const {
+    for (const auto li : m_files)
+    {
+        m_f.push_back(li);
+    }
     
-private:
-    /* file's inode */
-    ino_t inode;
-    /* file's fd */
-    int fd;     
-    /* file's flags at open: O_RDONLY, O_WRONLY, O_RDWR */
-    mode_t mode;
-    /* pointer to the file's data (if available) */
-    void* data;
-    /* file's size */
-    off_t size;
-};
+}
 
+bool dir::find (const std::string fname,std::list < std::string >::iterator &it)
+{
+    // We should better do a map but for now...
+    it =  std::find(m_files.begin(),m_files.end(),fname);
+    return (it != m_files.end());
+}
+
+} // namespace nvml
 } // namespace efsng
-
-#endif /* __FILES_H__ */

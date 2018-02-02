@@ -30,7 +30,7 @@
 #ifdef RL_DEBUG
 #include <iostream>
 #endif
-
+#include <functional>
 #include "range_lock.h"
 
 

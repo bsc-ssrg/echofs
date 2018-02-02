@@ -48,6 +48,7 @@ class nvml_backend : public efsng::backend {
 
     // some aliases for convenience
     using file_ptr = std::unique_ptr<backend::file>;
+    using dir_ptr = std::unique_ptr<backend::dir>;
 
     static constexpr const char* s_name = "NVRAM-NVML";
 
@@ -60,12 +61,15 @@ public:
     error_code load(const bfs::path& pathname) override;
     error_code unload(const bfs::path& pathname) override;
     bool exists(const char* pathname) const override;
+    int do_readdir (const char * path, void * buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) const override;
 
     backend::iterator find(const char* path) override;
     backend::iterator begin() override;
     backend::iterator end() override;
     backend::const_iterator cbegin() override;
     backend::const_iterator cend() override;
+
+
 
 private:
     /* maximum allocatable size in bytes */
@@ -76,6 +80,17 @@ private:
 
     mutable std::mutex                    m_files_mutex;
     std::unordered_map<std::string, file_ptr> m_files;
+
+    mutable std::mutex m_dirs_mutex;
+    std::unordered_map<std::string, dir_ptr> m_dirs;
+    
+    std::list <std::string> find_s(const std::string path) const;
+
+    // Utils
+    std::string remove_root (std::string path) const;
+
+    std::vector<std::string> split_path (std::string path) const;
+
 }; // nvml_backend
 
 } // namespace nvml

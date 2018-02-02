@@ -109,6 +109,7 @@ src_libefs_aux_la_SOURCES = \
     src/backends/backend-base.cpp \
 	src/backends/posix-file.cpp	\
 	src/backends/posix-file.h \
+	src/backends/dir.h \
 	src/backends/dram/dram.cpp \
 	src/backends/dram/dram.h \
 	src/backends/dram/file.cpp \
@@ -117,6 +118,8 @@ src_libefs_aux_la_SOURCES = \
 	src/backends/dram/mapping.h \
 	src/backends/nvram-nvml/file.cpp \
 	src/backends/nvram-nvml/file.h \
+	src/backends/nvram-nvml/dir.cpp \
+	src/backends/nvram-nvml/dir.h \
 	src/backends/nvram-nvml/fuse_buf_copy_pmem.cpp \
 	src/backends/nvram-nvml/fuse_buf_copy_pmem.h \
 	src/backends/nvram-nvml/segment.cpp	\
@@ -228,7 +231,9 @@ src_efs_ng_LDFLAGS =		\
     @BOOST_ASIO_LIB@ \
     @BOOST_THREAD_LIB@ \
     @LIBYAMLCPP_LIBS@ \
+     @LIBPMEM_LIBS@ \
 	@LIBPMEMOBJ_LIBS@ \
+	@LIBPMEMKV_LIBS@ \
 	@PROTOBUF_LIBS@ \
     $(END)
 

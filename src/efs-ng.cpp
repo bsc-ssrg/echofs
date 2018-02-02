@@ -691,6 +691,37 @@ static int efsng_readdir(const char* pathname, void* buf, fuse_fill_dir_t filler
 
     auto dir_record = (efsng::Directory*) file_info->fh;
 
+    efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
+    LOGGER_DEBUG("readdir called \"{}\" ", pathname);
+
+    /* Search the backends */
+
+
+    for(const auto& kv: efsng_ctx->m_backends) {
+
+        const auto& backend_id = kv.first;
+        const auto& backend_ptr = kv.second;
+        if (backend_id.find("nvml://") != std::string::npos ) return backend_ptr->do_readdir(pathname, buf, filler, offset, file_info);
+        // TODO : Check with Alberto
+/*
+        const auto& it = backend_ptr->find(pathname);
+
+        if(it != backend_ptr->end()) {
+            LOGGER_DEBUG("File \"{}\" found in {}", pathname, backend_id);
+
+            const auto& file_ptr = it->second;
+
+            //if(file_ptr->flags() == O_APPEND) {
+            //    ssize_t rv = file_ptr->append_data(offset, size, buf);
+            //}
+            //else {
+           // ssize_t rv = file_ptr->put_data(offset, size, buf);
+            //}
+
+         //   return rv;
+        } */
+    }
+    
     if(offset != dir_record->get_offset()){
         seekdir(dir_record->get_dirp(), offset);
         dir_record->set_entry(NULL);

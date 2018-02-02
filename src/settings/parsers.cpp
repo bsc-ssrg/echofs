@@ -26,6 +26,7 @@
 
 #include <cstdint>
 #include <string>
+#include <cmath>
 #include <boost/filesystem.hpp>
 #include "parsers.h"
 

@@ -88,6 +88,11 @@ bool dram_backend::exists(const char* pathname) const {
     return it != m_files.end();
 }
 
+int dram_backend::do_readdir (const char * path, void * buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) const {
+    LOGGER_ERROR("do_readdir not implemented");
+    return 0;
+}
+
 efsng::backend::iterator dram_backend::find(const char* path) {
     return m_files.find(path);
 }
@@ -107,6 +112,8 @@ efsng::backend::const_iterator dram_backend::cbegin() {
 efsng::backend::const_iterator dram_backend::cend() {
     return m_files.cend();
 }
+
+
 
 } // namespace dram
 } //namespace efsng

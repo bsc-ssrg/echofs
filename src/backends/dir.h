@@ -1,6 +1,6 @@
 /*************************************************************************
- * (C) Copyright 2016 Barcelona Supercomputing Center                    *
- *                    Centro Nacional de Supercomputacion                *
+ * (C) Copyright 2016-2017 Barcelona Supercomputing Center               *
+ *                         Centro Nacional de Supercomputacion           *
  *                                                                       *
  * This file is part of the Echo Filesystem NG.                          *
  *                                                                       *
@@ -24,38 +24,30 @@
  *                                                                       *
  *************************************************************************/
 
-#ifndef __FILES_H__
-#define __FILES_H__
+#include <efs-common.h>
+//#include <posix-dir.h>
 
-#include <sys/types.h>
+#ifndef __DIR_H__
+#define __DIR_H__
 
-namespace efsng{
+namespace efsng {
 
-/* records metadata about an open file */
-class File{
-
+class dir {
 public:
-    File(ino_t inode, int fd, mode_t mode);
-    ~File();
+    enum class type {
+        temporary,
+        persistent
+    };
 
-    ino_t get_inode() const;
-    int get_fd() const;
-    mode_t get_mode() const;
-    off_t get_size() const;
-    
-private:
-    /* file's inode */
-    ino_t inode;
-    /* file's fd */
-    int fd;     
-    /* file's flags at open: O_RDONLY, O_WRONLY, O_RDWR */
-    mode_t mode;
-    /* pointer to the file's data (if available) */
-    void* data;
-    /* file's size */
-    off_t size;
-};
+//    virtual void populate_from(posix::dir& f) = 0;
+    virtual void stat(struct stat* buf) const = 0;
+    virtual void list_files(list <files> & m_files) const = 0;
+   
+    /* It needs operations to lock the directory */
+
+    virtual ~dir(){}
+}; // class dir
 
 } // namespace efsng
 
-#endif /* __FILES_H__ */
+#endif /* __DIR_H__ */

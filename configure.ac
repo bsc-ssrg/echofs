@@ -135,6 +135,13 @@ PKG_CHECK_MODULES([LIBPMEMOBJ], [libpmemobj >= 1.1],,
                   AC_MSG_ERROR(libpmemobj 1.1 or newer not found.)
 )
 
+# check for the presence of the PMEMKV libraries
+PKG_CHECK_MODULES([LIBPMEMKV], [libpmemkv >= 0.29.2],,
+                  AC_MSG_ERROR(libpmemkv 0.29.2 or newer not found.)
+)
+
+
+
 # check for protobuf-c
 PKG_CHECK_MODULES([PROTOBUF_C], [libprotobuf-c >= 1.0.0])
 

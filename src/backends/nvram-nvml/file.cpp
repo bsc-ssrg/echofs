@@ -123,7 +123,7 @@ file::~file() {
 void file::stat(struct stat& stbuf) const {
 
     m_alloc_mutex.lock_shared();
-
+    LOGGER_DEBUG(" STAT NVML {}",m_pathname);
     memcpy(&stbuf, &m_attributes, sizeof(stbuf));
 
     m_alloc_mutex.unlock_shared();

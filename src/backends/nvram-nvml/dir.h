@@ -1,6 +1,6 @@
 /*************************************************************************
- * (C) Copyright 2016 Barcelona Supercomputing Center                    *
- *                    Centro Nacional de Supercomputacion                *
+ * (C) Copyright 2016-2017 Barcelona Supercomputing Center               *
+ *                         Centro Nacional de Supercomputacion           *
  *                                                                       *
  * This file is part of the Echo Filesystem NG.                          *
  *                                                                       *
@@ -24,38 +24,45 @@
  *                                                                       *
  *************************************************************************/
 
-#ifndef __FILES_H__
-#define __FILES_H__
+#ifndef __NVML_DIR_H__
+#define __NVML_DIR_H__
 
-#include <sys/types.h>
+#include <boost/thread/shared_mutex.hpp>
 
-namespace efsng{
+#include <efs-common.h>
+#include "backend-base.h"
+#include "file.h"
+#include <fuse.h>
 
-/* records metadata about an open file */
-class File{
+namespace bfs = boost::filesystem;
 
-public:
-    File(ino_t inode, int fd, mode_t mode);
-    ~File();
+namespace efsng {
+namespace nvml {
 
-    ino_t get_inode() const;
-    int get_fd() const;
-    mode_t get_mode() const;
-    off_t get_size() const;
+
     
+/* descriptor for a directory structure in NVML */
+struct dir : public backend::dir {
+
+  
+    dir();
+    dir(const bfs::path& pathname, bool populate=true);
+    void list_files(std::list <std::string> & m_files) const;
+    ~dir();
+    void add_file (const std::string fname);
+    bool find (const std::string fname, std::list < std::string >::iterator & it);
+
 private:
-    /* file's inode */
-    ino_t inode;
-    /* file's fd */
-    int fd;     
-    /* file's flags at open: O_RDONLY, O_WRONLY, O_RDWR */
-    mode_t mode;
-    /* pointer to the file's data (if available) */
-    void* data;
-    /* file's size */
-    off_t size;
+    /* container with the list of files inside the directory. 
+       We store the canonical name, 
+       for the standard ls and a pointer to the file for the ls -ltrh optimization */
+    bfs::path m_pathname;
+    std::list < std::string > m_files; 
+   
 };
 
+} // namespace nvml
 } // namespace efsng
 
-#endif /* __FILES_H__ */
+
+#endif /* __NVML_DIR_H__ */
