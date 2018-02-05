@@ -83,13 +83,23 @@ error_code nvml_backend::load(const bfs::path& pathname) {
         return error_code::no_such_path;
     }
 
+    std::string path_wo_root = remove_root (pathname.string());
+    
+    if (bfs::is_directory(pathname)) 
+    {
+        // Recursive upload
+        bfs::recursive_directory_iterator r(pathname);
+        for (auto entry : r) {
+            if (!bfs::is_directory(entry)) {
+                auto error = load(entry);
+                if (error != error_code::success) return error;
+            }
+        }
+        return error_code::success;
+    }
+
     /* add the mapping to a nvml::file descriptor and insert it into m_files */
     std::lock_guard<std::mutex> lock(m_files_mutex);
-
-
-    std::string path_wo_root = remove_root (pathname.string());
-
-   
     if(m_files.count(path_wo_root) != 0) {
         return error_code::path_already_imported;
     }
