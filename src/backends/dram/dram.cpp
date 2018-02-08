@@ -93,6 +93,16 @@ int dram_backend::do_readdir (const char * path, void * buffer, fuse_fill_dir_t 
     return 0;
 }
 
+int dram_backend::do_stat (const char *path, struct stat& stbuf) const {
+    LOGGER_ERROR("do_stat not implemented");
+    return 0;
+}
+
+int dram_backend::do_create(const char* pathname, mode_t mode, std::shared_ptr < backend::file> & file) {
+    LOGGER_ERROR("do_create not implemented");
+    return 0;
+}
+
 efsng::backend::iterator dram_backend::find(const char* path) {
     return m_files.find(path);
 }

@@ -28,6 +28,8 @@
 #define __FILES_H__
 
 #include <sys/types.h>
+#include <atomic>
+#include "../backends/backend-base.h"
 
 namespace efsng{
 
@@ -42,7 +44,9 @@ public:
     int get_fd() const;
     mode_t get_mode() const;
     off_t get_size() const;
-    
+
+    void set_ptr (std::shared_ptr <backend::file> ptr);
+    std::shared_ptr <backend::file> get_ptr ();
 private:
     /* file's inode */
     ino_t inode;
@@ -54,6 +58,7 @@ private:
     void* data;
     /* file's size */
     off_t size;
+    std::shared_ptr <backend::file> ptr;
 };
 
 } // namespace efsng

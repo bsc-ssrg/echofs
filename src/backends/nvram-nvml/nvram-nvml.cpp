@@ -30,6 +30,7 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <libpmem.h>
+#include <errno.h>
 
 /* C++ includes */
 #include <boost/filesystem.hpp>
@@ -58,8 +59,7 @@ nvml_backend::nvml_backend(uint64_t capacity, bfs::path daxfs_mount, bfs::path r
     // Insert the root dir into the map
 
     std::lock_guard<std::mutex> lock(m_dirs_mutex);
-    m_dirs.emplace("/", std::make_unique<nvml::dir>("/"));
-
+    m_dirs.emplace("/", std::make_unique<nvml::dir>("/",new_inode(), m_root_dir));
 }
 
 nvml_backend::~nvml_backend(){
@@ -85,8 +85,7 @@ error_code nvml_backend::load(const bfs::path& pathname) {
 
     std::string path_wo_root = remove_root (pathname.string());
     
-    if (bfs::is_directory(pathname)) 
-    {
+    if (bfs::is_directory(pathname)){
         // Recursive upload
         bfs::recursive_directory_iterator r(pathname);
         for (auto entry : r) {
@@ -108,12 +107,11 @@ error_code nvml_backend::load(const bfs::path& pathname) {
     /* create a new file into m_files (the constructor will fill it with
      * the contents of the pathname) */
     auto it = m_files.emplace(path_wo_root, 
-                              std::make_unique<nvml::file>(m_daxfs_mount_point, pathname));
+                              std::make_unique<nvml::file>(m_daxfs_mount_point, pathname, new_inode()));
 
     // Iterate the path to fill the info
     std::vector <std::string> m_path;
-    for(auto& part : boost::filesystem::path(path_wo_root))
-    {
+    for(auto& part : boost::filesystem::path(path_wo_root)){
         m_path.push_back (part.c_str());
     }
 
@@ -122,20 +120,17 @@ error_code nvml_backend::load(const bfs::path& pathname) {
 
     std::lock_guard<std::mutex> lock_dir(m_dirs_mutex);
     
-    for (int i = m_path.size()-1; i>0; i--)
-    {
+    for (int i = m_path.size()-1; i>0; i--){
         // Build the path
         t_path = t_path.substr(0,t_path.rfind(m_path[i]));
-    
         auto d_it = m_dirs.find(t_path);
 
         if (d_it == m_dirs.end()){
             // ADD PATH
-            auto t_it = m_dirs.emplace(t_path, std::make_unique<nvml::dir>(t_path));
+            auto t_it = m_dirs.emplace(t_path, std::make_unique<nvml::dir>(t_path,new_inode(), m_root_dir.string()+t_path));
             t_it.first->second.get()->add_file(m_path[i]);
         }
-        else
-        {
+        else{
             d_it->second.get()->add_file(m_path[i]);
         }
     }
@@ -145,7 +140,6 @@ error_code nvml_backend::load(const bfs::path& pathname) {
     
 #ifdef __EFS_DEBUG__
     const auto& file_ptr = (*(it.first)).second;
-
     struct stat stbuf;
     file_ptr->stat(stbuf);
     LOGGER_DEBUG("Transfer complete ({} bytes)", stbuf.st_size);
@@ -185,11 +179,94 @@ int nvml_backend::do_readdir (const char * path, void * buffer, fuse_fill_dir_t 
         { // We remove the last slash
             file.pop_back();
         }
-
         filler(buffer, file.c_str(), NULL, 0);
     }
     return 0;
+}
 
+
+int nvml_backend::do_stat (const char * path, struct stat& stbuf) const {
+
+    LOGGER_DEBUG("Inside backend do_stat for {}",path);
+    std::string pathname = path;
+    std::string path_wo_root = remove_root(pathname);
+
+    std::lock_guard<std::mutex> lock_dir(m_dirs_mutex);
+
+    std::string path_wo_root_slash = path_wo_root;
+    if (path_wo_root_slash.back() != '/') path_wo_root_slash.push_back('/');
+    auto dir = m_dirs.find(path_wo_root_slash);
+    if (dir != m_dirs.end()) {
+        LOGGER_DEBUG("Is a directory {}", path);
+        //Fill directory entry
+        dir->second.get()->stat(stbuf);
+    }
+    else  {
+        std::lock_guard<std::mutex> lock(m_files_mutex);
+        auto file = m_files.find(path_wo_root);
+        if (file != m_files.end()) {
+            const auto& file_ptr = file->second;
+            file_ptr->stat(stbuf);
+        } 
+        else { 
+            LOGGER_DEBUG("do_stat not found file {}",path); 
+
+            return -ENOENT;
+        }
+
+    }
+     return 0;
+}
+
+/* Those are temporary files */
+int nvml_backend::do_create(const char* pathname, mode_t mode, std::shared_ptr < backend::file> & file) {
+    LOGGER_DEBUG("Inside backend do_create for {}",pathname);
+
+    std::string path_wo_root = remove_root (pathname);
+
+    std::lock_guard<std::mutex> lock(m_files_mutex);
+    std::lock_guard<std::mutex> lock_dir(m_dirs_mutex);
+    if(m_files.count(path_wo_root) != 0) {
+        return -1;
+    }
+
+     // Add to the directory
+    
+    std::string path_wo_root_slash = path_wo_root.substr(0,path_wo_root.rfind('/')+1);
+
+   
+    if (path_wo_root_slash.size() == 0 or path_wo_root_slash.back() != '/') path_wo_root_slash.push_back('/');
+    auto dir = m_dirs.find(path_wo_root_slash);
+    if (dir != m_dirs.end()) {
+         dir->second.get()->add_file(path_wo_root.substr(path_wo_root.rfind('/')+1));
+    } else 
+    {
+        LOGGER_DEBUG("[CREATE] DIR {} - {} not found", path_wo_root_slash, pathname);
+        return -1; 
+    }
+    
+    /* create a new file into m_files (the constructor will fill it with
+     * the contents of the pathname) */
+    auto it = m_files.emplace(path_wo_root, 
+                              std::make_unique<nvml::file>(m_daxfs_mount_point, pathname, 0 ,file::type::temporary,false));
+
+    struct stat stbuf;
+    memset ((void*)&stbuf,0,sizeof(struct stat));
+    stbuf.st_ino = new_inode();
+    stbuf.st_uid = getuid();
+    stbuf.st_gid = getgid();
+    stbuf.st_mode = S_IFREG | 0777;
+    stbuf.st_nlink = 1;
+    stbuf.st_atime = time (NULL);
+    stbuf.st_mtime = time (NULL);
+    stbuf.st_ctime = time (NULL);
+   
+    auto& file_ptr = (*(it.first)).second;
+    auto nvml_f_ptr = dynamic_cast<nvml::file * >(file_ptr.get());
+    nvml_f_ptr->save_attributes(stbuf);
+    file = std::shared_ptr<backend::file>(file_ptr.get());
+   
+    return 0;
 }
 
 backend::iterator nvml_backend::find(const char* path) {
@@ -233,6 +310,9 @@ std::string nvml_backend::remove_root (std::string pathname) const {
     return path_wo_root;
 }
 
+int nvml_backend::new_inode() const {
+    return i_inode++;
+}
 
 backend::iterator nvml_backend::begin() {
     return m_files.begin();

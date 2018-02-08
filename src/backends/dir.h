@@ -42,7 +42,7 @@ public:
 //    virtual void populate_from(posix::dir& f) = 0;
     virtual void stat(struct stat* buf) const = 0;
     virtual void list_files(list <files> & m_files) const = 0;
-   
+    virtual unsigned int num_links() const = 0;
     /* It needs operations to lock the directory */
 
     virtual ~dir(){}

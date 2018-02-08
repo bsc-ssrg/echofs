@@ -46,19 +46,25 @@ struct dir : public backend::dir {
 
   
     dir();
-    dir(const bfs::path& pathname, bool populate=true);
+    dir(const bfs::path& pathname, const ino_t inode, const bfs::path & path_original, bool populate=true);
     void list_files(std::list <std::string> & m_files) const;
     ~dir();
     void add_file (const std::string fname);
-    bool find (const std::string fname, std::list < std::string >::iterator & it);
+    bool find (const std::string fname, std::list < std::string >::iterator & it) const;
+    unsigned int num_links () const;
+    void stat(struct stat& stbuf) const;
 
 private:
     /* container with the list of files inside the directory. 
        We store the canonical name, 
        for the standard ls and a pointer to the file for the ls -ltrh optimization */
     bfs::path m_pathname;
-    std::list < std::string > m_files; 
-   
+    mutable std::list < std::string > m_files; // TODO : Mutex
+
+    mutable boost::shared_mutex m_attributes_mutex;
+    struct stat m_attributes; /*!< Dir attributes */
+
+    void save_attributes(struct stat & stbuf);    /* Saves attributes of the directory */
 };
 
 } // namespace nvml

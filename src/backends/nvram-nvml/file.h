@@ -87,7 +87,7 @@ struct file_region_list : public std::vector<file_region> {
 struct file : public backend::file {
 
     file();
-    file(const bfs::path& pool_base, const bfs::path& pathname, file::type type=file::type::persistent, bool populate=true);
+    file(const bfs::path& pool_base, const bfs::path& pathname, const ino_t inode, file::type type=file::type::persistent, bool populate=true);
     ~file();
     void stat(struct stat& stbuf) const override;
 
@@ -95,12 +95,13 @@ struct file : public backend::file {
     ssize_t put_data(off_t offset, size_t size, struct fuse_bufvec* fuse_buffer);
     ssize_t append_data(off_t offset, size_t size, struct fuse_bufvec* fuse_buffer);
     void truncate(off_t offset);
+    void save_attributes(struct stat& stbuf);
 
 private:
 
     size_t size() const;
     void update_size(size_t size);
-    void save_attributes(struct stat& stbuf);
+    
 
     void fetch_storage(off_t offset, size_t size, file_region_list& regions);
     lock_manager::range_lock lock_range(off_t start, off_t end, operation op);

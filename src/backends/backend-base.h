@@ -133,7 +133,9 @@ public:
 
     virtual void list_files(std::list <std::string> & m_f) const = 0;
     virtual void add_file(const std::string file) = 0;
-    virtual bool find (const std::string fname, std::list < std::string >::iterator & it) = 0;
+    virtual bool find (const std::string fname, std::list < std::string >::iterator & it) const = 0;
+    virtual unsigned int num_links() const = 0;
+    virtual void stat(struct stat& stbuf) const = 0;
     virtual ~dir(){}
 }; // class dir
 
@@ -159,6 +161,8 @@ public:
     virtual error_code unload(const bfs::path& pathname) = 0;
     virtual bool exists(const char* pathname) const = 0;
     virtual int do_readdir (const char * path, void * buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) const = 0;
+    virtual int do_stat (const char * path, struct stat& stbuf) const = 0;
+    virtual int do_create(const char* pathname, mode_t mode, std::shared_ptr < backend::file> & file) = 0;
 
     virtual iterator find(const char* path) = 0;
     virtual iterator begin() = 0;

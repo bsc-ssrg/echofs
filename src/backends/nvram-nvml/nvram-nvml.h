@@ -32,6 +32,7 @@
 #include <unordered_map>
 #include <boost/filesystem.hpp>
 #include <mutex>
+#include <atomic>
 
 /* internal includes */
 #include <efs-common.h>
@@ -62,6 +63,10 @@ public:
     error_code unload(const bfs::path& pathname) override;
     bool exists(const char* pathname) const override;
     int do_readdir (const char * path, void * buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) const override;
+    int do_stat ( const char * path, struct stat& stbuf) const override;
+    int do_create(const char* pathname, mode_t mode, std::shared_ptr < backend::file> & file) override;
+    int new_inode() const;
+
 
     backend::iterator find(const char* path) override;
     backend::iterator begin() override;
@@ -84,12 +89,12 @@ private:
     mutable std::mutex m_dirs_mutex;
     std::unordered_map<std::string, dir_ptr> m_dirs;
     
+    mutable std::atomic<ino_t> i_inode;
+
     std::list <std::string> find_s(const std::string path) const;
 
     // Utils
     std::string remove_root (std::string path) const;
-
-    std::vector<std::string> split_path (std::string path) const;
 
 }; // nvml_backend
 

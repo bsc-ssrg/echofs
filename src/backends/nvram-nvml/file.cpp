@@ -67,7 +67,7 @@ file::file()
       m_segments(0, std::numeric_limits<off_t>::max(), segment_ptr()) {
 }
 
-file::file(const bfs::path& pool_base, const bfs::path& pathname, file::type type, bool populate) 
+file::file(const bfs::path& pool_base, const bfs::path& pathname, const ino_t inode, file::type type,  bool populate) 
     : m_pathname(pathname),
       m_type(type),
       m_alloc_offset(0),
@@ -99,7 +99,7 @@ file::file(const bfs::path& pool_base, const bfs::path& pathname, file::type typ
         posix::file fd(pathname);
         struct stat stbuf;
         fd.stat(stbuf);
-
+        stbuf.st_ino = inode;
         off_t seg_offset = 0;
         size_t seg_size = efsng::xalign(stbuf.st_size, segment::s_segment_size);
 

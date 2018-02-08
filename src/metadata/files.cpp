@@ -25,7 +25,7 @@
  *************************************************************************/
 
 #include "files.h"
-
+#include <iostream>
 namespace efsng{
 
 File::File(ino_t inode, int fd, mode_t mode)
@@ -33,6 +33,7 @@ File::File(ino_t inode, int fd, mode_t mode)
       fd(fd),
       mode(mode),
       data(nullptr){ 
+      size = 0;
 }
 
 File::~File(){
@@ -48,6 +49,14 @@ int File::get_fd() const {
 
 mode_t File::get_mode() const {
     return mode;
+}
+
+std::shared_ptr <backend::file> File::get_ptr (){
+	return ptr;
+}
+
+void File::set_ptr (std::shared_ptr <backend::file> pt){
+	ptr = pt;
 }
 
 } // namespace efsng

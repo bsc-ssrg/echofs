@@ -58,7 +58,9 @@ public:
     error_code unload(const bfs::path& pathname) override;
     bool exists(const char* pathname) const override;
     int do_readdir (const char * path, void * buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) const override;
-
+    int do_stat (const char *path, struct stat& stbuf) const override;
+    int do_create(const char* pathname, mode_t mode, std::shared_ptr < backend::file> & file) override;
+    
     efsng::backend::iterator find(const char* path) override;
     efsng::backend::iterator begin() override;
     efsng::backend::iterator end() override;
