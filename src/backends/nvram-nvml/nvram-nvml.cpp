@@ -239,8 +239,7 @@ int nvml_backend::do_create(const char* pathname, mode_t mode, std::shared_ptr <
     auto dir = m_dirs.find(path_wo_root_slash);
     if (dir != m_dirs.end()) {
          dir->second.get()->add_file(path_wo_root.substr(path_wo_root.rfind('/')+1));
-    } else 
-    {
+    } else  {
         LOGGER_DEBUG("[CREATE] DIR {} - {} not found", path_wo_root_slash, pathname);
         return -1; 
     }
@@ -270,7 +269,8 @@ int nvml_backend::do_create(const char* pathname, mode_t mode, std::shared_ptr <
 }
 
 backend::iterator nvml_backend::find(const char* path) {
-    return m_files.find(path);
+    std::string path_wo_root = remove_root (path);
+    return m_files.find(path_wo_root);
 }
 
 std::list <std::string> nvml_backend::find_s(const std::string path) const {

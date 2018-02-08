@@ -103,7 +103,7 @@ public:
         virtual ssize_t get_data(off_t offset, size_t size, struct fuse_bufvec* fuse_buffer) = 0;
         virtual ssize_t put_data(off_t offset, size_t size, struct fuse_bufvec* fuse_buffer) = 0;
         virtual ssize_t append_data(off_t offset, size_t size, struct fuse_bufvec* fuse_buffer) = 0;
-
+        virtual void save_attributes(struct stat & stbuf) = 0;
         virtual ~file(){}
     };
 
@@ -136,6 +136,8 @@ public:
     virtual bool find (const std::string fname, std::list < std::string >::iterator & it) const = 0;
     virtual unsigned int num_links() const = 0;
     virtual void stat(struct stat& stbuf) const = 0;
+  
+
     virtual ~dir(){}
 }; // class dir
 

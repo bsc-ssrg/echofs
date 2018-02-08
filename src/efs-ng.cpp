@@ -1092,16 +1092,44 @@ static int efsng_utimens(const char* pathname, const struct timespec tv[2]){
 static int efsng_utimens(const char* pathname, const struct timespec tv[2], struct fuse_file_info* file_info){
 #endif
 
-    auto old_credentials = efsng::assume_user_credentials();
+    
+    efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
+    LOGGER_DEBUG("utimens called \"{}\" ", pathname);
+
+    /* Search the backends */
+     for(const auto& kv: efsng_ctx->m_backends) {
+
+        const auto& backend_id = kv.first;
+        const auto& backend_ptr = kv.second;
+        std::shared_ptr <efsng::backend::file> ptr;
+        if (backend_id.find("nvml://") != std::string::npos ) {
+            LOGGER_DEBUG("utimens found nvml \"{}\" ", pathname);
+            auto ptr = backend_ptr->find(pathname);
+           
+            if (ptr == backend_ptr->end()) {
+                LOGGER_DEBUG("utimens not found \"{}\" ", pathname);
+                return -ENOENT;
+            }
+            auto p_file = ptr->second.get();
+            struct stat stbuf;
+            p_file->stat(stbuf);
+
+            stbuf.st_atime = tv[0].tv_sec ;
+            stbuf.st_mtime = tv[1].tv_sec;
+
+            p_file->save_attributes(stbuf);
+        }
+    }
+    //auto old_credentials = efsng::assume_user_credentials();
 
     /* don't use utime/utimens since they follow symlinks */
-    int res = utimensat(0, pathname, tv, AT_SYMLINK_NOFOLLOW); 
+    //int res = utimensat(0, pathname, tv, AT_SYMLINK_NOFOLLOW); 
 
-    efsng::restore_credentials(old_credentials);
+    //efsng::restore_credentials(old_credentials);
 
-    if(res == -1){
-        return -errno;
-    }
+    //if(res == -1){
+    //    return -errno;
+    //}
 
     return 0;
 }

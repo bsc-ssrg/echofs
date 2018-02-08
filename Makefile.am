@@ -233,7 +233,6 @@ src_efs_ng_LDFLAGS =		\
     @LIBYAMLCPP_LIBS@ \
      @LIBPMEM_LIBS@ \
 	@LIBPMEMOBJ_LIBS@ \
-	@LIBPMEMKV_LIBS@ \
 	@PROTOBUF_LIBS@ \
     $(END)
 

@@ -56,6 +56,11 @@ struct file : public backend::file {
         (void) buf; 
         return ; 
     }
+    
+    void save_attributes(struct stat & stbuf) override {
+        (void) stbuf;
+        return ;
+    }
 
     ssize_t get_data(off_t offset, size_t size, struct fuse_bufvec* fuse_buffer) override { 
         (void) offset;
@@ -81,7 +86,7 @@ struct file : public backend::file {
     size_t size() const { return 0; }
     void set_size(size_t size) { (void) size; }
     void extend(off_t offset, size_t size) { (void) offset; (void) size; }
-
+    
 
     void add(const mapping& mp);
 };
