@@ -131,6 +131,7 @@ private:
     mutable boost::shared_mutex m_dealloc_mutex; /*!< Mutex to synchronize reader/writer access to the tree */
 
     mutable lock_manager m_range_mutex;    /*!< Mutex in charge of handling range locks */
+
 };
 
 } // namespace nvml

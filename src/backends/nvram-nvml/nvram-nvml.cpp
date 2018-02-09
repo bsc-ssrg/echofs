@@ -168,10 +168,8 @@ int nvml_backend::do_readdir (const char * path, void * buffer, fuse_fill_dir_t 
     LOGGER_DEBUG("Inside backend readdir for {}", path);
     filler(buffer, ".", NULL, 0);
     filler(buffer, "..", NULL, 0);
-    std::string pathname = path;
-    std::string path_wo_root = remove_root(pathname);
-
-    std::list <std::string> ls = find_s(path_wo_root);
+   
+    std::list <std::string> ls = find_s(path);
     
     for (auto &file : ls)
     {    
@@ -188,12 +186,11 @@ int nvml_backend::do_readdir (const char * path, void * buffer, fuse_fill_dir_t 
 int nvml_backend::do_stat (const char * path, struct stat& stbuf) const {
 
     LOGGER_DEBUG("Inside backend do_stat for {}",path);
-    std::string pathname = path;
-    std::string path_wo_root = remove_root(pathname);
+   
 
     std::lock_guard<std::mutex> lock_dir(m_dirs_mutex);
 
-    std::string path_wo_root_slash = path_wo_root;
+    std::string path_wo_root_slash = path;
     if (path_wo_root_slash.back() != '/') path_wo_root_slash.push_back('/');
     auto dir = m_dirs.find(path_wo_root_slash);
     if (dir != m_dirs.end()) {
@@ -203,14 +200,13 @@ int nvml_backend::do_stat (const char * path, struct stat& stbuf) const {
     }
     else  {
         std::lock_guard<std::mutex> lock(m_files_mutex);
-        auto file = m_files.find(path_wo_root);
+        auto file = m_files.find(path);
         if (file != m_files.end()) {
             const auto& file_ptr = file->second;
             file_ptr->stat(stbuf);
         } 
         else { 
-            LOGGER_DEBUG("do_stat not found file {}",path); 
-
+            LOGGER_DEBUG("do_stat not found file {} - {} ",path, path_wo_root_slash); 
             return -ENOENT;
         }
 
@@ -263,14 +259,13 @@ int nvml_backend::do_create(const char* pathname, mode_t mode, std::shared_ptr <
     auto& file_ptr = (*(it.first)).second;
     auto nvml_f_ptr = dynamic_cast<nvml::file * >(file_ptr.get());
     nvml_f_ptr->save_attributes(stbuf);
-    file = std::shared_ptr<backend::file>(file_ptr.get());
+    file = std::shared_ptr<backend::file> (nvml_f_ptr);
    
     return 0;
 }
 
 backend::iterator nvml_backend::find(const char* path) {
-    std::string path_wo_root = remove_root (path);
-    return m_files.find(path_wo_root);
+    return m_files.find(path);
 }
 
 std::list <std::string> nvml_backend::find_s(const std::string path) const {

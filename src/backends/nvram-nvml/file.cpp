@@ -115,7 +115,7 @@ file::file(const bfs::path& pool_base, const bfs::path& pathname, const ino_t in
 }
 
 file::~file() {
-    //std::cerr << "a nvml::file instance died...\n";
+    std::cerr << "a nvml::file " << m_pathname.string() <<  " instance died...\n" ;
 
     //TODO if the file is temporary, we need to delete all its segments
 }
@@ -123,9 +123,7 @@ file::~file() {
 void file::stat(struct stat& stbuf) const {
 
     m_alloc_mutex.lock_shared();
-    LOGGER_DEBUG(" STAT NVML {}",m_pathname);
     memcpy(&stbuf, &m_attributes, sizeof(stbuf));
-
     m_alloc_mutex.unlock_shared();
 }
 

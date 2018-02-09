@@ -107,7 +107,7 @@ public:
         virtual ~file(){}
     };
 
-    using file_ptr = std::unique_ptr<file>;
+    using file_ptr = std::shared_ptr<file>;
     
     /* iterator types */
     typedef std::unordered_map<std::string, file_ptr>::iterator iterator;
@@ -141,7 +141,7 @@ public:
     virtual ~dir(){}
 }; // class dir
 
-    using dir_ptr = std::unique_ptr<dir>;
+    using dir_ptr = std::shared_ptr<dir>;
 
 protected:
     backend() {}

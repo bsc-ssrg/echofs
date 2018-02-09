@@ -44,7 +44,7 @@ namespace dram {
 class dram_backend : public efsng::backend {
 
     // some aliases for convenience
-    using file_ptr = std::unique_ptr<backend::file>;
+    using file_ptr = std::shared_ptr<backend::file>;
 
     static constexpr const char* s_name = "DRAM";
 

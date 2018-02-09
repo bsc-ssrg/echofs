@@ -352,10 +352,10 @@ void settings::from_cmdline(int argc, char* argv[]){
     }
 
     if(m_root_dir != ""){
-        std::string option = "modules=subdir,subdir=";
+        /*std::string option = "modules=subdir,subdir=";
         option += m_root_dir.c_str();
         push_arg("-o");
-        push_arg(option.c_str());
+        push_arg(option.c_str());*/
     }
 
     //if(m_log_file != "none"){

@@ -103,48 +103,11 @@ static int efsng_getattr(const char* pathname, struct stat* stbuf, struct fuse_f
 
     LOGGER_DEBUG("stat(\"{}\")", pathname);
 
+    for(const auto& kv: efsng_ctx->m_backends) {
 
-
-for(const auto& kv: efsng_ctx->m_backends) {
-
-        const auto& backend_id = kv.first;
-        const auto& backend_ptr = kv.second;
-        if (backend_id.find("nvml://") != std::string::npos ) return backend_ptr->do_stat(pathname, *stbuf);
-}
-    /* search file in available backends */
-/*    for(const auto& kv: efsng_ctx->m_backends) {
-
-        const auto& backend_id = kv.first;
-        const auto& backend_ptr = kv.second;
-
-        // XXX in the future, if it's possible that a file
-        // is removed from a backend by another thread 
-        // (e.g. to be copied to Lustre) we should add a
-        // lock_guard and add a reference count to the file
-        // so that the removal doesn't happen while someone
-        // is using the file
-        const auto& it = backend_ptr->find(pathname);
-
-        if(it != backend_ptr->end()) {
-            LOGGER_DEBUG("File \"{}\" found in {}", pathname, backend_id);
-
-            const auto& file_ptr = it->second;
-
-            file_ptr->stat(*stbuf);
-            std::cerr << "Reported: " << stbuf->st_size << "\n";
-
-            return 0;
-        }
-    }
-*/
-    auto old_credentials = efsng::assume_user_credentials();
-
-    int res = lstat(pathname, stbuf);
-
-    efsng::restore_credentials(old_credentials);
-
-    if(res == -1){
-        return -errno;
+            const auto& backend_id = kv.first;
+            const auto& backend_ptr = kv.second;
+            if (backend_id.find("nvml://") != std::string::npos ) return backend_ptr->do_stat(pathname, *stbuf);
     }
 
     return 0;
@@ -388,34 +351,49 @@ static int efsng_truncate(const char* pathname, off_t length, struct fuse_file_i
  */
 static int efsng_open(const char* pathname, struct fuse_file_info* file_info){
 
-    int fd = open(pathname, file_info->flags);
+    (void) pathname;
 
-    if(fd == -1){
-        return -errno;
+    efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
+
+    for(const auto& kv: efsng_ctx->m_backends) {
+
+        const auto& backend_id = kv.first;
+        const auto& backend_ptr = kv.second;
+        
+        if (backend_id.find("nvml://") != std::string::npos ) {
+            LOGGER_DEBUG ("OPEN {}", pathname);
+            auto ret = backend_ptr->find(pathname);
+
+            if (ret == backend_ptr->end()) return -ENOENT;
+
+            std::shared_ptr<efsng::backend::file> ptr (ret->second.get());
+            int flags = 0;
+
+            if(file_info->flags & O_RDONLY){
+                flags |= O_RDONLY;
+            }
+
+            if(file_info->flags & O_WRONLY){
+                flags |= O_WRONLY;
+            }
+
+            if(file_info->flags & O_RDWR){
+                flags |= O_RDWR;
+            }
+
+            /* cache the inode, fd, and flags to reuse them later */
+            struct stat st;
+            ptr->stat(st);
+
+            // XXX this means that each "open()" creates a File record 
+            // XXX WARNING: records ARE NOT protected by a mutex yet
+            auto file_record = new efsng::File(st.st_ino, 42, flags);
+            file_record->set_ptr(ptr);
+            file_info->fh = (uint64_t) file_record;
+            LOGGER_DEBUG ("OPENED {}", pathname);
+            return 0;
+        }
     }
-
-    int flags = 0;
-
-    if(file_info->flags & O_RDONLY){
-        flags |= O_RDONLY;
-    }
-
-    if(file_info->flags & O_WRONLY){
-        flags |= O_WRONLY;
-    }
-
-    if(file_info->flags & O_RDWR){
-        flags |= O_RDWR;
-    }
-
-    /* cache the inode, fd, and flags to reuse them later */
-    struct stat st;
-    fstat(fd, &st);
-
-    // XXX this means that each "open()" creates a File record 
-    // XXX WARNING: records ARE NOT protected by a mutex yet
-    auto file_record = new efsng::File(st.st_ino, fd, flags);
-    file_info->fh = (uint64_t) file_record;
 
     return 0;
 }
@@ -588,11 +566,11 @@ static int efsng_fsync(const char* pathname, int is_datasync, struct fuse_file_i
 
     return 0;
 }
-
+// TODO: Do we need to implement extended attributes in the backend?
 #ifdef HAVE_SETXATTR
 /** Set extended attributes */
 static int efsng_setxattr(const char* pathname, const char* name, const char* value, size_t size, int flags){
-
+    return 0;
     auto old_credentials = efsng::assume_user_credentials();
 
     int res = lsetxattr(pathname, name, value, size, flags);
@@ -608,7 +586,7 @@ static int efsng_setxattr(const char* pathname, const char* name, const char* va
 
 /** Get extended attributes */
 static int efsng_getxattr(const char* pathname, const char* name, char* value, size_t size){
-
+    return 0;
     auto old_credentials = efsng::assume_user_credentials();
 
     int res = lgetxattr(pathname, name, value, size);
@@ -624,7 +602,7 @@ static int efsng_getxattr(const char* pathname, const char* name, char* value, s
 
 /** List extended attributes */
 static int efsng_listxattr(const char* pathname, char* listbuf, size_t size){
-
+    return 0;
     auto old_credentials = efsng::assume_user_credentials();
 
     int res = llistxattr(pathname, listbuf, size);
@@ -640,7 +618,7 @@ static int efsng_listxattr(const char* pathname, char* listbuf, size_t size){
 
 /** Remove extended attributes */
 static int efsng_removexattr(const char* pathname, const char* name){
-
+    return 0;
     auto old_credentials = efsng::assume_user_credentials();
 
     int res = lremovexattr(pathname, name);
@@ -664,6 +642,24 @@ static int efsng_removexattr(const char* pathname, const char* name){
  */
 static int efsng_opendir(const char* pathname, struct fuse_file_info* file_info){
 
+    efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
+    for(const auto& kv: efsng_ctx->m_backends) {
+
+        const auto& backend_id = kv.first;
+        const auto& backend_ptr = kv.second;
+        if (backend_id.find("nvml://") != std::string::npos ) {
+            struct stat stbuf;
+            backend_ptr->do_stat(pathname,stbuf);
+
+            // check credentials
+            // TODO : Check permissions 
+            // TODO : Store Dir pointer for release dir
+            return 0;
+        }
+    }
+
+
+/*
     DIR* dp = opendir(pathname);
 
     if(dp == NULL){
@@ -672,7 +668,7 @@ static int efsng_opendir(const char* pathname, struct fuse_file_info* file_info)
 
     auto dir_record = new efsng::Directory(dp, NULL, 0);
     file_info->fh = (uint64_t) dir_record;
-
+*/
     return 0;
 }
 
@@ -700,101 +696,17 @@ static int efsng_readdir(const char* pathname, void* buf, fuse_fill_dir_t filler
 
     (void) pathname;
 
-    //auto dir_record = (efsng::Directory*) file_info->fh;
-
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
     LOGGER_DEBUG("readdir called \"{}\" ", pathname);
 
     /* Search the backends */
-
 
     for(const auto& kv: efsng_ctx->m_backends) {
 
         const auto& backend_id = kv.first;
         const auto& backend_ptr = kv.second;
         if (backend_id.find("nvml://") != std::string::npos ) return backend_ptr->do_readdir(pathname, buf, filler, offset, file_info);
-        // TODO : Check with Alberto  --> We will only have one backend
-/*
-        const auto& it = backend_ptr->find(pathname);
-
-        if(it != backend_ptr->end()) {
-            LOGGER_DEBUG("File \"{}\" found in {}", pathname, backend_id);
-
-            const auto& file_ptr = it->second;
-
-            //if(file_ptr->flags() == O_APPEND) {
-            //    ssize_t rv = file_ptr->append_data(offset, size, buf);
-            //}
-            //else {
-           // ssize_t rv = file_ptr->put_data(offset, size, buf);
-            //}
-
-         //   return rv;
-        } */
     }
- /*   
-    if(offset != dir_record->get_offset()){
-        seekdir(dir_record->get_dirp(), offset);
-        dir_record->set_entry(NULL);
-        dir_record->set_offset(offset);
-    }
-
-    while(true){
-        struct stat st;
-        off_t next_offset;
-#if FUSE_USE_VERSION >= 30
-        enum fuse_fill_dir_flags fill_flags = (enum fuse_fill_dir_flags) 0;
-#endif
-
-        if(dir_record->get_entry() == NULL){
-            struct dirent* dirent = readdir(dir_record->get_dirp());
-            dir_record->set_entry(dirent);
-
-            if(dirent == NULL){
-                break;
-            }
-        }
-
-#if FUSE_USE_VERSION >= 30 && defined(HAVE_FSTATAT)
-        if(flags & FUSE_READDIR_PLUS){
-            int res;
-
-            res = fstatat(dirfd(dir_record->get_dirp()), dir_record->get_entry()->d_name , &st, AT_SYMLINK_NOFOLLOW);
-            
-            if(res != -1){
-                fill_flags = (fuse_fill_dir_flags) ((int) fill_flags | FUSE_FILL_DIR_PLUS);
-            }
-        }
-#endif
-
-#if FUSE_USE_VERSION >= 30
-        if(!((int) fill_flags & FUSE_FILL_DIR_PLUS)){
-#endif
-
-        memset(&st, 0, sizeof(st));
-        st.st_ino = dir_record->get_entry()->d_ino;
-        st.st_mode = dir_record->get_entry()->d_type << 12;
-
-#if FUSE_USE_VERSION >= 30
-        }
-#endif
-
-        next_offset = telldir(dir_record->get_dirp());
-
-#if FUSE_USE_VERSION < 30
-        if(filler(buf, dir_record->get_entry()->d_name, &st, next_offset) != 0){
-            break;
-        }
-#else
-        if(filler(buf, dir_record->get_entry()->d_name, &st, next_offset, fill_flags) != 0){
-            break;
-        }
-#endif
-
-        dir_record->set_entry(NULL);
-        dir_record->set_offset(0);
-    }
-*/
     return 0;
 }
 
@@ -803,6 +715,21 @@ static int efsng_releasedir(const char* pathname, struct fuse_file_info* file_in
 
     (void) pathname;
 
+
+    efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
+    for(const auto& kv: efsng_ctx->m_backends) {
+
+        const auto& backend_id = kv.first;
+        const auto& backend_ptr = kv.second;
+        if (backend_id.find("nvml://") != std::string::npos ) {
+            struct stat stbuf;
+            backend_ptr->do_stat(pathname,stbuf);
+
+            // TODO : delete dir pointer
+            return 0;
+        }
+    }
+    /*
     auto dir_record = (efsng::Directory*) file_info->fh;
 
     if(closedir(dir_record->get_dirp()) == -1){
@@ -810,7 +737,7 @@ static int efsng_releasedir(const char* pathname, struct fuse_file_info* file_in
     }
 
     delete dir_record;
-
+    */
     return 0;
 }
 
@@ -919,14 +846,23 @@ static void efsng_destroy(void *) {
  */
 static int efsng_access(const char* pathname, int mode){
 
-    auto old_credentials = efsng::assume_user_credentials();
+    efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
+    LOGGER_DEBUG("access called \"{}\" ", pathname);
 
-    int res = access(pathname, mode);
+    /* Search the backends */
 
-    efsng::restore_credentials(old_credentials);
+    for(const auto& kv: efsng_ctx->m_backends) {
 
-    if(res == -1){
-        return -errno;
+        const auto& backend_id = kv.first;
+        const auto& backend_ptr = kv.second;
+        if (backend_id.find("nvml://") != std::string::npos ) {
+            struct stat stbuf;
+            backend_ptr->do_stat(pathname,stbuf);
+
+            // check credentials
+
+            return 0;
+        }
     }
 
     return 0;
@@ -955,6 +891,7 @@ static int efsng_create(const char* pathname, mode_t mode, struct fuse_file_info
         if (backend_id.find("nvml://") != std::string::npos ) {
             auto ret = backend_ptr->do_create(pathname, mode, ptr);
             struct stat st;
+            
             ptr->stat(st);
             int flags = 0;
 

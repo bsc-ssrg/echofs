@@ -48,8 +48,8 @@ namespace nvml {
 class nvml_backend : public efsng::backend {
 
     // some aliases for convenience
-    using file_ptr = std::unique_ptr<backend::file>;
-    using dir_ptr = std::unique_ptr<backend::dir>;
+    using file_ptr = std::shared_ptr<backend::file>;
+    using dir_ptr = std::shared_ptr<backend::dir>;
 
     static constexpr const char* s_name = "NVRAM-NVML";
 
