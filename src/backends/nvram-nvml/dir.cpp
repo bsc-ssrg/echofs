@@ -61,15 +61,24 @@ dir::~dir() {
 }
 
 void dir::add_file (const std::string file) {
-    if ( std::find(m_files.begin(), m_files.end(), file ) == m_files.end() )
-    {
+    if ( std::find(m_files.begin(), m_files.end(), file ) == m_files.end() )  {
         m_files.push_back( file );
-        m_attributes_mutex.lock_shared();
+        m_attributes_mutex.lock();
         m_attributes.st_nlink += 1;
-        m_attributes_mutex.unlock_shared();
+        m_attributes_mutex.unlock();
     }
 }
 
+
+void dir::remove_file (const std::string file) {
+    auto it = std::find(m_files.begin(), m_files.end(), file );
+    if (it != m_files.end()) {
+        m_files.erase ( it );
+        m_attributes_mutex.lock();
+        m_attributes.st_nlink -= 1;
+        m_attributes_mutex.unlock();
+    }
+}
 
 void dir::list_files(std::list <std::string> & m_f) const {
     for (const auto li : m_files){
@@ -96,9 +105,9 @@ void dir::stat(struct stat& stbuf) const {
 }
 
 void dir::save_attributes(struct stat& stbuf) {
-    m_attributes_mutex.lock_shared();
+    m_attributes_mutex.lock();
     memcpy(&m_attributes, &stbuf, sizeof(m_attributes));
-    m_attributes_mutex.unlock_shared();
+    m_attributes_mutex.unlock();
 }
 
 } // namespace nvml

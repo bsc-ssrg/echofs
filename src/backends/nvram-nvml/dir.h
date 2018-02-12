@@ -50,6 +50,7 @@ struct dir : public backend::dir {
     void list_files(std::list <std::string> & m_files) const;
     ~dir();
     void add_file (const std::string fname);
+    void remove_file (const std::string fname);
     bool find (const std::string fname, std::list < std::string >::iterator & it) const;
     unsigned int num_links () const;
     void stat(struct stat& stbuf) const;

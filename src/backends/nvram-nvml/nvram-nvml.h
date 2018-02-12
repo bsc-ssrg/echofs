@@ -65,6 +65,8 @@ public:
     int do_readdir (const char * path, void * buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) const override;
     int do_stat ( const char * path, struct stat& stbuf) const override;
     int do_create(const char* pathname, mode_t mode, std::shared_ptr < backend::file> & file) override;
+    int do_unlink(const char * pathname) override;
+    int do_rename(const char * oldpath, const char * newpath) override;
     int new_inode() const;
 
 

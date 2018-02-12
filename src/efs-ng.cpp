@@ -172,6 +172,18 @@ static int efsng_mkdir(const char* pathname, mode_t mode){
 /** Remove a file */
 static int efsng_unlink(const char* pathname){
 
+    efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
+
+    LOGGER_DEBUG("unlink(\"{}\")", pathname);
+
+    for(const auto& kv: efsng_ctx->m_backends) {
+
+            const auto& backend_id = kv.first;
+            const auto& backend_ptr = kv.second;
+            if (backend_id.find("nvml://") != std::string::npos ) return backend_ptr->do_unlink(pathname);
+    }
+
+
     auto old_credentials = efsng::assume_user_credentials();
 
     int res = unlink(pathname);
@@ -223,6 +235,21 @@ static int efsng_rename(const char* oldpath, const char* newpath){
 #else
 static int efsng_rename(const char* oldpath, const char* newpath, unsigned int flags){
 #endif
+
+
+
+    efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
+
+    LOGGER_DEBUG("rename(\"{}\",\"{}\")", oldpath, newpath);
+
+    for(const auto& kv: efsng_ctx->m_backends) {
+
+            const auto& backend_id = kv.first;
+            const auto& backend_ptr = kv.second;
+            if (backend_id.find("nvml://") != std::string::npos ) return backend_ptr->do_rename(oldpath,newpath);
+    }
+
+
 
     auto old_credentials = efsng::assume_user_credentials();
 
@@ -366,7 +393,7 @@ static int efsng_open(const char* pathname, struct fuse_file_info* file_info){
 
             if (ret == backend_ptr->end()) return -ENOENT;
 
-            std::shared_ptr<efsng::backend::file> ptr (ret->second.get());
+            std::shared_ptr<efsng::backend::file> ptr (ret->second);
             int flags = 0;
 
             if(file_info->flags & O_RDONLY){
@@ -1038,7 +1065,7 @@ static int efsng_utimens(const char* pathname, const struct timespec tv[2], stru
 
         const auto& backend_id = kv.first;
         const auto& backend_ptr = kv.second;
-        std::shared_ptr <efsng::backend::file> ptr;
+       
         if (backend_id.find("nvml://") != std::string::npos ) {
             LOGGER_DEBUG("utimens found nvml \"{}\" ", pathname);
             auto ptr = backend_ptr->find(pathname);

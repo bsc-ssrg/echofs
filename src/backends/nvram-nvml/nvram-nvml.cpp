@@ -218,7 +218,7 @@ int nvml_backend::do_stat (const char * path, struct stat& stbuf) const {
 int nvml_backend::do_create(const char* pathname, mode_t mode, std::shared_ptr < backend::file> & file) {
     LOGGER_DEBUG("Inside backend do_create for {}",pathname);
 
-    std::string path_wo_root = remove_root (pathname);
+    std::string path_wo_root = pathname;
 
     std::lock_guard<std::mutex> lock(m_files_mutex);
     std::lock_guard<std::mutex> lock_dir(m_dirs_mutex);
@@ -259,12 +259,94 @@ int nvml_backend::do_create(const char* pathname, mode_t mode, std::shared_ptr <
     auto& file_ptr = (*(it.first)).second;
     auto nvml_f_ptr = dynamic_cast<nvml::file * >(file_ptr.get());
     nvml_f_ptr->save_attributes(stbuf);
-    file = std::shared_ptr<backend::file> (nvml_f_ptr);
+    file = std::shared_ptr<backend::file> (file_ptr);
    
     return 0;
 }
 
+
+
+int nvml_backend::do_unlink(const char * pathname) {
+    std::string path = pathname;
+    std::lock_guard<std::mutex> lock(m_files_mutex);
+    std::lock_guard<std::mutex> lock_dir(m_dirs_mutex);
+    if(m_files.count(pathname) == 0) {
+        return -ENOENT;
+    }
+    // Remove the file
+    auto file = m_files.find(path);
+    if (file != m_files.end()) {
+        const auto& file_ptr = file->second;
+        m_files.erase(file);
+    } 
+    else { 
+        LOGGER_DEBUG("do_unlink not found file {}",pathname); 
+        return -ENOENT;
+    }
+
+    std::string path_wo_root_slash = path.substr(0,path.rfind('/')+1);
+
+   
+    if (path_wo_root_slash.size() == 0 or path_wo_root_slash.back() != '/') path_wo_root_slash.push_back('/');
+    auto dir = m_dirs.find(path_wo_root_slash);
+    if (dir != m_dirs.end()) {
+         dir->second.get()->remove_file(path.substr(path.rfind('/')+1));
+    }
+
+    return 0;
+}
+
+int nvml_backend::do_rename(const char * oldpath, const char * newpath) {
+    // Create the other file
+    std::string opath = oldpath;
+    std::string npath = newpath;
+  
+    std::lock_guard<std::mutex> lock(m_files_mutex);
+    std::lock_guard<std::mutex> lock_dir(m_dirs_mutex);
+    if(m_files.count(npath) != 0) {
+        return -1; // file exists
+    }
+
+    if(m_files.count(opath) == 0) {
+        return -ENOENT; // file do not exists
+    }
+
+    // Create the new file
+
+    // Search for oldpointer 
+    auto file = m_files.find(opath);
+    const auto& file_ptr = file->second;
+     
+    auto it = m_files.emplace(npath, file_ptr);
+    
+    // remove old file
+
+    m_files.erase(file); // Check: pointer should not be deleted...
+    
+    // Now we should update directory
+
+    std::string opath_wo_root_slash = opath.substr(0,opath.rfind('/')+1);
+    std::string npath_wo_root_slash = npath.substr(0,npath.rfind('/')+1);
+
+   
+    if (opath_wo_root_slash.size() == 0 or opath_wo_root_slash.back() != '/') opath_wo_root_slash.push_back('/');
+    if (npath_wo_root_slash.size() == 0 or npath_wo_root_slash.back() != '/') npath_wo_root_slash.push_back('/');
+    
+    auto dir = m_dirs.find(opath_wo_root_slash);
+    if (dir != m_dirs.end()) {
+         dir->second.get()->remove_file(opath.substr(opath.rfind('/')+1));
+    }
+
+    dir = m_dirs.find(npath_wo_root_slash);
+    if (dir != m_dirs.end()) {
+         dir->second.get()->add_file(npath.substr(npath.rfind('/')+1));
+    }
+
+   return 0;
+}
+
 backend::iterator nvml_backend::find(const char* path) {
+    LOGGER_DEBUG ("FIND {}", path);
     return m_files.find(path);
 }
 

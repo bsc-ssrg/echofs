@@ -103,6 +103,13 @@ int dram_backend::do_create(const char* pathname, mode_t mode, std::shared_ptr <
     return 0;
 }
 
+int dram_backend::do_unlink(const char * pathname) {
+    return 0;
+}
+
+int dram_backend::do_rename(const char * oldpath, const char * newpath) {
+    return 0;
+}
 efsng::backend::iterator dram_backend::find(const char* path) {
     return m_files.find(path);
 }
