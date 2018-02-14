@@ -110,6 +110,12 @@ int dram_backend::do_unlink(const char * pathname) {
 int dram_backend::do_rename(const char * oldpath, const char * newpath) {
     return 0;
 }
+
+
+int dram_backend::do_mkdir(const char * pathname, mode_t mode) {
+    return 0;
+}
+
 efsng::backend::iterator dram_backend::find(const char* path) {
     return m_files.find(path);
 }

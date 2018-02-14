@@ -137,7 +137,7 @@ public:
     virtual bool find (const std::string fname, std::list < std::string >::iterator & it) const = 0;
     virtual unsigned int num_links() const = 0;
     virtual void stat(struct stat& stbuf) const = 0;
-  
+    virtual void save_attributes(struct stat & stbuf) = 0;
 
     virtual ~dir(){}
 }; // class dir
@@ -168,6 +168,7 @@ public:
     virtual int do_create(const char* pathname, mode_t mode, std::shared_ptr < backend::file> & file) = 0;
     virtual int do_unlink(const char * pathname) = 0;
     virtual int do_rename(const char * oldpath, const char * newpath) = 0;
+    virtual int do_mkdir(const char * pathname, mode_t mode) = 0;
     virtual iterator find(const char* path) = 0;
     virtual iterator begin() = 0;
     virtual iterator end() = 0;

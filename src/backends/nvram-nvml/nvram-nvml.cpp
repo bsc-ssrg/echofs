@@ -250,7 +250,7 @@ int nvml_backend::do_create(const char* pathname, mode_t mode, std::shared_ptr <
     stbuf.st_ino = new_inode();
     stbuf.st_uid = getuid();
     stbuf.st_gid = getgid();
-    stbuf.st_mode = S_IFREG | 0777;
+    stbuf.st_mode = mode;
     stbuf.st_nlink = 1;
     stbuf.st_atime = time (NULL);
     stbuf.st_mtime = time (NULL);
@@ -344,6 +344,41 @@ int nvml_backend::do_rename(const char * oldpath, const char * newpath) {
 
    return 0;
 }
+
+
+int nvml_backend::do_mkdir(const char * pathname, mode_t mode) {
+    LOGGER_DEBUG("Inside backend do_mkdir for {}",pathname);
+
+    std::string path_wo_root = pathname;
+
+    std::lock_guard<std::mutex> lock_dir(m_dirs_mutex);
+     // Add to the directory
+    if (path_wo_root.size() == 0 or path_wo_root.back() != '/') path_wo_root.push_back('/');
+    auto dir = m_dirs.find(path_wo_root);
+    if (dir == m_dirs.end()) {
+        auto it = m_dirs.emplace(path_wo_root, std::make_unique<nvml::dir>(path_wo_root, new_inode(), m_root_dir.string() + path_wo_root,dir::type::temporary,false));
+
+        struct stat stbuf;
+        it.first->second.get()->stat(stbuf);
+        // Update stbuf
+       
+        stbuf.st_uid = getuid();
+        stbuf.st_gid = getgid();
+        stbuf.st_mode = mode;
+
+        stbuf.st_atime = time (NULL);
+        stbuf.st_mtime = time (NULL);
+        stbuf.st_ctime = time (NULL);
+
+        it.first->second.get()->save_attributes(stbuf);
+
+    } else {
+        LOGGER_DEBUG("[CREATE] MKDIR {} dir found", path_wo_root);
+        return -1; 
+    }
+    return 0;
+}
+
 
 backend::iterator nvml_backend::find(const char* path) {
     LOGGER_DEBUG ("FIND {}", path);

@@ -43,8 +43,9 @@ dir::dir()
     : backend::dir() {
 }
 
-dir::dir(const bfs::path& pathname, const ino_t inode, const bfs::path & path_original, bool populate) 
-    : m_pathname(pathname) {
+dir::dir(const bfs::path& pathname, const ino_t inode, const bfs::path & path_original, dir::type type, bool populate) 
+    : m_pathname(pathname),
+     m_type(type) {
 
     if (populate) {
         posix::file fd(path_original);
@@ -53,7 +54,14 @@ dir::dir(const bfs::path& pathname, const ino_t inode, const bfs::path & path_or
         stbuf.st_ino = inode;
         stbuf.st_nlink = 1;
         save_attributes(stbuf);
+    } else  {
+        struct stat stbuf;
+        memset(&stbuf,0,sizeof(struct stat));
+        stbuf.st_ino = inode;
+        stbuf.st_nlink = 1;
+        save_attributes(stbuf);
     }
+
 }
 
 dir::~dir() {

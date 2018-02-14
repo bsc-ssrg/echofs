@@ -62,6 +62,7 @@ public:
     int do_create(const char* pathname, mode_t mode, std::shared_ptr < backend::file> & file) override;
     int do_unlink(const char * pathname) override;
     int do_rename(const char * oldpath, const char * newpath) override;
+    int do_mkdir(const char * pathname, mode_t mode) override;
     efsng::backend::iterator find(const char* path) override;
     efsng::backend::iterator begin() override;
     efsng::backend::iterator end() override;

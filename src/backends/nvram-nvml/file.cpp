@@ -111,6 +111,8 @@ file::file(const bfs::path& pool_base, const bfs::path& pathname, const ino_t in
         m_used_offset = sptr->fill_from(fd);
 
         save_attributes(stbuf);
+    } else {
+        m_segments.build_tree();
     }
 }
 

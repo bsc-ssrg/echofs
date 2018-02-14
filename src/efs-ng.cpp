@@ -151,10 +151,20 @@ static int efsng_mknod(const char* pathname, mode_t mode, dev_t dev){
 /** Create a directory */
 static int efsng_mkdir(const char* pathname, mode_t mode){
 
+    efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
+    
     /* the mode argument may not have the specific bits set */
     if(!mode & S_IFDIR){
         mode |= S_IFDIR;
     }
+
+    for(const auto& kv: efsng_ctx->m_backends) {
+
+            const auto& backend_id = kv.first;
+            const auto& backend_ptr = kv.second;
+            if (backend_id.find("nvml://") != std::string::npos ) return backend_ptr->do_mkdir(pathname, mode);
+    }
+
 
     auto old_credentials = efsng::assume_user_credentials();
 
@@ -570,6 +580,9 @@ static int efsng_fsync(const char* pathname, int is_datasync, struct fuse_file_i
     (void) pathname;
     (void) is_datasync;
 
+    // Flush is not necessary, we do not have a cache.
+    /*
+
     auto file_record = (efsng::File*) file_info->fh;
 
     int fd = file_record->get_fd();
@@ -590,7 +603,7 @@ static int efsng_fsync(const char* pathname, int is_datasync, struct fuse_file_i
     if(res == -1){
         return -errno;
     }
-
+    */
     return 0;
 }
 // TODO: Do we need to implement extended attributes in the backend?
@@ -884,11 +897,19 @@ static int efsng_access(const char* pathname, int mode){
         const auto& backend_ptr = kv.second;
         if (backend_id.find("nvml://") != std::string::npos ) {
             struct stat stbuf;
-            backend_ptr->do_stat(pathname,stbuf);
+           
 
-            // check credentials
+            int err = 0;
 
-            return 0;
+            if (mode & X_OK) {
+                err = backend_ptr->do_stat(pathname,stbuf);
+                if (!err) {
+                    if (S_ISREG(stbuf.st_mode) &&
+                        !(stbuf.st_mode & (S_IXUSR|S_IXGRP|S_IXOTH)))
+                        err = -EACCES;
+                }
+            }
+            return err;
         }
     }
 
@@ -933,6 +954,8 @@ static int efsng_create(const char* pathname, mode_t mode, struct fuse_file_info
             if(file_info->flags & O_RDWR){
                 flags |= O_RDWR;
             }
+
+            file_info->flags = flags;
 
             auto file_record = new efsng::File(st.st_ino, 42, file_info->flags);
             // TODO : We should have a mutex ? to set boot
