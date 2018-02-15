@@ -57,6 +57,9 @@ dir::dir(const bfs::path& pathname, const ino_t inode, const bfs::path & path_or
     } else  {
         struct stat stbuf;
         memset(&stbuf,0,sizeof(struct stat));
+       // stbuf.st_dev = 48;
+       // stbuf.st_size = 4096;
+       // stbuf.st_blocks=8;
         stbuf.st_ino = inode;
         stbuf.st_nlink = 1;
         save_attributes(stbuf);

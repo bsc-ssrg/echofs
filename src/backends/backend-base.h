@@ -169,6 +169,9 @@ public:
     virtual int do_unlink(const char * pathname) = 0;
     virtual int do_rename(const char * oldpath, const char * newpath) = 0;
     virtual int do_mkdir(const char * pathname, mode_t mode) = 0;
+    virtual int do_rmdir(const char * pathname) = 0;
+    virtual int do_chmod(const char * pathname, mode_t mode) = 0;
+    virtual int do_chown(const char * pathname, uid_t owner, gid_t group) = 0;
     virtual iterator find(const char* path) = 0;
     virtual iterator begin() = 0;
     virtual iterator end() = 0;

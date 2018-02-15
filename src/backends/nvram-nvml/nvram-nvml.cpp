@@ -171,10 +171,9 @@ int nvml_backend::do_readdir (const char * path, void * buffer, fuse_fill_dir_t 
    
     std::list <std::string> ls = find_s(path);
     
-    for (auto &file : ls)
-    {    
-        if (file.length() > 0 and file[file.length()-1]=='/')
-        { // We remove the last slash
+    for (auto &file : ls) {    
+        if (file.length() > 0 and file[file.length()-1]=='/') { 
+            // We remove the last slash
             file.pop_back();
         }
         filler(buffer, file.c_str(), NULL, 0);
@@ -185,16 +184,12 @@ int nvml_backend::do_readdir (const char * path, void * buffer, fuse_fill_dir_t 
 
 int nvml_backend::do_stat (const char * path, struct stat& stbuf) const {
 
-    LOGGER_DEBUG("Inside backend do_stat for {}",path);
-   
-
     std::lock_guard<std::mutex> lock_dir(m_dirs_mutex);
 
     std::string path_wo_root_slash = path;
     if (path_wo_root_slash.back() != '/') path_wo_root_slash.push_back('/');
     auto dir = m_dirs.find(path_wo_root_slash);
     if (dir != m_dirs.end()) {
-        LOGGER_DEBUG("Is a directory {}", path);
         //Fill directory entry
         dir->second.get()->stat(stbuf);
     }
@@ -209,7 +204,6 @@ int nvml_backend::do_stat (const char * path, struct stat& stbuf) const {
             LOGGER_DEBUG("do_stat not found file {} - {} ",path, path_wo_root_slash); 
             return -ENOENT;
         }
-
     }
      return 0;
 }
@@ -356,6 +350,8 @@ int nvml_backend::do_mkdir(const char * pathname, mode_t mode) {
     if (path_wo_root.size() == 0 or path_wo_root.back() != '/') path_wo_root.push_back('/');
     auto dir = m_dirs.find(path_wo_root);
     if (dir == m_dirs.end()) {
+
+
         auto it = m_dirs.emplace(path_wo_root, std::make_unique<nvml::dir>(path_wo_root, new_inode(), m_root_dir.string() + path_wo_root,dir::type::temporary,false));
 
         struct stat stbuf;
@@ -364,20 +360,125 @@ int nvml_backend::do_mkdir(const char * pathname, mode_t mode) {
        
         stbuf.st_uid = getuid();
         stbuf.st_gid = getgid();
-        stbuf.st_mode = mode;
+        stbuf.st_mode = mode | S_IFDIR;
 
         stbuf.st_atime = time (NULL);
         stbuf.st_mtime = time (NULL);
         stbuf.st_ctime = time (NULL);
 
         it.first->second.get()->save_attributes(stbuf);
+        path_wo_root.pop_back();
+        auto parent_path = path_wo_root.substr(0,path_wo_root.rfind('/')+1);
 
+        auto parent_dir = m_dirs.find(parent_path);
+        assert (parent_dir != m_dirs.end());
+        auto dirname = path_wo_root.substr(path_wo_root.rfind('/')+1);
+              
+        parent_dir->second.get()->add_file(dirname);
+      
     } else {
         LOGGER_DEBUG("[CREATE] MKDIR {} dir found", path_wo_root);
         return -1; 
     }
     return 0;
 }
+
+
+int nvml_backend::do_rmdir(const char * pathname) {
+    LOGGER_DEBUG("Inside backend do_rmdir for {}",pathname);
+
+    std::string path_wo_root = pathname;
+
+    std::lock_guard<std::mutex> lock_dir(m_dirs_mutex);
+     // Add to the directory
+    if (path_wo_root.size() == 0 or path_wo_root.back() != '/') path_wo_root.push_back('/');
+    auto dir = m_dirs.find(path_wo_root);
+    if (dir != m_dirs.end()) {
+
+        struct stat stbuf;
+        dir->second.get()->stat(stbuf);
+
+        if (stbuf.st_ino != 1) return -ENOTEMPTY;
+
+        m_dirs.erase(dir);  
+
+        path_wo_root.pop_back();
+        auto parent_path = path_wo_root.substr(0,path_wo_root.rfind('/')+1);
+
+        auto parent_dir = m_dirs.find(parent_path);
+        assert (parent_dir != m_dirs.end());
+        auto dirname = path_wo_root.substr(path_wo_root.rfind('/')+1);
+              
+        parent_dir->second.get()->remove_file(dirname);
+      
+    } else {
+        LOGGER_DEBUG("[CREATE] RMDIR {} dir not found", path_wo_root);
+        return -ENOENT; 
+    }
+    return 0;
+}
+
+
+int nvml_backend::do_chmod(const char * pathname, mode_t mode) {  
+    std::lock_guard<std::mutex> lock_dir(m_dirs_mutex);
+    std::string path_wo_root_slash = pathname;
+    struct stat stbuf;
+    if (path_wo_root_slash.back() != '/') path_wo_root_slash.push_back('/');
+    auto dir = m_dirs.find(path_wo_root_slash);
+    if (dir != m_dirs.end()) {
+        //Fill directory entry
+        dir->second.get()->stat(stbuf);
+        stbuf.st_mode = mode;
+        dir->second.get()->save_attributes(stbuf);
+    }
+    else  {
+        std::lock_guard<std::mutex> lock(m_files_mutex);
+        auto file = m_files.find(pathname);
+        if (file != m_files.end()) {
+            const auto& file_ptr = file->second;
+            file_ptr->stat(stbuf);
+            stbuf.st_mode = mode;
+            file_ptr->save_attributes(stbuf);
+        } 
+        else { 
+            LOGGER_DEBUG("do_chmod not found file {} ",pathname); 
+            return -ENOENT;
+        }
+    }
+     return 0;
+}
+
+int nvml_backend::do_chown(const char * pathname, uid_t owner, gid_t group) {
+    std::lock_guard<std::mutex> lock_dir(m_dirs_mutex);
+    std::string path_wo_root_slash = pathname;
+    struct stat stbuf;
+    if (path_wo_root_slash.back() != '/') path_wo_root_slash.push_back('/');
+    auto dir = m_dirs.find(path_wo_root_slash);
+    if (dir != m_dirs.end()) {
+        //Fill directory entry
+        dir->second.get()->stat(stbuf);
+        stbuf.st_uid = owner;
+        stbuf.st_gid = group;
+        dir->second.get()->save_attributes(stbuf);
+    }
+    else  {
+        std::lock_guard<std::mutex> lock(m_files_mutex);
+        auto file = m_files.find(pathname);
+        if (file != m_files.end()) {
+            const auto& file_ptr = file->second;
+            file_ptr->stat(stbuf);
+            stbuf.st_uid = owner;
+            stbuf.st_gid = group;
+            file_ptr->save_attributes(stbuf);
+        } 
+        else { 
+            LOGGER_DEBUG("do_chown not found file {} ",pathname); 
+            return -ENOENT;
+        }
+    }
+     return 0;
+}
+
 
 
 backend::iterator nvml_backend::find(const char* path) {
@@ -389,7 +490,6 @@ std::list <std::string> nvml_backend::find_s(const std::string path) const {
     std::string result;
 
     std::list <std::string> l_files;
-
     std::lock_guard<std::mutex> lock(m_dirs_mutex);
 
     // Only the root path is send with /. We add the slash at the end if not.
@@ -400,8 +500,7 @@ std::list <std::string> nvml_backend::find_s(const std::string path) const {
 
     auto d_it = m_dirs.find(tmp_path);
     LOGGER_DEBUG("FIND_S {}",tmp_path);
-    if (d_it != m_dirs.end())
-    {
+    if (d_it != m_dirs.end()) {
         // Search the path and insert it on the dir structure
         // TODO: The dir structure will have a list with pointers to the nvml::file so we reduce one indirection.
         d_it->second.get()->list_files(l_files);  // Store the substr

@@ -153,11 +153,6 @@ static int efsng_mkdir(const char* pathname, mode_t mode){
 
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
     
-    /* the mode argument may not have the specific bits set */
-    if(!mode & S_IFDIR){
-        mode |= S_IFDIR;
-    }
-
     for(const auto& kv: efsng_ctx->m_backends) {
 
             const auto& backend_id = kv.first;
@@ -209,6 +204,17 @@ static int efsng_unlink(const char* pathname){
 
 /** Remove a directory */
 static int efsng_rmdir(const char* pathname){
+
+    efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
+    
+    for(const auto& kv: efsng_ctx->m_backends) {
+
+            const auto& backend_id = kv.first;
+            const auto& backend_ptr = kv.second;
+            if (backend_id.find("nvml://") != std::string::npos ) return backend_ptr->do_rmdir(pathname);
+    }
+
+
 
     auto old_credentials = efsng::assume_user_credentials();
 
@@ -304,6 +310,17 @@ static int efsng_chmod(const char* pathname, mode_t mode){
 static int efsng_chmod(const char* pathname, mode_t mode, struct fuse_file_info* file_info){
 #endif
 
+    efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
+
+    LOGGER_DEBUG("chmod(\"{}\" {} )", pathname, mode );
+
+    for(const auto& kv: efsng_ctx->m_backends) {
+
+            const auto& backend_id = kv.first;
+            const auto& backend_ptr = kv.second;
+            if (backend_id.find("nvml://") != std::string::npos ) return backend_ptr->do_chmod(pathname, mode);
+    }
+
     auto old_credentials = efsng::assume_user_credentials();
 
     int res = chmod(pathname, mode);
@@ -323,6 +340,18 @@ static int efsng_chown(const char* pathname, uid_t owner, gid_t group){
 #else
 static int efsng_chown(const char* pathname, uid_t owner, gid_t group, struct fuse_file_info* file_info){
 #endif
+
+    efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
+
+    LOGGER_DEBUG("chown(\"{}\" {} )", pathname, owner, group );
+
+    for(const auto& kv: efsng_ctx->m_backends) {
+
+            const auto& backend_id = kv.first;
+            const auto& backend_ptr = kv.second;
+            if (backend_id.find("nvml://") != std::string::npos ) return backend_ptr->do_chown(pathname, owner, group);
+    }
+
 
     auto old_credentials = efsng::assume_user_credentials();
 
@@ -694,6 +723,9 @@ static int efsng_opendir(const char* pathname, struct fuse_file_info* file_info)
             // check credentials
             // TODO : Check permissions 
             // TODO : Store Dir pointer for release dir
+
+            if (stbuf.st_uid != fuse_get_context()->uid) return -EACCES;
+            if (stbuf.st_gid != fuse_get_context()->gid) return -EACCES;
             return 0;
         }
     }
@@ -887,7 +919,7 @@ static void efsng_destroy(void *) {
 static int efsng_access(const char* pathname, int mode){
 
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
-    LOGGER_DEBUG("access called \"{}\" ", pathname);
+    LOGGER_DEBUG("access called \"{}\" {} ", pathname, mode);
 
     /* Search the backends */
 
@@ -897,18 +929,27 @@ static int efsng_access(const char* pathname, int mode){
         const auto& backend_ptr = kv.second;
         if (backend_id.find("nvml://") != std::string::npos ) {
             struct stat stbuf;
-           
+            auto err = backend_ptr->do_stat(pathname,stbuf);
+            if (err != 0) return -ENOENT;
+            
+            int perm = 0;
 
-            int err = 0;
-
-            if (mode & X_OK) {
-                err = backend_ptr->do_stat(pathname,stbuf);
-                if (!err) {
-                    if (S_ISREG(stbuf.st_mode) &&
-                        !(stbuf.st_mode & (S_IXUSR|S_IXGRP|S_IXOTH)))
-                        err = -EACCES;
-                }
+            if (mode & F_OK)
+            {
+                // Test if the file exists
+                return 0;
             }
+
+            if (mode & (X_OK | W_OK | R_OK)) {
+                if (mode & X_OK) perm += S_IEXEC;
+                if (mode & W_OK) perm += S_IWRITE;
+                if (mode & R_OK) perm += S_IREAD;
+            }
+           
+            if (!(perm & (S_IEXEC|S_IWRITE|S_IREAD))) {
+                   err = -EACCES;
+            }
+            
             return err;
         }
     }

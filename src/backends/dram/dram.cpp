@@ -111,8 +111,19 @@ int dram_backend::do_rename(const char * oldpath, const char * newpath) {
     return 0;
 }
 
-
 int dram_backend::do_mkdir(const char * pathname, mode_t mode) {
+    return 0;
+}
+
+int dram_backend::do_rmdir(const char * pathname) {
+    return 0;
+}
+
+int dram_backend::do_chmod(const char * pathname, mode_t mode) {   
+    return 0;
+}
+
+int dram_backend::do_chown(const char * pathname, uid_t owner, gid_t group) {
     return 0;
 }
 
