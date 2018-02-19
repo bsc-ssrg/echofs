@@ -720,12 +720,6 @@ static int efsng_opendir(const char* pathname, struct fuse_file_info* file_info)
             struct stat stbuf;
             backend_ptr->do_stat(pathname,stbuf);
 
-            // check credentials
-            // TODO : Check permissions 
-            // TODO : Store Dir pointer for release dir
-
-            if (stbuf.st_uid != fuse_get_context()->uid) return -EACCES;
-            if (stbuf.st_gid != fuse_get_context()->gid) return -EACCES;
             return 0;
         }
     }
