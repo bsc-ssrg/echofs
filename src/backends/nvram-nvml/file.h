@@ -127,6 +127,7 @@ private:
     off_t m_used_offset; /*!< Maximum used offset, i.e. eof */
 
     segment_tree                m_segments;
+    bool m_initialized; /*!< segments initialized ? */
     mutable boost::shared_mutex m_alloc_mutex; /*!< Mutex to synchronize reader/writer access to the tree */
     mutable boost::shared_mutex m_dealloc_mutex; /*!< Mutex to synchronize reader/writer access to the tree */
 

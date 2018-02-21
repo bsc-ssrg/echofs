@@ -32,7 +32,7 @@
 
 #include <unordered_map>
 #include <list>
-#include <set>
+#include <unordered_set>
 
 /* C includes */
 #include <fuse.h>
@@ -135,7 +135,7 @@ public:
     virtual void list_files(std::list <std::string> & m_f) const = 0;
     virtual void add_file(const std::string file) = 0;
     virtual void remove_file(const std::string file) = 0;
-    virtual bool find (const std::string fname, std::set < std::string >::iterator & it) const = 0;
+    virtual bool find (const std::string fname, std::unordered_set < std::string >::iterator & it) const = 0;
     virtual unsigned int num_links() const = 0;
     virtual void stat(struct stat& stbuf) const = 0;
     virtual void save_attributes(struct stat & stbuf) = 0;

@@ -222,9 +222,17 @@ int nvml_backend::do_create(const char* pathname, mode_t mode, std::shared_ptr <
     LOGGER_DEBUG("Inside backend do_create for {}",pathname);
 
     std::string path_wo_root = pathname;
+    struct stat stbuf;
+    
+    stbuf.st_uid = getuid();
+    stbuf.st_gid = getgid();
+    stbuf.st_mode = mode;
+    stbuf.st_nlink = 1;
+    stbuf.st_atime = stbuf.st_mtime = stbuf.st_ctime = time (NULL);
+    stbuf.st_size = 0;
+    stbuf.st_blocks = 0;
 
     std::lock_guard<std::mutex> lock(m_files_mutex);
-    std::lock_guard<std::mutex> lock_dir(m_dirs_mutex);
     if(m_files.count(path_wo_root) != 0) {
         return -1;
     }
@@ -235,30 +243,23 @@ int nvml_backend::do_create(const char* pathname, mode_t mode, std::shared_ptr <
 
    
     if (path_wo_root_slash.size() == 0 or path_wo_root_slash.back() != '/') path_wo_root_slash.push_back('/');
-    auto dir = m_dirs.find(path_wo_root_slash);
-    if (dir != m_dirs.end()) {
-         dir->second.get()->add_file(path_wo_root.substr(path_wo_root.rfind('/')+1));
-    } else  {
-        LOGGER_DEBUG("[CREATE] DIR {} - {} not found", path_wo_root_slash, pathname);
-        return -1; 
-    }
     
+    {
+        std::lock_guard<std::mutex> lock_dir(m_dirs_mutex);
+        auto dir = m_dirs.find(path_wo_root_slash);
+        if (dir != m_dirs.end()) {
+             dir->second.get()->add_file(path_wo_root.substr(path_wo_root.rfind('/')+1));
+        } else  {
+            LOGGER_DEBUG("[CREATE] DIR {} - {} not found", path_wo_root_slash, pathname);
+            return -1; 
+        }
+    }
     /* create a new file into m_files (the constructor will fill it with
      * the contents of the pathname) */
     auto it = m_files.emplace(path_wo_root, 
                               std::make_unique<nvml::file>(m_daxfs_mount_point, pathname, 0 ,file::type::temporary,false));
 
-    struct stat stbuf;
-    memset ((void*)&stbuf,0,sizeof(struct stat));
     stbuf.st_ino = new_inode();
-    stbuf.st_uid = getuid();
-    stbuf.st_gid = getgid();
-    stbuf.st_mode = mode;
-    stbuf.st_nlink = 1;
-    stbuf.st_atime = time (NULL);
-    stbuf.st_mtime = time (NULL);
-    stbuf.st_ctime = time (NULL);
-   
     auto& file_ptr = (*(it.first)).second;
     auto nvml_f_ptr = dynamic_cast<nvml::file * >(file_ptr.get());
     nvml_f_ptr->save_attributes(stbuf);

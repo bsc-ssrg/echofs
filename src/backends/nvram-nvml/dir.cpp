@@ -95,7 +95,7 @@ void dir::list_files(std::list <std::string> & m_f) const {
     }
 }
 
-bool dir::find (const std::string fname,std::set < std::string >::iterator &it) const {
+bool dir::find (const std::string fname,std::unordered_set < std::string >::iterator &it) const {
     // We should better do a map but for now...
 
     it =  m_files.find(fname);

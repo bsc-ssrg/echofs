@@ -64,7 +64,8 @@ namespace nvml {
 /**********************************************************************************************************************/
 file::file() 
     : backend::file(),
-      m_segments(0, std::numeric_limits<off_t>::max(), segment_ptr()) {
+      m_segments(0, std::numeric_limits<off_t>::max(), segment_ptr()),
+      m_initialized(false) {
 }
 
 file::file(const bfs::path& pool_base, const bfs::path& pathname, const ino_t inode, file::type type,  bool populate) 
@@ -72,30 +73,35 @@ file::file(const bfs::path& pool_base, const bfs::path& pathname, const ino_t in
       m_type(type),
       m_alloc_offset(0),
       m_used_offset(0),
-      m_segments(0, std::numeric_limits<off_t>::max(), segment_ptr()) {
+      m_segments(0, std::numeric_limits<off_t>::max(), segment_ptr()),
+      m_initialized(false) {
 
-    /* generate a subdir to store all pools for this file */
-    m_pool_subdir = generate_pool_subdir(pool_base, pathname);
-
-    /* if the pool subdir already exists delete it, since we can't trust it */
-    /* TODO: we may need to change this in the future */
-    if(bfs::exists(m_pool_subdir)) {
-        try {
-            remove_all(m_pool_subdir);
-        }
-        catch(const bfs::filesystem_error& e) {
-            throw std::runtime_error(
-                    logger::build_message("Error removing stale pool subdir: ", m_pool_subdir, " (", e.what(), ")"));
-        }
-    }
-
-    if(::mkdir(m_pool_subdir.c_str(), S_IRWXU) != 0) {
-        throw std::runtime_error(
-                logger::build_message("Error creating pool subdir: ", m_pool_subdir, " (", strerror(errno), ")"));
-    }
-
+   
     if(populate) { //XXX this is probably not needed if we have another constructor
                    // for non-Lustre backed files
+
+        m_initialized = true;
+         /* generate a subdir to store all pools for this file */
+        m_pool_subdir = generate_pool_subdir(pool_base, pathname);
+
+        /* if the pool subdir already exists delete it, since we can't trust it */
+        /* TODO: we may need to change this in the future */
+        if(bfs::exists(m_pool_subdir)) {
+            try {
+                remove_all(m_pool_subdir);
+            }
+            catch(const bfs::filesystem_error& e) {
+                throw std::runtime_error(
+                        logger::build_message("Error removing stale pool subdir: ", m_pool_subdir, " (", e.what(), ")"));
+            }
+        }
+
+        if(::mkdir(m_pool_subdir.c_str(), S_IRWXU) != 0) {
+            throw std::runtime_error(
+                    logger::build_message("Error creating pool subdir: ", m_pool_subdir, " (", strerror(errno), ")"));
+        }
+
+
         posix::file fd(pathname);
         struct stat stbuf;
         fd.stat(stbuf);
@@ -505,6 +511,29 @@ ssize_t file::get_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse
 
     file_region_list regions;
 
+    // TODO : Mutex
+    if (!m_initialized){
+             /* generate a subdir to store all pools for this file */
+        m_pool_subdir = generate_pool_subdir(m_pool_subdir, m_pathname);
+
+        /* if the pool subdir already exists delete it, since we can't trust it */
+        /* TODO: we may need to change this in the future */
+        if(bfs::exists(m_pool_subdir)) {
+            try {
+                remove_all(m_pool_subdir);
+            }
+            catch(const bfs::filesystem_error& e) {
+                throw std::runtime_error(
+                        logger::build_message("Error removing stale pool subdir: ", m_pool_subdir, " (", e.what(), ")"));
+            }
+        }
+
+        if(::mkdir(m_pool_subdir.c_str(), S_IRWXU) != 0) {
+            throw std::runtime_error(
+                    logger::build_message("Error creating pool subdir: ", m_pool_subdir, " (", strerror(errno), ")"));
+        }
+        m_initialized = true;
+    }
 //XXX if posix_consistency:
     auto rl = lock_range(start_offset, end_offset, efsng::operation::read);
 
@@ -568,6 +597,33 @@ ssize_t file::put_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse
     // before doing anything, whereas truncate() will try to get a unique_lock().
     // Thus, all writers can put data into a file's segments concurrently, without having 
     // to worry about them vanishing
+
+      // TODO : Mutex
+    if (!m_initialized){
+             /* generate a subdir to store all pools for this file */
+        m_pool_subdir = generate_pool_subdir(m_pool_subdir, m_pathname);
+
+        /* if the pool subdir already exists delete it, since we can't trust it */
+        /* TODO: we may need to change this in the future */
+        if(bfs::exists(m_pool_subdir)) {
+            try {
+                remove_all(m_pool_subdir);
+            }
+            catch(const bfs::filesystem_error& e) {
+                throw std::runtime_error(
+                        logger::build_message("Error removing stale pool subdir: ", m_pool_subdir, " (", e.what(), ")"));
+            }
+        }
+
+        if(::mkdir(m_pool_subdir.c_str(), S_IRWXU) != 0) {
+            throw std::runtime_error(
+                    logger::build_message("Error creating pool subdir: ", m_pool_subdir, " (", strerror(errno), ")"));
+        }
+        m_initialized = true;
+    }
+
+
+
     m_dealloc_mutex.lock_shared();
 
     off_t end_offset = start_offset + size;

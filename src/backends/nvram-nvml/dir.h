@@ -33,7 +33,7 @@
 #include "backend-base.h"
 #include "file.h"
 #include <fuse.h>
-#include <set>
+#include <unordered_set>
 
 namespace bfs = boost::filesystem;
 
@@ -52,7 +52,7 @@ struct dir : public backend::dir {
     ~dir();
     void add_file (const std::string fname);
     void remove_file (const std::string fname);
-    bool find (const std::string fname, std::set < std::string >::iterator & it) const;
+    bool find (const std::string fname, std::unordered_set < std::string >::iterator & it) const;
     unsigned int num_links () const;
     void stat(struct stat& stbuf) const;
     void save_attributes(struct stat & stbuf) override;    /* Saves attributes of the directory */
@@ -63,7 +63,7 @@ private:
        for the standard ls and a pointer to the file for the ls -ltrh optimization */
     bfs::path m_pathname;
     dir::type m_type;
-    mutable std::set < std::string > m_files; // TODO : Mutex
+    mutable std::unordered_set < std::string > m_files; // TODO : Mutex
 
     mutable boost::shared_mutex m_attributes_mutex;
     struct stat m_attributes; /*!< Dir attributes */
