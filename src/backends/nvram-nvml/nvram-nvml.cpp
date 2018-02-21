@@ -122,17 +122,15 @@ error_code nvml_backend::load(const bfs::path& pathname) {
 
     std::string buildPath = "/";
     auto parent = m_dirs.find(buildPath);
-    std::cout << "T_PATH " << t_path << " -- " << "MPATH " << path_wo_root << std::endl;
-    for (unsigned int i = 1; i<m_path.size()-1;i++)
-    {
+    
+    for (unsigned int i = 1; i<m_path.size()-1;i++) {
         buildPath += m_path[i] +"/";
-        std::cout << "LOOP T_PATH " << t_path << " -- " << "MPATH " << m_path[i] << " --> " << buildPath << std::endl;
+      
         auto d_it = m_dirs.find(buildPath);
         if (d_it == m_dirs.end()){
             auto t_it = m_dirs.emplace(buildPath, std::make_unique<nvml::dir>(buildPath,new_inode(), m_root_dir.string()+buildPath));
             // Add to the parent
             parent = m_dirs.find(buildPath.substr(0,t_path.rfind(m_path[i])));
-           
             parent->second.get()->add_file(m_path[i]);
         }
        
