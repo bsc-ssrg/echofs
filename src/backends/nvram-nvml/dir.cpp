@@ -72,7 +72,7 @@ dir::~dir() {
 }
 
 void dir::add_file (const std::string file) {
-        m_files.push_back( file );
+        m_files.insert( file );
         m_attributes_mutex.lock();
         m_attributes.st_nlink += 1;
         m_attributes_mutex.unlock();
@@ -80,13 +80,13 @@ void dir::add_file (const std::string file) {
 
 
 void dir::remove_file (const std::string file) {
-    auto it = std::find(m_files.begin(), m_files.end(), file );
-    if (it != m_files.end()) {
-        m_files.erase ( it );
+  //  auto it = std::find(m_files.begin(), m_files.end(), file );
+  //  if (it != m_files.end()) {
+        m_files.erase ( file );
         m_attributes_mutex.lock();
         m_attributes.st_nlink -= 1;
         m_attributes_mutex.unlock();
-    }
+   // }
 }
 
 void dir::list_files(std::list <std::string> & m_f) const {
@@ -95,9 +95,10 @@ void dir::list_files(std::list <std::string> & m_f) const {
     }
 }
 
-bool dir::find (const std::string fname,std::list < std::string >::iterator &it) const {
+bool dir::find (const std::string fname,std::set < std::string >::iterator &it) const {
     // We should better do a map but for now...
-    it =  std::find(m_files.begin(),m_files.end(),fname);
+
+    it =  m_files.find(fname);
     return (it != m_files.end());
 }
 

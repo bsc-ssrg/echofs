@@ -190,13 +190,13 @@ int nvml_backend::do_readdir (const char * path, void * buffer, fuse_fill_dir_t 
     return 0;
 }
 
-
+// TODO: change the order as directories will be less frequent than files
 int nvml_backend::do_stat (const char * path, struct stat& stbuf) const {
 
-    std::lock_guard<std::mutex> lock_dir(m_dirs_mutex);
-
     std::string path_wo_root_slash = path;
-    if (path_wo_root_slash.back() != '/') path_wo_root_slash.push_back('/');
+    if (path_wo_root_slash.length()>1) path_wo_root_slash.push_back('/');
+
+    std::lock_guard<std::mutex> lock_dir(m_dirs_mutex);
     auto dir = m_dirs.find(path_wo_root_slash);
     if (dir != m_dirs.end()) {
         //Fill directory entry
@@ -407,7 +407,7 @@ int nvml_backend::do_rmdir(const char * pathname) {
         struct stat stbuf;
         dir->second.get()->stat(stbuf);
 
-        if (stbuf.st_ino != 1) return -ENOTEMPTY;
+        if (stbuf.st_nlink != 1) return -ENOTEMPTY;
 
         m_dirs.erase(dir);  
 

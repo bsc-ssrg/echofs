@@ -91,14 +91,16 @@ extern "C" {
  * See http://fuse.sourceforge.net/wiki/ for more information.  There is also a snapshot of the relevant wiki pages in
  * the doc/ folder.
  **********************************************************************************************************************/
-
+struct stat cache;
+int count = 0;
+unsigned long long steps = 1;
 /** Get file attributes. similar to stat() */
 #if FUSE_USE_VERSION < 30
 static int efsng_getattr(const char* pathname, struct stat* stbuf){
 #else
 static int efsng_getattr(const char* pathname, struct stat* stbuf, struct fuse_file_info* file_info){
 #endif
-
+    
 	efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
 
     LOGGER_DEBUG("stat(\"{}\")", pathname);
@@ -150,7 +152,7 @@ static int efsng_mknod(const char* pathname, mode_t mode, dev_t dev){
 
 /** Create a directory */
 static int efsng_mkdir(const char* pathname, mode_t mode){
-
+   
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
     
     for(const auto& kv: efsng_ctx->m_backends) {
@@ -204,7 +206,6 @@ static int efsng_unlink(const char* pathname){
 
 /** Remove a directory */
 static int efsng_rmdir(const char* pathname){
-
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
     
     for(const auto& kv: efsng_ctx->m_backends) {
@@ -515,10 +516,10 @@ static int efsng_write(const char* pathname, const char* buf, size_t count, off_
 
 /** Get filesystem statistics */
 static int efsng_statfs(const char* pathname, struct statvfs* buf){
-
+    std::string path = "/home/rnou/efs-ng/build/";
     auto old_credentials = efsng::assume_user_credentials();
 
-    int res = statvfs(pathname, buf);
+    int res = statvfs(path.c_str(), buf);
 
     efsng::restore_credentials(old_credentials);
 
@@ -711,6 +712,7 @@ static int efsng_removexattr(const char* pathname, const char* name){
  */
 static int efsng_opendir(const char* pathname, struct fuse_file_info* file_info){
 
+    return 0;
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
     for(const auto& kv: efsng_ctx->m_backends) {
 
@@ -781,6 +783,7 @@ static int efsng_releasedir(const char* pathname, struct fuse_file_info* file_in
 
     (void) pathname;
 
+    return 0;
 
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
     for(const auto& kv: efsng_ctx->m_backends) {
@@ -911,7 +914,7 @@ static void efsng_destroy(void *) {
  * This method is not called under Linux kernel versions 2.4.x
  */
 static int efsng_access(const char* pathname, int mode){
-
+    return 0;
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
     LOGGER_DEBUG("access called \"{}\" {} ", pathname, mode);
 
@@ -933,7 +936,7 @@ static int efsng_access(const char* pathname, int mode){
                 // Test if the file exists
                 return 0;
             }
-
+/*
             if (mode & (X_OK | W_OK | R_OK)) {
                 if (mode & X_OK) perm += S_IEXEC;
                 if (mode & W_OK) perm += S_IWRITE;
@@ -943,7 +946,7 @@ static int efsng_access(const char* pathname, int mode){
             if (!(perm & (S_IEXEC|S_IWRITE|S_IREAD))) {
                    err = -EACCES;
             }
-            
+  */         
             return err;
         }
     }
