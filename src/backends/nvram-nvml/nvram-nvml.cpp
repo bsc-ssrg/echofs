@@ -122,11 +122,11 @@ error_code nvml_backend::load(const bfs::path& pathname) {
 
     std::string buildPath = "/";
     auto parent = m_dirs.find(buildPath);
-
-    for (int i = 1; i<m_path.size()-1;i++)
+    std::cout << "T_PATH " << t_path << " -- " << "MPATH " << path_wo_root << std::endl;
+    for (unsigned int i = 1; i<m_path.size()-1;i++)
     {
         buildPath += m_path[i] +"/";
-        
+        std::cout << "LOOP T_PATH " << t_path << " -- " << "MPATH " << m_path[i] << " --> " << buildPath << std::endl;
         auto d_it = m_dirs.find(buildPath);
         if (d_it == m_dirs.end()){
             auto t_it = m_dirs.emplace(buildPath, std::make_unique<nvml::dir>(buildPath,new_inode(), m_root_dir.string()+buildPath));
@@ -135,10 +135,16 @@ error_code nvml_backend::load(const bfs::path& pathname) {
            
             parent->second.get()->add_file(m_path[i]);
         }
+       
     }
 
-    d_it->second.get()->add_file(m_path.back());
-    
+    auto d_it = m_dirs.find(buildPath);
+    if (d_it == m_dirs.end()){
+            return error_code::internal_error;
+    }
+    else{
+            d_it->second.get()->add_file(m_path.back());
+    }
     
    
   //  if (s != OK) return error_code::internal_error;
