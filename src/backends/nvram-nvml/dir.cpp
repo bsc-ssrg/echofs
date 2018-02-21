@@ -72,12 +72,10 @@ dir::~dir() {
 }
 
 void dir::add_file (const std::string file) {
-    if ( std::find(m_files.begin(), m_files.end(), file ) == m_files.end() )  {
         m_files.push_back( file );
         m_attributes_mutex.lock();
         m_attributes.st_nlink += 1;
         m_attributes_mutex.unlock();
-    }
 }
 
 

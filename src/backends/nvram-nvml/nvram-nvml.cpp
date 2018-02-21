@@ -103,11 +103,11 @@ error_code nvml_backend::load(const bfs::path& pathname) {
         return error_code::path_already_imported;
     }
 
-
-    /* create a new file into m_files (the constructor will fill it with
+     /* create a new file into m_files (the constructor will fill it with
      * the contents of the pathname) */
-    auto it = m_files.emplace(path_wo_root, 
+     auto it = m_files.emplace(path_wo_root, 
                               std::make_unique<nvml::file>(m_daxfs_mount_point, pathname, new_inode()));
+  
 
     // Iterate the path to fill the info
     std::vector <std::string> m_path;
@@ -119,22 +119,27 @@ error_code nvml_backend::load(const bfs::path& pathname) {
     std::string t_path = path_wo_root;
 
     std::lock_guard<std::mutex> lock_dir(m_dirs_mutex);
-    
-    for (int i = m_path.size()-1; i>0; i--){
-        // Build the path
-        t_path = t_path.substr(0,t_path.rfind(m_path[i]));
-        auto d_it = m_dirs.find(t_path);
 
+    std::string buildPath = "/";
+    auto parent = m_dirs.find(buildPath);
+
+    for (int i = 1; i<m_path.size()-1;i++)
+    {
+        buildPath += m_path[i] +"/";
+        
+        auto d_it = m_dirs.find(buildPath);
         if (d_it == m_dirs.end()){
-            // ADD PATH
-            auto t_it = m_dirs.emplace(t_path, std::make_unique<nvml::dir>(t_path,new_inode(), m_root_dir.string()+t_path));
-            t_it.first->second.get()->add_file(m_path[i]);
-        }
-        else{
-            d_it->second.get()->add_file(m_path[i]);
+            auto t_it = m_dirs.emplace(buildPath, std::make_unique<nvml::dir>(buildPath,new_inode(), m_root_dir.string()+buildPath));
+            // Add to the parent
+            parent = m_dirs.find(buildPath.substr(0,t_path.rfind(m_path[i])));
+           
+            parent->second.get()->add_file(m_path[i]);
         }
     }
-  
+
+    d_it->second.get()->add_file(m_path.back());
+    
+    
    
   //  if (s != OK) return error_code::internal_error;
     

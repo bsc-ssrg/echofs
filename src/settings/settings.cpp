@@ -370,7 +370,7 @@ void settings::from_cmdline(int argc, char* argv[]){
      */
     push_arg("-o");
 #if FUSE_USE_VERSION < 30
-    push_arg("nonempty,allow_other,attr_timeout=0,big_writes");
+    push_arg("nonempty,attr_timeout=0,big_writes");
 #else
     push_arg("attr_timeout=0");
 #endif
