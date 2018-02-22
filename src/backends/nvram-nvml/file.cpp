@@ -136,7 +136,9 @@ void file::stat(struct stat& stbuf) const {
 }
 
 void file::save_attributes(struct stat& stbuf) {
+    m_alloc_mutex.lock();
     memcpy(&m_attributes, &stbuf, sizeof(m_attributes));
+    m_alloc_mutex.unlock();
 }
 
 lock_manager::range_lock file::lock_range(off_t start, off_t end, operation op) {

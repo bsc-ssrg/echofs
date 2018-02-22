@@ -92,6 +92,7 @@ private:
     bfs::path m_root_dir;
 
     mutable std::mutex                    m_files_mutex;
+    
     std::unordered_map<std::string, file_ptr> m_files;
 
     mutable std::mutex m_dirs_mutex;

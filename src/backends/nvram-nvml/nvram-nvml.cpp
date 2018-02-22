@@ -103,7 +103,7 @@ error_code nvml_backend::load(const bfs::path& pathname) {
         return error_code::path_already_imported;
     }
 
-     /* create a new file into m_files (the constructor will fill it with
+    /* create a new file into m_files (the constructor will fill it with
      * the contents of the pathname) */
      auto it = m_files.emplace(path_wo_root, 
                               std::make_unique<nvml::file>(m_daxfs_mount_point, pathname, new_inode()));
@@ -143,7 +143,7 @@ error_code nvml_backend::load(const bfs::path& pathname) {
     else{
             d_it->second.get()->add_file(m_path.back());
     }
-    
+
    
   //  if (s != OK) return error_code::internal_error;
     
@@ -352,7 +352,7 @@ int nvml_backend::do_rename(const char * oldpath, const char * newpath) {
 
 int nvml_backend::do_mkdir(const char * pathname, mode_t mode) {
     LOGGER_DEBUG("Inside backend do_mkdir for {}",pathname);
-
+    
     std::string path_wo_root = pathname;
 
     std::lock_guard<std::mutex> lock_dir(m_dirs_mutex);
@@ -408,7 +408,10 @@ int nvml_backend::do_rmdir(const char * pathname) {
         struct stat stbuf;
         dir->second.get()->stat(stbuf);
 
-        if (stbuf.st_nlink != 1) return -ENOTEMPTY;
+
+        if (stbuf.st_nlink != 1) {
+            return -ENOTEMPTY;
+        }
 
         m_dirs.erase(dir);  
 
@@ -422,7 +425,7 @@ int nvml_backend::do_rmdir(const char * pathname) {
         parent_dir->second.get()->remove_file(dirname);
       
     } else {
-        LOGGER_DEBUG("[CREATE] RMDIR {} dir not found", path_wo_root);
+        LOGGER_DEBUG("RMDIR {} dir not found", path_wo_root);
         return -ENOENT; 
     }
     return 0;
