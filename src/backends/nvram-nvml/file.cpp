@@ -29,7 +29,7 @@
 #include "fuse_buf_copy_pmem.h"
 #include <nvram-nvml/file.h>
 
-//#define __PRINT_TREE__
+#define __PRINT_TREE__
 
 #if defined(__EFS_DEBUG__) && defined(__PRINT_TREE__)
 namespace {
@@ -76,13 +76,13 @@ file::file(const bfs::path& pool_base, const bfs::path& pathname, const ino_t in
       m_segments(0, std::numeric_limits<off_t>::max(), segment_ptr()),
       m_initialized(false) {
 
+      m_pool_subdir = generate_pool_subdir(pool_base, pathname);
    
     if(populate) { //XXX this is probably not needed if we have another constructor
                    // for non-Lustre backed files
 
         m_initialized = true;
          /* generate a subdir to store all pools for this file */
-        m_pool_subdir = generate_pool_subdir(pool_base, pathname);
 
         /* if the pool subdir already exists delete it, since we can't trust it */
         /* TODO: we may need to change this in the future */
@@ -515,9 +515,7 @@ ssize_t file::get_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse
 
     // TODO : Mutex
     if (!m_initialized){
-             /* generate a subdir to store all pools for this file */
-        m_pool_subdir = generate_pool_subdir(m_pool_subdir, m_pathname);
-
+         
         /* if the pool subdir already exists delete it, since we can't trust it */
         /* TODO: we may need to change this in the future */
         if(bfs::exists(m_pool_subdir)) {
@@ -602,9 +600,7 @@ ssize_t file::put_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse
 
       // TODO : Mutex
     if (!m_initialized){
-             /* generate a subdir to store all pools for this file */
-        m_pool_subdir = generate_pool_subdir(m_pool_subdir, m_pathname);
-
+      
         /* if the pool subdir already exists delete it, since we can't trust it */
         /* TODO: we may need to change this in the future */
         if(bfs::exists(m_pool_subdir)) {
@@ -690,14 +686,37 @@ ssize_t file::append_data(off_t start_offset, size_t size, struct fuse_bufvec* f
     return 0;
 }
 
+ssize_t file::allocate(off_t start_offset, size_t size){
+    file_region_list regions;
+    m_dealloc_mutex.lock_shared();
+    {
+        boost::unique_lock<boost::shared_mutex> lock(m_alloc_mutex);
+        // this will allocate any additional segments required
+        fetch_storage(start_offset, size, regions);
+
+       
+    }
+    update_size(start_offset+size);
+    m_dealloc_mutex.unlock_shared();
+    #if defined(__EFS_DEBUG__) && defined(__PRINT_TREE__)
+    print_tree(m_segments);
+    #endif
+    return 0;
+}
+
+// TODO: Truncate should remove and free segments.
 void file::truncate(off_t end_offset) {
 
     m_dealloc_mutex.lock();
 
     // TODO
     (void) end_offset;
+     update_size(end_offset);
 
     m_dealloc_mutex.unlock();
+    #if defined(__EFS_DEBUG__) && defined(__PRINT_TREE__)
+    print_tree(m_segments);
+#endif
 }
 
 

@@ -94,7 +94,8 @@ struct file : public backend::file {
     ssize_t get_data(off_t offset, size_t size, struct fuse_bufvec* fuse_buffer);
     ssize_t put_data(off_t offset, size_t size, struct fuse_bufvec* fuse_buffer);
     ssize_t append_data(off_t offset, size_t size, struct fuse_bufvec* fuse_buffer);
-    void truncate(off_t offset);
+    void truncate(off_t offset) override;
+    ssize_t allocate (off_t offset, size_t size) override;
     void save_attributes(struct stat& stbuf) override;
 
 private:

@@ -62,7 +62,7 @@ struct segment {
     bool                        m_is_gap;   /*!< Segment is a zero-filled gap */
     struct pool                 m_pool;     /*!< Pool descriptor for the segment */
 
-    size_t                      m_bytes;    /*!< Used size */
+    size_t                      m_bytes;    /*!< Used size */ /* TODO : Reducir para el truncate */
 
     segment(const bfs::path& subdir, off_t offset, size_t size, bool is_gap);
     ~segment();

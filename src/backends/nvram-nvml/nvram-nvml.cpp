@@ -127,11 +127,13 @@ error_code nvml_backend::load(const bfs::path& pathname) {
         buildPath += m_path[i] +"/";
       
         auto d_it = m_dirs.find(buildPath);
+        //td::cout << "IMPORTING " << buildPath << " d_it==m_dirs.end() " << (bool)(d_it==m_dirs.end()) << std::endl;
         if (d_it == m_dirs.end()){
             auto t_it = m_dirs.emplace(buildPath, std::make_unique<nvml::dir>(buildPath,new_inode(), m_root_dir.string()+buildPath));
             // Add to the parent
-            parent = m_dirs.find(buildPath.substr(0,t_path.rfind(m_path[i])));
+            parent = m_dirs.find(buildPath.substr(0,buildPath.rfind(m_path[i])));
             parent->second.get()->add_file(m_path[i]);
+       //     std::cout << "ADDING TO THE PARENT " << buildPath.substr(0,buildPath.rfind(m_path[i])) << " -- " << m_path[i] << " xxx " << t_path << std::endl;
         }
        
     }
@@ -141,6 +143,7 @@ error_code nvml_backend::load(const bfs::path& pathname) {
             return error_code::internal_error;
     }
     else{
+      //  std::cout << "ADDING TO THE PARENT (LAST) " << buildPath << " -- " << m_path.back() << std::endl;
             d_it->second.get()->add_file(m_path.back());
     }
 

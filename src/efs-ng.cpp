@@ -264,6 +264,9 @@ static int efsng_truncate(const char* pathname, off_t length, struct fuse_file_i
 #endif
 
     int res;
+    return -EOPNOTSUPP;
+
+
 
 #if FUSE_USE_VERSION >= 30
     if(file_info != NULL){
@@ -787,13 +790,9 @@ static int efsng_create(const char* pathname, mode_t mode, struct fuse_file_info
 static int efsng_ftruncate(const char* pathname, off_t length, struct fuse_file_info* file_info){
 
     (void) pathname;
-
     auto file_record = (efsng::File*) file_info->fh;
-    int fd = file_record->get_fd();
-
-    if(ftruncate(fd, length) == -1){
-        return -errno;
-    }
+    auto ptr = file_record->get_ptr();
+    ptr->truncate(length);
 
     return 0;
 }
@@ -1120,19 +1119,27 @@ static int efsng_fallocate(const char* pathname, int mode, off_t offset, off_t l
                            struct fuse_file_info* file_info){
 
     (void) pathname;
-
-    /* only posix_fallocate is supported at the moment */
-    if(mode != 0){
+      if(mode != 0){
         return -EOPNOTSUPP;
     }
 
-    auto file_record = (efsng::File*) file_info->fh;
+    efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
+    const auto & kv = efsng_ctx->m_backends.begin();
+    const auto& backend_ptr = kv->second; 
+    const auto& it = backend_ptr->find(pathname);
+  
+    if(it != backend_ptr->end()){
+    
+        const auto& file_ptr = it->second;
 
-    int fd = file_record->get_fd();
+        ssize_t rv = file_ptr->allocate(offset, length);
+        return rv;
+    }
 
-    int res = posix_fallocate(fd, offset, length);
+    return -ENOENT;
 
-    return -res;
+    /* only posix_fallocate is supported at the moment */
+  
 }
 #endif /* HAVE_POSIX_FALLOCATE */
 

@@ -104,6 +104,8 @@ public:
         virtual ssize_t get_data(off_t offset, size_t size, struct fuse_bufvec* fuse_buffer) = 0;
         virtual ssize_t put_data(off_t offset, size_t size, struct fuse_bufvec* fuse_buffer) = 0;
         virtual ssize_t append_data(off_t offset, size_t size, struct fuse_bufvec* fuse_buffer) = 0;
+        virtual ssize_t allocate(off_t offset, size_t size) = 0;
+        virtual void truncate(off_t offset) = 0;
         virtual void save_attributes(struct stat & stbuf) = 0;
         virtual ~file(){}
     };
