@@ -168,6 +168,47 @@ void context::teardown() {
         LOGGER_CRITICAL("Unrecoverable error: forcing shutdown!");
     }
 
+
+     std::vector<pool::task_future<efsng::error_code>> return_values;
+
+    /* Unload any resources: TODO : We should look for persistent marked files */
+    for(const auto& kv: m_user_args->m_resources) {     
+        const bfs::path& pathname = kv.at("path");
+        const std::string& target = kv.at("backend");
+
+        if(m_backends.count(target) == 0) {
+            LOGGER_WARN("Invalid backend '{}' for input resource '{}'. Ignored.", target, pathname.string());
+            continue;
+        }
+
+        return_values.emplace_back(
+            m_thread_pool.submit_and_track(
+                    // service lambda to load files
+                    [=] () -> efsng::error_code {
+
+                        auto& backend_ptr = m_backends.at(target);
+
+                        LOGGER_DEBUG("Lambda called with {} to {} : @ {}", pathname, target ,  m_user_args->m_results_dir);
+
+                        auto rv = backend_ptr->unload(pathname);
+
+                        if(rv != efsng::error_code::success) {
+                            LOGGER_ERROR("Error unloading {} into '{}': {}", pathname, target, rv);
+                        }
+
+                        return rv;
+                    }
+            )
+        );
+    }
+
+    // wait until all import tasks are complete before proceeding
+    for(auto& rv : return_values) {
+        if(rv.get() != efsng::error_code::success) {
+            throw std::runtime_error("Fatal error importing resources");
+        }
+    }
+
     LOGGER_INFO("==============================================");
     LOGGER_INFO("=== Shutting down filesystem!!!            ===");
     LOGGER_INFO("==============================================");

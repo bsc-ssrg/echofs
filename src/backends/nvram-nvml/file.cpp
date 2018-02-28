@@ -29,7 +29,7 @@
 #include "fuse_buf_copy_pmem.h"
 #include <nvram-nvml/file.h>
 
-#define __PRINT_TREE__
+//#define __PRINT_TREE__
 
 #if defined(__EFS_DEBUG__) && defined(__PRINT_TREE__)
 namespace {
@@ -124,8 +124,6 @@ file::file(const bfs::path& pool_base, const bfs::path& pathname, const ino_t in
 
 file::~file() {
    // std::cerr << "a nvml::file " << m_pathname.string() <<  " instance died...\n" ;
-
-    //TODO if the file is temporary, we need to delete all its segments
 }
 
 void file::stat(struct stat& stbuf) const {
@@ -687,14 +685,34 @@ ssize_t file::append_data(off_t start_offset, size_t size, struct fuse_bufvec* f
 }
 
 ssize_t file::allocate(off_t start_offset, size_t size){
+     
+    if (!m_initialized){
+         
+        /* if the pool subdir already exists delete it, since we can't trust it */
+        /* TODO: we may need to change this in the future */
+        if(bfs::exists(m_pool_subdir)) {
+            try {
+                remove_all(m_pool_subdir);
+            }
+            catch(const bfs::filesystem_error& e) {
+                throw std::runtime_error(
+                        logger::build_message("Error removing stale pool subdir: ", m_pool_subdir, " (", e.what(), ")"));
+            }
+        }
+
+        if(::mkdir(m_pool_subdir.c_str(), S_IRWXU) != 0) {
+            throw std::runtime_error(
+                    logger::build_message("Error creating pool subdir: ", m_pool_subdir, " (", strerror(errno), ")"));
+        }
+        m_initialized = true;
+    }
+
     file_region_list regions;
     m_dealloc_mutex.lock_shared();
     {
         boost::unique_lock<boost::shared_mutex> lock(m_alloc_mutex);
         // this will allocate any additional segments required
         fetch_storage(start_offset, size, regions);
-
-       
     }
     update_size(start_offset+size);
     m_dealloc_mutex.unlock_shared();
@@ -707,16 +725,51 @@ ssize_t file::allocate(off_t start_offset, size_t size){
 // TODO: Truncate should remove and free segments.
 void file::truncate(off_t end_offset) {
 
-    m_dealloc_mutex.lock();
+    if (end_offset > size() ) { 
+        allocate( 0, end_offset);
+    }
+    else {
 
-    // TODO
-    (void) end_offset;
-     update_size(end_offset);
+      m_dealloc_mutex.lock();
 
-    m_dealloc_mutex.unlock();
-    #if defined(__EFS_DEBUG__) && defined(__PRINT_TREE__)
-    print_tree(m_segments);
-#endif
+      // Traverse tree, update m_bytes of the last active segment, deallocate pmemblocks, set gap as 1
+
+         ssize_t size = 0;
+         bool cut = false;
+         for(auto it = m_segments.begin(); it != m_segments.end(); ++it) {
+
+            const auto& sptr = it->second;
+
+            if(sptr != nullptr) {
+                //std::cerr << *sptr << "\n";
+                size += sptr->m_bytes ? sptr->m_bytes : sptr->m_size;
+                if (size > end_offset){
+                   
+                    if (cut == false) {
+                           // std::cout << " CUT HERE " << size - end_offset << std::endl;
+                            sptr->m_bytes = (size - end_offset) ;
+                            cut = true;
+                        }
+                        else {
+                           // std::cout << " DROP SEGMENT " << size - end_offset << std::endl;
+                            pmem_unmap(sptr->m_pool.m_data, sptr->m_pool.m_length);
+                            sptr->m_pool.m_data = NULL;
+                            sptr->m_is_gap = 1;
+                        }
+                }
+            }
+            
+        }
+
+        //We cannot call update size, as it is a truncate
+        m_alloc_mutex.lock();
+        m_used_offset = end_offset;
+        m_attributes.st_size = end_offset;
+        m_attributes.st_blocks = end_offset/512;
+        m_alloc_mutex.unlock();
+
+        m_dealloc_mutex.unlock();
+    }
 }
 
 
