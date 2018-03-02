@@ -965,41 +965,21 @@ static int efsng_poll(const char* pathname, struct fuse_file_info* file_info, st
 static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t offset, 
                            struct fuse_file_info* file_info){
 
+   
     auto file_record = (efsng::File*) file_info->fh;
+    auto file_ptr = file_record->get_ptr();
+  
 
     size_t size = fuse_buf_size(buf);
 
     LOGGER_DEBUG("write({}, {}, {})", pathname, offset, size);
 
-    /* search file in available backends */
-    /* FIXME it might be better to have this information already cached somewhere
-     * IDEA: bloom filter? (see http://blog.michaelschmatz.com/2016/04/11/how-to-write-a-bloom-filter-cpp/) */
+  
+    ssize_t rv = file_ptr->put_data(offset, size, buf);
+   
 
-    efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
-    const auto & kv = efsng_ctx->m_backends.begin();
-    const auto& backend_ptr = kv->second; 
-
-        // XXX in the future, if it's possible that a file
-        // is removed from a backend by another thread 
-        // (e.g. to be copied to Lustre) we should add a
-        // lock_guard and add a reference count to the file
-        // so that the removal doesn't happen while someone
-        // is using the file
-    const auto& it = backend_ptr->find(pathname);
-
-    if(it != backend_ptr->end()) {
-        const auto& file_ptr = it->second;
-
-        //if(file_ptr->flags() == O_APPEND) {
-        //    ssize_t rv = file_ptr->append_data(offset, size, buf);
-        //}
-        //else {
-        ssize_t rv = file_ptr->put_data(offset, size, buf);
-        //}
-
-        return rv;
-    }
-    
+    return rv;
+  
 
     // TODO: appropriate return
     /* not available in DRAM nor NVRAM, write directly to the underlying filesystem */
@@ -1029,6 +1009,8 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
                           struct fuse_file_info* file_info){
 
     auto file_record = (efsng::File*) file_info->fh;
+    auto file_ptr = file_record->get_ptr();
+  
 
     struct fuse_bufvec* dst;
 
@@ -1046,22 +1028,12 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
     /* FIXME it might be better to have this information already cached somewhere
      * IDEA: bloom filter? (see http://blog.michaelschmatz.com/2016/04/11/how-to-write-a-bloom-filter-cpp/) */
 
-    efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
-    const auto & kv = efsng_ctx->m_backends.begin();
-    const auto& backend_ptr = kv->second; 
-    const auto& it = backend_ptr->find(pathname);
+    ssize_t rv = file_ptr->get_data(offset, size, dst);
 
-    if(it != backend_ptr->end()){
-    
-        const auto& file_ptr = it->second;
+    *bufp = dst;
 
-        ssize_t rv = file_ptr->get_data(offset, size, dst);
-
-        *bufp = dst;
-
-        return rv;
-    }
-    
+    return rv;
+        
 
     LOGGER_DEBUG("File \"{}\" not found", pathname);
     LOGGER_DEBUG("Reading \"{}\" from filesystem", pathname);
@@ -1123,21 +1095,12 @@ static int efsng_fallocate(const char* pathname, int mode, off_t offset, off_t l
         return -EOPNOTSUPP;
     }
 
-    efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
-    const auto & kv = efsng_ctx->m_backends.begin();
-    const auto& backend_ptr = kv->second; 
-    const auto& it = backend_ptr->find(pathname);
-  
-    if(it != backend_ptr->end()){
+    auto file_record = (efsng::File*) file_info->fh;
+    auto file_ptr = file_record->get_ptr();
+    ssize_t rv = file_ptr->allocate(offset, length);
     
-        const auto& file_ptr = it->second;
-
-        ssize_t rv = file_ptr->allocate(offset, length);
-        return rv;
-    }
-
-    return -ENOENT;
-
+    return rv;
+    
     /* only posix_fallocate is supported at the moment */
   
 }
