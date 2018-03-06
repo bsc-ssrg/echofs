@@ -182,13 +182,42 @@ void file::update_size(size_t size) {
 }
 
 int file::unload (const std::string name){
-std::cout << "Storing " << name << std::endl;
+    std::cout << "Storing " << name << std::endl;
+    file_region_list regions;
+    std::ofstream output(name, std::ios::binary);
+    auto rl = lock_range(0, size(), efsng::operation::read);
 
-std::ofstream (name, std::ios::binary);
+    m_alloc_mutex.lock_shared();
 
+    lookup_data(0, size(), regions);
 
+    m_alloc_mutex.unlock_shared();
 
-return 0;
+    if(regions.count() == 0) {
+        goto unlock_and_return_unload;
+    }
+
+    /* the FUSE interface forces us to allocate a buffer using malloc() and 
+    * memcpy() the requested data in order to return it back to the user. meh */
+
+    for(const auto& r : regions) {
+        efsng::data_ptr_t data = r.m_address;
+        size_t size = r.m_size;
+       
+        if(data != NULL) {
+            output.write((const char*)data, size);
+        }
+        else { //TODO ask Alberto
+            output.write((const char*)0, size);
+        }
+    }
+
+    unlock_and_return_unload:
+    //XXX if posix_consistency:
+    unlock_range(rl);
+    output.close();
+
+    return 0;
 }
 
 segment_ptr file::create_segment(off_t base_offset, size_t size, bool is_gap) {
