@@ -181,6 +181,16 @@ void file::update_size(size_t size) {
     m_alloc_mutex.unlock();
 }
 
+int file::unload (const std::string name){
+std::cout << "Storing " << name << std::endl;
+
+std::ofstream (name, std::ios::binary);
+
+
+
+return 0;
+}
+
 segment_ptr file::create_segment(off_t base_offset, size_t size, bool is_gap) {
 
     segment_ptr sptr(new segment(m_pool_subdir, base_offset, size, is_gap));
@@ -722,16 +732,15 @@ ssize_t file::allocate(off_t start_offset, size_t size){
     return 0;
 }
 
-// TODO: Truncate should remove and free segments.
 void file::truncate(off_t end_offset) {
 
     if (end_offset > size() ) { 
         allocate( 0, end_offset);
     }
     else {
-
+	
       m_dealloc_mutex.lock();
-
+      auto rl = lock_range(end_offset, size(), efsng::operation::write);
       // Traverse tree, update m_bytes of the last active segment, deallocate pmemblocks, set gap as 1
 
          ssize_t size = 0;
@@ -767,7 +776,7 @@ void file::truncate(off_t end_offset) {
         m_attributes.st_size = end_offset;
         m_attributes.st_blocks = end_offset/512;
         m_alloc_mutex.unlock();
-
+	unlock_range(rl);
         m_dealloc_mutex.unlock();
     }
 }

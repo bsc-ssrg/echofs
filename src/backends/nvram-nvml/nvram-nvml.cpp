@@ -31,7 +31,8 @@
 #include <fcntl.h>
 #include <libpmem.h>
 #include <errno.h>
-
+#include <sys/sendfile.h>  // sendfile
+#include <ctime>
 /* C++ includes */
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
@@ -161,8 +162,21 @@ error_code nvml_backend::load(const bfs::path& pathname) {
     return error_code::success;
 }
 
-error_code nvml_backend::unload(const bfs::path& pathname) {
-    LOGGER_ERROR("Unload not implemented!");
+// Unloads all the persistent files to the pathname
+error_code nvml_backend::unload(const bfs::path& pathname, const bfs::path & mntpathname) {
+
+    for (const auto &it : m_files ) {
+	const auto & file_ptr = it.second;
+	std::cout << " MKDIR " << pathname.string()+it.first.substr(0,it.first.rfind("/"))<< " " << std::endl;
+	
+	mkdir ( (pathname.string()+it.first.substr(0,it.first.rfind("/"))).c_str() , S_IRWXU );
+	std::string filename = it.first.substr(1); // Remove /
+
+	file_ptr->unload(pathname.string()+filename);
+
+	
+    }
+
     return error_code::success;
 }
 
@@ -171,7 +185,6 @@ bool nvml_backend::exists(const char* pathname) const {
     std::lock_guard<std::mutex> lock(m_files_mutex);
 
     const auto& it = m_files.find(pathname);
-
     return it != m_files.end();
 }
 
@@ -525,7 +538,7 @@ std::list <std::string> nvml_backend::find_s(const std::string path) const {
     return l_files;
 }
 
-
+// Not used, as fuse does not prepend the root directory now.
 std::string nvml_backend::remove_root (std::string pathname) const {
     std::size_t rdir = pathname.find(m_root_dir.string());
     if (rdir == std::string::npos){

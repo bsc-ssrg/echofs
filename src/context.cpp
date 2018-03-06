@@ -172,7 +172,7 @@ void context::teardown() {
      std::vector<pool::task_future<efsng::error_code>> return_values;
 
     /* Unload any resources: TODO : We should look for persistent marked files */
-    for(const auto& kv: m_user_args->m_resources) {     
+/*    for(const auto& kv: m_user_args->m_resources) {     
         const bfs::path& pathname = kv.at("path");
         const std::string& target = kv.at("backend");
 
@@ -200,6 +200,7 @@ void context::teardown() {
                     }
             )
         );
+	
     }
 
     // wait until all import tasks are complete before proceeding
@@ -208,6 +209,13 @@ void context::teardown() {
             throw std::runtime_error("Fatal error importing resources");
         }
     }
+*/
+    const auto & kv = m_backends.begin();
+    const auto& backend_ptr = kv->second;
+ //   std::shared_ptr <efsng::backend::file> ptr;
+    backend_ptr->unload(m_user_args->m_results_dir, m_user_args->m_mount_dir);
+	
+
 
     LOGGER_INFO("==============================================");
     LOGGER_INFO("=== Shutting down filesystem!!!            ===");
@@ -313,7 +321,7 @@ response_ptr context::api_handler(request_ptr user_req) {
                 if(m_backends.count(target) != 0) {
                     auto& backend_ptr = m_backends.at(target);
                     m_tracker.set(tid, error_code::task_in_progress);
-                    auto ec = backend_ptr->unload(pathname);
+                    auto ec = backend_ptr->unload(pathname, m_user_args->m_mount_dir);
                     m_tracker.set(tid, ec);
                 }
                 break;

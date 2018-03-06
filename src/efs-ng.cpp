@@ -73,7 +73,7 @@ extern "C" {
 #include "errors.h"
 #include "context.h"
 #include "efs-ng.h"
-
+std::mutex m_open;
 /**********************************************************************************************************************/
 /*   Filesytem operations
  *
@@ -156,7 +156,6 @@ static int efsng_mkdir(const char* pathname, mode_t mode){
 static int efsng_unlink(const char* pathname){
 
     LOGGER_DEBUG("unlink(\"{}\")", pathname);
-
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
     const auto & kv = efsng_ctx->m_backends.begin();
     const auto& backend_ptr = kv->second; 
@@ -310,8 +309,6 @@ static int efsng_truncate(const char* pathname, off_t length, struct fuse_file_i
  */
 static int efsng_open(const char* pathname, struct fuse_file_info* file_info){
 
-    (void) pathname;
-
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
     const auto & kv = efsng_ctx->m_backends.begin();
     const auto& backend_ptr = kv->second; 
@@ -383,7 +380,7 @@ static int efsng_read(const char* pathname, char* buf, size_t count, off_t offse
  */
 static int efsng_write(const char* pathname, const char* buf, size_t count, off_t offset, 
                        struct fuse_file_info* file_info){
-
+return 0;
     (void) pathname;
 
     auto file_record = (efsng::File*) file_info->fh;
@@ -605,7 +602,6 @@ static int efsng_readdir(const char* pathname, void* buf, fuse_fill_dir_t filler
                          enum fuse_readdir_flags flags){
 #endif
 
-    (void) pathname;
 
     LOGGER_DEBUG("readdir called \"{}\" ", pathname);
 
@@ -965,33 +961,16 @@ static int efsng_poll(const char* pathname, struct fuse_file_info* file_info, st
 static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t offset, 
                            struct fuse_file_info* file_info){
 
-   
     auto file_record = (efsng::File*) file_info->fh;
     auto file_ptr = file_record->get_ptr();
-  
 
     size_t size = fuse_buf_size(buf);
 
     LOGGER_DEBUG("write({}, {}, {})", pathname, offset, size);
-
   
     ssize_t rv = file_ptr->put_data(offset, size, buf);
    
-
     return rv;
-  
-
-    // TODO: appropriate return
-    /* not available in DRAM nor NVRAM, write directly to the underlying filesystem */
-    struct fuse_bufvec dst = FUSE_BUFVEC_INIT(fuse_buf_size(buf));
-    dst.buf[0].flags = (fuse_buf_flags) (FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
-    dst.buf[0].fd = file_record->get_fd();
-    dst.buf[0].pos = offset;
-
-    // fuse_buf_copy(dst, src, flags)
-    //   src = user provided buffer (passed as struct fuse_bufvec* buf)
-    //   dst = Underlying FS
-    return fuse_buf_copy(&dst, buf, FUSE_BUF_SPLICE_NONBLOCK);
 }
 
 /** 
@@ -1024,27 +1003,11 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
 
     *dst = FUSE_BUFVEC_INIT(size);
 
-    /* search file in available backends */
-    /* FIXME it might be better to have this information already cached somewhere
-     * IDEA: bloom filter? (see http://blog.michaelschmatz.com/2016/04/11/how-to-write-a-bloom-filter-cpp/) */
-
     ssize_t rv = file_ptr->get_data(offset, size, dst);
 
     *bufp = dst;
 
     return rv;
-        
-
-    LOGGER_DEBUG("File \"{}\" not found", pathname);
-    LOGGER_DEBUG("Reading \"{}\" from filesystem", pathname);
-
-    /* not available in a registered backend, read directly from the underlying filesystem */
-    dst->buf[0].flags = (fuse_buf_flags) (FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
-    dst->buf[0].fd = file_record->get_fd();
-    dst->buf[0].pos = offset;
-    *bufp = dst;
-
-    return 0;
 }
 
 /**

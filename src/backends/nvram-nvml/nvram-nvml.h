@@ -60,7 +60,7 @@ public:
     std::string name() const override;
     uint64_t capacity() const override;
     error_code load(const bfs::path& pathname) override;
-    error_code unload(const bfs::path& pathname) override;
+    error_code unload(const bfs::path& pathname, const bfs::path & mntpathname) override;
     bool exists(const char* pathname) const override;
     int do_readdir (const char * path, void * buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) const override;
     int do_stat ( const char * path, struct stat& stbuf) const override;

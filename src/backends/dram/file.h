@@ -89,6 +89,7 @@ struct file : public backend::file {
     
 
     void add(const mapping& mp);
+    int unload(const std::string path);
 };
 
 } // namespace dram

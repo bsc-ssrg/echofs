@@ -68,7 +68,7 @@ error_code dram_backend::load(const bfs::path& pathname){
 }
 
 /** start the load process of a file requested by the user */
-error_code dram_backend::unload(const bfs::path& pathname){
+error_code dram_backend::unload(const bfs::path& pathname, const bfs::path & mntpathname){
     LOGGER_ERROR("Unload not implemented!");
     return error_code::success;
 }

@@ -97,7 +97,7 @@ struct file : public backend::file {
     void truncate(off_t offset) override;
     ssize_t allocate (off_t offset, size_t size) override;
     void save_attributes(struct stat& stbuf) override;
-
+    int unload (const std::string dump_path) override;
 private:
 
     size_t size() const;

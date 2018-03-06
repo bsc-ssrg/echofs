@@ -107,6 +107,7 @@ public:
         virtual ssize_t allocate(off_t offset, size_t size) = 0;
         virtual void truncate(off_t offset) = 0;
         virtual void save_attributes(struct stat & stbuf) = 0;
+	virtual int unload(const std::string dump_path) = 0;
         virtual ~file(){}
     };
 
@@ -164,7 +165,7 @@ public:
     virtual std::string name() const = 0;
     virtual uint64_t capacity() const = 0;
     virtual error_code load(const bfs::path& pathname) = 0;
-    virtual error_code unload(const bfs::path& pathname) = 0;
+    virtual error_code unload(const bfs::path& pathname, const bfs::path & mntpathname) = 0;
     virtual bool exists(const char* pathname) const = 0;
     virtual int do_readdir (const char * path, void * buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) const = 0;
     virtual int do_stat (const char * path, struct stat& stbuf) const = 0;
