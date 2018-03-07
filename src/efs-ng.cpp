@@ -786,6 +786,9 @@ static int efsng_create(const char* pathname, mode_t mode, struct fuse_file_info
 static int efsng_ftruncate(const char* pathname, off_t length, struct fuse_file_info* file_info){
 
     (void) pathname;
+    
+    LOGGER_DEBUG("truncate(\"{}\", {})", pathname, length);
+
     auto file_record = (efsng::File*) file_info->fh;
     auto ptr = file_record->get_ptr();
     ptr->truncate(length);
@@ -1057,6 +1060,8 @@ static int efsng_fallocate(const char* pathname, int mode, off_t offset, off_t l
       if(mode != 0){
         return -EOPNOTSUPP;
     }
+    
+    LOGGER_DEBUG("allocate(\"{}\", {}, {})", pathname, offset, length);
 
     auto file_record = (efsng::File*) file_info->fh;
     auto file_ptr = file_record->get_ptr();

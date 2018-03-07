@@ -81,7 +81,8 @@ file::file(const bfs::path& pool_base, const bfs::path& pathname, const ino_t in
     if(populate) { //XXX this is probably not needed if we have another constructor
                    // for non-Lustre backed files
 
-        m_initialized = true;
+        boost::unique_lock<boost::shared_mutex> lock(m_initialized_mutex);
+       
          /* generate a subdir to store all pools for this file */
 
         /* if the pool subdir already exists delete it, since we can't trust it */
@@ -117,6 +118,7 @@ file::file(const bfs::path& pool_base, const bfs::path& pathname, const ino_t in
         m_used_offset = sptr->fill_from(fd);
 
         save_attributes(stbuf);
+        m_initialized = true;
     } else {
         m_segments.build_tree();
     }
@@ -183,7 +185,6 @@ void file::update_size(size_t size) {
 
 int file::unload (const std::string name){
 
-    std::cout << "Storing " << name << " " << (m_type==file::type::temporary) << std::endl;
     file_region_list regions;
     std::ofstream output(name, std::ios::binary);
     auto rl = lock_range(0, size(), efsng::operation::read);
@@ -552,6 +553,8 @@ ssize_t file::get_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse
     file_region_list regions;
 
     // TODO : Mutex
+    boost::unique_lock<boost::shared_mutex> lock(m_initialized_mutex);
+    {
     if (!m_initialized){
          
         /* if the pool subdir already exists delete it, since we can't trust it */
@@ -571,6 +574,7 @@ ssize_t file::get_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse
                     logger::build_message("Error creating pool subdir: ", m_pool_subdir, " (", strerror(errno), ")"));
         }
         m_initialized = true;
+    }
     }
 //XXX if posix_consistency:
     auto rl = lock_range(start_offset, end_offset, efsng::operation::read);
@@ -636,7 +640,8 @@ ssize_t file::put_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse
     // Thus, all writers can put data into a file's segments concurrently, without having 
     // to worry about them vanishing
 
-      // TODO : Mutex
+     boost::unique_lock<boost::shared_mutex> lock(m_initialized_mutex);
+    {
     if (!m_initialized){
       
         /* if the pool subdir already exists delete it, since we can't trust it */
@@ -657,7 +662,7 @@ ssize_t file::put_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse
         }
         m_initialized = true;
     }
-
+    }
 
 
     m_dealloc_mutex.lock_shared();
@@ -729,8 +734,10 @@ ssize_t file::append_data(off_t start_offset, size_t size, struct fuse_bufvec* f
 
 ssize_t file::allocate(off_t start_offset, size_t size){
      
+    boost::unique_lock<boost::shared_mutex> lock(m_initialized_mutex);
+    {
     if (!m_initialized){
-         
+      
         /* if the pool subdir already exists delete it, since we can't trust it */
         /* TODO: we may need to change this in the future */
         if(bfs::exists(m_pool_subdir)) {
@@ -748,6 +755,7 @@ ssize_t file::allocate(off_t start_offset, size_t size){
                     logger::build_message("Error creating pool subdir: ", m_pool_subdir, " (", strerror(errno), ")"));
         }
         m_initialized = true;
+    }
     }
 
     file_region_list regions;
