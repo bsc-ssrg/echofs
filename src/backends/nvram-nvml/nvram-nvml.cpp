@@ -76,7 +76,7 @@ uint64_t nvml_backend::capacity() const {
 
 /** start the load process of a file requested by the user */
 /* pathname = file path in underlying filesystem */
-error_code nvml_backend::load(const bfs::path& pathname) {
+error_code nvml_backend::load(const bfs::path& pathname, backend::file::type type) {
 
     LOGGER_DEBUG("Import {} to NVRAM", pathname);
 
@@ -91,7 +91,7 @@ error_code nvml_backend::load(const bfs::path& pathname) {
         bfs::recursive_directory_iterator r(pathname);
         for (auto entry : r) {
             if (!bfs::is_directory(entry)) {
-                auto error = load(entry);
+                auto error = load(entry, type);
                 if (error != error_code::success) return error;
             }
         }
@@ -107,7 +107,7 @@ error_code nvml_backend::load(const bfs::path& pathname) {
     /* create a new file into m_files (the constructor will fill it with
      * the contents of the pathname) */
      auto it = m_files.emplace(path_wo_root, 
-                              std::make_unique<nvml::file>(m_daxfs_mount_point, pathname, new_inode()));
+                              std::make_unique<nvml::file>(m_daxfs_mount_point, pathname, new_inode(), type));
   
 
     // Iterate the path to fill the info
@@ -162,18 +162,59 @@ error_code nvml_backend::load(const bfs::path& pathname) {
     return error_code::success;
 }
 
+
+int mkdir_p(const char *path)
+{
+    /* Adapted from http://stackoverflow.com/a/2336245/119527 */
+    const size_t len = strlen(path);
+    char _path[PATH_MAX];
+    char *p; 
+
+    errno = 0;
+
+    /* Copy string so its mutable */
+    if (len > sizeof(_path)-1) {
+        errno = ENAMETOOLONG;
+        return -1; 
+    }   
+    strcpy(_path, path);
+
+    /* Iterate the string */
+    for (p = _path + 1; *p; p++) {
+        if (*p == '/') {
+            /* Temporarily truncate */
+            *p = '\0';
+
+            if (mkdir(_path, S_IRWXU) != 0) {
+                if (errno != EEXIST)
+                    return -1; 
+            }
+
+            *p = '/';
+        }
+    }   
+
+    if (mkdir(_path, S_IRWXU) != 0) {
+        if (errno != EEXIST)
+            return -1; 
+    }   
+
+    return 0;
+}
+
+
 // Unloads all the persistent files to the pathname
 error_code nvml_backend::unload(const bfs::path& pathname, const bfs::path & mntpathname) {
 
     for (const auto &it : m_files ) {
 	const auto & file_ptr = it.second;
-	std::cout << " MKDIR " << pathname.string()+it.first.substr(0,it.first.rfind("/"))<< " " << std::endl;
+	//std::cout << " MKDIR " << pathname.string()+it.first.substr(0,it.first.rfind("/"))<< " " << std::endl;
 	
-	mkdir ( (pathname.string()+it.first.substr(0,it.first.rfind("/"))).c_str() , S_IRWXU );
+	int error = mkdir_p ( (pathname.string()+it.first.substr(0,it.first.rfind("/"))).c_str());
+	if (error < 0 ) return error_code::internal_error;
 	std::string filename = it.first.substr(1); // Remove /
-
-	file_ptr->unload(pathname.string()+filename);
-
+	int rv = file_ptr->unload(pathname.string()+filename);
+	if (rv < 0) LOGGER_DEBUG ("File {} is temporary", filename);
 	
     }
 
@@ -538,7 +579,15 @@ std::list <std::string> nvml_backend::find_s(const std::string path) const {
     return l_files;
 }
 
-// Not used, as fuse does not prepend the root directory now.
+void nvml_backend::do_change_type(const char * path, backend::file::type  type){
+	auto file = m_files.find(remove_root(path));
+	if ( file != m_files.end() ){
+		file->second.get()->change_type(type);
+	}
+}
+
+
+// Only used for paths that come from the settings, as fuse does not prepend the root directory now.
 std::string nvml_backend::remove_root (std::string pathname) const {
     std::size_t rdir = pathname.find(m_root_dir.string());
     if (rdir == std::string::npos){

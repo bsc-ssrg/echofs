@@ -115,6 +115,7 @@ void context::initialize() {
     for(const auto& kv: m_user_args->m_resources) {
         const bfs::path& pathname = kv.at("path");
         const std::string& target = kv.at("backend");
+	const std::string& flag = kv.at("flags");
 
         if(m_backends.count(target) == 0) {
             LOGGER_WARN("Invalid backend '{}' for input resource '{}'. Ignored.", target, pathname.string());
@@ -127,15 +128,15 @@ void context::initialize() {
                     [=] () -> efsng::error_code {
 
                         auto& backend_ptr = m_backends.at(target);
+			auto m_type = backend::file::type::persistent;
+			if (flag == "temporary") m_type = backend::file::type::temporary;
+                        LOGGER_DEBUG("Lambda called with {} - {}", pathname, flag);
 
-                        LOGGER_DEBUG("Lambda called with {}", pathname);
-
-                        auto rv = backend_ptr->load(pathname);
-
+                        auto rv = backend_ptr->load(pathname, m_type);
+			
                         if(rv != efsng::error_code::success) {
                             LOGGER_ERROR("Error importing {} into '{}': {}", pathname, target, rv);
                         }
-
                         return rv;
                     }
             )
@@ -308,7 +309,7 @@ response_ptr context::api_handler(request_ptr user_req) {
                 if(m_backends.count(target) != 0) {
                     auto& backend_ptr = m_backends.at(target);
                     m_tracker.set(tid, error_code::task_in_progress);
-                    auto ec = backend_ptr->load(pathname);
+                    auto ec = backend_ptr->load(pathname, backend::file::type::persistent);
                     m_tracker.set(tid, ec);
                 }
                 break;

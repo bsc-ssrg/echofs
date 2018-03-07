@@ -58,7 +58,7 @@ uint64_t dram_backend::capacity() const {
 }
 
 /** start the load process of a file requested by the user */
-error_code dram_backend::load(const bfs::path& pathname){
+error_code dram_backend::load(const bfs::path& pathname, backend::file::type type){
 
     LOGGER_DEBUG("Loading file \"{}\" in RAM", pathname.string());
 
@@ -126,6 +126,8 @@ int dram_backend::do_chmod(const char * pathname, mode_t mode) {
 int dram_backend::do_chown(const char * pathname, uid_t owner, gid_t group) {
     return 0;
 }
+
+void dram_backend::do_change_type(const char * pathname, backend::file::type type) {}
 
 efsng::backend::iterator dram_backend::find(const char* path) {
     return m_files.find(path);

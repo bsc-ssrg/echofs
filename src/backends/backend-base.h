@@ -108,6 +108,7 @@ public:
         virtual void truncate(off_t offset) = 0;
         virtual void save_attributes(struct stat & stbuf) = 0;
 	virtual int unload(const std::string dump_path) = 0;
+	virtual void change_type(file::type type) = 0;
         virtual ~file(){}
     };
 
@@ -164,7 +165,7 @@ public:
 
     virtual std::string name() const = 0;
     virtual uint64_t capacity() const = 0;
-    virtual error_code load(const bfs::path& pathname) = 0;
+    virtual error_code load(const bfs::path& pathname, backend::file::type type) = 0;
     virtual error_code unload(const bfs::path& pathname, const bfs::path & mntpathname) = 0;
     virtual bool exists(const char* pathname) const = 0;
     virtual int do_readdir (const char * path, void * buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) const = 0;
@@ -176,6 +177,7 @@ public:
     virtual int do_rmdir(const char * pathname) = 0;
     virtual int do_chmod(const char * pathname, mode_t mode) = 0;
     virtual int do_chown(const char * pathname, uid_t owner, gid_t group) = 0;
+    virtual void do_change_type (const char * pathname, backend::file::type type) = 0;
     virtual iterator find(const char* path) = 0;
     virtual iterator begin() = 0;
     virtual iterator end() = 0;

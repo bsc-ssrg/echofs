@@ -182,7 +182,8 @@ void file::update_size(size_t size) {
 }
 
 int file::unload (const std::string name){
-    std::cout << "Storing " << name << std::endl;
+
+    std::cout << "Storing " << name << " " << (m_type==file::type::temporary) << std::endl;
     file_region_list regions;
     std::ofstream output(name, std::ios::binary);
     auto rl = lock_range(0, size(), efsng::operation::read);
@@ -719,6 +720,9 @@ ssize_t file::put_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse
 }
 
 ssize_t file::append_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse_buffer) {
+    (void)start_offset;
+    (void)size;
+    (void)fuse_buffer;
 
     return 0;
 }
@@ -761,9 +765,14 @@ ssize_t file::allocate(off_t start_offset, size_t size){
     return 0;
 }
 
+
+void file::change_type(file::type type){
+	m_type = type;
+}
+
 void file::truncate(off_t end_offset) {
 
-    if (end_offset > size() ) { 
+    if ((unsigned)end_offset > (unsigned)size() ) { 
         allocate( 0, end_offset);
     }
     else {

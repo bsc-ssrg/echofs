@@ -54,7 +54,7 @@ public:
 
     std::string name() const override;
     uint64_t capacity() const override;
-    error_code load(const bfs::path& pathname) override;
+    error_code load(const bfs::path& pathname, backend::file::type type) override;
     error_code unload(const bfs::path& pathname, const bfs::path & mntpathname) override;
     bool exists(const char* pathname) const override;
     int do_readdir (const char * path, void * buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) const override;
@@ -66,8 +66,8 @@ public:
     int do_rmdir(const char * pathname) override;
     
     int do_chmod(const char * pathname, mode_t mode) override;
-    int do_chown(const char * pathname, uid_t owner, gid_t group) override;
-
+    int do_chown(const char * pathname, uid_t owner, gid_t group) override; 
+    void do_change_type(const char * pathname, backend::file::type type) override;
     efsng::backend::iterator find(const char* path) override;
     efsng::backend::iterator begin() override;
     efsng::backend::iterator end() override;

@@ -87,7 +87,7 @@ struct file : public backend::file {
     void set_size(size_t size) { (void) size; }
     void extend(off_t offset, size_t size) { (void) offset; (void) size; }
     
-
+    void change_type (file::type type);
     void add(const mapping& mp);
     int unload(const std::string path);
 };
