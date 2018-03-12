@@ -35,6 +35,7 @@
 #include <range_lock.h>
 #include "backend-base.h"
 #include <fuse.h>
+#include <atomic>
 
 namespace bfs = boost::filesystem;
 
@@ -129,7 +130,7 @@ private:
     off_t m_used_offset; /*!< Maximum used offset, i.e. eof */
 
     segment_tree                m_segments;
-    bool m_initialized; /*!< segments initialized ? */
+    std::atomic<bool> m_initialized; /*!< segments initialized ? */
     mutable boost::shared_mutex m_initialized_mutex;
     mutable boost::shared_mutex m_alloc_mutex; /*!< Mutex to synchronize reader/writer access to the tree */
     mutable boost::shared_mutex m_dealloc_mutex; /*!< Mutex to synchronize reader/writer access to the tree */

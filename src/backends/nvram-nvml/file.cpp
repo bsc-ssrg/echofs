@@ -495,6 +495,7 @@ void file::lookup_helper(off_t range_start, off_t range_end, bool alloc_gaps_as_
             segment_list sl;
 
             s->allocate(seg_offset, seg_size);
+            
 
             off_t start_gap_offset = s_start;
             size_t start_gap_size = seg_offset - s_start;
@@ -503,6 +504,9 @@ void file::lookup_helper(off_t range_start, off_t range_end, bool alloc_gaps_as_
                 auto sptr = create_segment(start_gap_offset, start_gap_size, /*is_gap=*/true);
                 sl.push_back(sptr);
             }
+
+            // update op_delta since we have modified things
+            op_delta = range_start - (start_gap_offset + start_gap_size);
 
             off_t end_gap_offset = seg_offset + seg_size;
             size_t end_gap_size = s_end - (seg_offset + seg_size);
@@ -552,9 +556,6 @@ ssize_t file::get_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse
 
     file_region_list regions;
 
-    // TODO : Mutex
-    boost::unique_lock<boost::shared_mutex> lock(m_initialized_mutex);
-    {
     if (!m_initialized){
          
         /* if the pool subdir already exists delete it, since we can't trust it */
@@ -575,7 +576,7 @@ ssize_t file::get_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse
         }
         m_initialized = true;
     }
-    }
+   
 //XXX if posix_consistency:
     auto rl = lock_range(start_offset, end_offset, efsng::operation::read);
 
@@ -640,8 +641,6 @@ ssize_t file::put_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse
     // Thus, all writers can put data into a file's segments concurrently, without having 
     // to worry about them vanishing
 
-     boost::unique_lock<boost::shared_mutex> lock(m_initialized_mutex);
-    {
     if (!m_initialized){
       
         /* if the pool subdir already exists delete it, since we can't trust it */
@@ -662,7 +661,7 @@ ssize_t file::put_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse
         }
         m_initialized = true;
     }
-    }
+    
 
 
     m_dealloc_mutex.lock_shared();
@@ -734,8 +733,7 @@ ssize_t file::append_data(off_t start_offset, size_t size, struct fuse_bufvec* f
 
 ssize_t file::allocate(off_t start_offset, size_t size){
      
-    boost::unique_lock<boost::shared_mutex> lock(m_initialized_mutex);
-    {
+    
     if (!m_initialized){
       
         /* if the pool subdir already exists delete it, since we can't trust it */
@@ -755,7 +753,6 @@ ssize_t file::allocate(off_t start_offset, size_t size){
                     logger::build_message("Error creating pool subdir: ", m_pool_subdir, " (", strerror(errno), ")"));
         }
         m_initialized = true;
-    }
     }
 
     file_region_list regions;
@@ -802,7 +799,7 @@ void file::truncate(off_t end_offset) {
                    
                     if (cut == false) {
                            // std::cout << " CUT HERE " << size - end_offset << std::endl;
-                            sptr->m_bytes = (size - end_offset) ;
+                            sptr->m_bytes = (size - end_offset) ; // It is not used
                             cut = true;
                         }
                         else {
