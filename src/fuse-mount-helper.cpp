@@ -38,19 +38,33 @@ int fuse_custom_mounter(const config::settings& user_opts, const struct fuse_ope
 	char *mountpoint;
 	int multithreaded;
 	int res;
-
+	
     /* create a context object to maintain the internal state of the filesystem 
      * so that we can later pass it around to the filesystem operations */
     auto efsng_ctx = std::make_unique<efsng::context>(user_opts);
-
+#if FUSE_USE_VERSION < 30
 	fuse = fuse_setup(user_opts.m_fuse_argc, 
 	                  const_cast<char**>(user_opts.m_fuse_argv), 
 	                  ops, 
 	                  sizeof(*ops), 
-	                  &mountpoint,
+	                  &mountpoint, /*m_mount_point user_opts->m_fuse_argv*/
 				      &multithreaded, 
 				      (void*) efsng_ctx.get());
+#else
+	// fuse_args *args
+	struct fuse_cmdline_opts opts;
+	if (fuse_parse_cmdline(&args, &opts) != 0)
+		return 1;
 
+	struct fuse_args args = {user_opts.m_fuse_argc, const_cast<char**>(user_opts.m_fuse_argv), 1}
+	fuse = fuse_new(args, 
+	                  ops, 
+	                  sizeof(*ops), 
+				      (void*) efsng_ctx.get());
+	fuse = fuse_mount (f, &mountpoint);
+	multithreaded = (opts.singlethread == 0);
+	mountpoint = opts.mountpoint;
+#endif
 	if(fuse == NULL) {
 		return 1;
     }
@@ -61,9 +75,11 @@ int fuse_custom_mounter(const config::settings& user_opts, const struct fuse_ope
 	else {
 		res = fuse_loop(fuse);
     }
-
+#if FUSE_USE_VERSION < 30
 	fuse_teardown(fuse, mountpoint);
-
+#else
+	fuse_exit(fuse);
+#endif
 	if (res == -1) {
 		return 1;
 	}
