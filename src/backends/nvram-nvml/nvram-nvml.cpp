@@ -232,9 +232,13 @@ bool nvml_backend::exists(const char* pathname) const {
 // TODO: Error control
 int nvml_backend::do_readdir (const char * path, void * buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) const {
     LOGGER_DEBUG("Inside backend readdir for {}", path);
-    filler(buffer, ".", NULL, 0);
-    filler(buffer, "..", NULL, 0);
-   
+    #if FUSE_USE_VERSION < 30
+	filler(buffer, ".", NULL, 0);
+	filler(buffer, "..", NULL, 0);
+    #else
+	filler(buffer,".", NULL,0,(fuse_fill_dir_flags)0);
+	filler(buffer,"..", NULL,0,(fuse_fill_dir_flags)0);
+    #endif
     std::list <std::string> ls = find_s(path);
     
     for (auto &file : ls) {    
@@ -242,7 +246,11 @@ int nvml_backend::do_readdir (const char * path, void * buffer, fuse_fill_dir_t 
             // We remove the last slash
             file.pop_back();
         }
-        filler(buffer, file.c_str(), NULL, 0);
+	#if FUSE_USE_VERSION < 30
+		filler(buffer, file.c_str(), NULL, 0);
+	#else
+		filler(buffer, file.c_str(), NULL, 0, (fuse_fill_dir_flags)0);
+	#endif
     }
     return 0;
 }

@@ -380,9 +380,11 @@ void settings::from_cmdline(int argc, char* argv[]){
         push_arg(argv[optind]);
         ++optind;
     }
-
+    #if FUSE_USE_VERSION < 30
     /* fill in the mount point for FUSE */
     push_arg(m_mount_dir.string().c_str(), 1 /*fuse_argv[1]*/);
+    #endif
+	
 }
 
 void settings::load_from_yaml_file(const bfs::path& config_file) {

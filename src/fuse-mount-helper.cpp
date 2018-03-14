@@ -25,6 +25,10 @@
  *************************************************************************/
 
 #include <fuse.h>
+#if FUSE_USE_VERSION < 30
+#else
+#include <fuse_lowlevel.h>
+#endif
 #include <stdlib.h>
 #include "utils.h"
 #include "context.h"
@@ -47,30 +51,29 @@ int fuse_custom_mounter(const config::settings& user_opts, const struct fuse_ope
 	                  const_cast<char**>(user_opts.m_fuse_argv), 
 	                  ops, 
 	                  sizeof(*ops), 
-	                  &mountpoint, /*m_mount_point user_opts->m_fuse_argv*/
+	                  &mountpoint,
 				      &multithreaded, 
 				      (void*) efsng_ctx.get());
 #else
-	// fuse_args *args
-	struct fuse_cmdline_opts opts;
-	if (fuse_parse_cmdline(&args, &opts) != 0)
-		return 1;
-
-	struct fuse_args args = {user_opts.m_fuse_argc, const_cast<char**>(user_opts.m_fuse_argv), 1}
-	fuse = fuse_new(args, 
+	struct fuse_args args = {1, const_cast<char**>(user_opts.m_fuse_argv), 0};
+	fuse = fuse_new(&args, 
 	                  ops, 
 	                  sizeof(*ops), 
 				      (void*) efsng_ctx.get());
-	fuse = fuse_mount (f, &mountpoint);
-	multithreaded = (opts.singlethread == 0);
-	mountpoint = opts.mountpoint;
+	if (fuse == NULL) return 1;
+	fuse_mount (fuse, user_opts.m_mount_dir.string().c_str());
+	multithreaded = true;
 #endif
 	if(fuse == NULL) {
 		return 1;
     }
 
 	if(multithreaded) {
+#if FUSE_USE_VERSION < 30
 		res = fuse_loop_mt(fuse);
+#else
+		res = fuse_loop_mt(fuse, 1);
+#endif
     }
 	else {
 		res = fuse_loop(fuse);
