@@ -55,7 +55,7 @@ struct segment {
 
     //static const size_t s_min_size = 0x2000000; // 32MiB
     static const size_t s_min_size = 0x1000; // 32MiB
-    static const size_t s_segment_size = 0x100000; // 1MiB
+    static const size_t s_segment_size = 0x100000*32; // 1MiB
 
     off_t                       m_offset;   /*!< Base offset within file */
     size_t                      m_size;     /*!< Mapped size */

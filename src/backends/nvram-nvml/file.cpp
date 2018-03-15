@@ -225,7 +225,7 @@ int file::unload (const std::string name){
 segment_ptr file::create_segment(off_t base_offset, size_t size, bool is_gap) {
 
     segment_ptr sptr(new segment(m_pool_subdir, base_offset, size, is_gap));
-    sptr->zero_fill(0, sptr->m_size);
+//    sptr->zero_fill(0, sptr->m_size);
 
     return sptr;
 }

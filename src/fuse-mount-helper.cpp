@@ -63,6 +63,11 @@ int fuse_custom_mounter(const config::settings& user_opts, const struct fuse_ope
 	if (fuse == NULL) return 1;
 	fuse_mount (fuse, user_opts.m_mount_dir.string().c_str());
 	multithreaded = true;
+	struct fuse_session *se = fuse_get_session(fuse);
+	if (fuse_set_signal_handlers(se) != 0) {
+		res = 1;
+		return 1;
+	}
 #endif
 	if(fuse == NULL) {
 		return 1;
@@ -81,7 +86,10 @@ int fuse_custom_mounter(const config::settings& user_opts, const struct fuse_ope
 #if FUSE_USE_VERSION < 30
 	fuse_teardown(fuse, mountpoint);
 #else
-	fuse_exit(fuse);
+	fuse_remove_signal_handlers(se);
+	fuse_unmount(fuse);
+	fuse_destroy(fuse);
+	fuse_opt_free_args(&args);
 #endif
 	if (res == -1) {
 		return 1;
