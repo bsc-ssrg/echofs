@@ -95,7 +95,7 @@ void pool::allocate(size_t size) {
     }
 
     /* create the pool */
-    if((pool_addr = pmem_map_file(pool_path.c_str(), size, PMEM_FILE_CREATE | PMEM_FILE_EXCL,
+    if((pool_addr = pmem_map_file(pool_path.c_str(), size, PMEM_FILE_CREATE | PMEM_FILE_EXCL | PMEM_FILE_SPARSE,
                                 0666, &pool_length, &is_pmem)) == NULL) {
         throw std::runtime_error(
                 logger::build_message("Fatal error creating pmem file: ", pool_path, " (", strerror(errno), ")"));
