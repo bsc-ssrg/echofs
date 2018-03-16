@@ -125,7 +125,16 @@ file::file(const bfs::path& pool_base, const bfs::path& pathname, const ino_t in
 }
 
 file::~file() {
-   // std::cerr << "a nvml::file " << m_pathname.string() <<  " instance died...\n" ;
+ //   std::cerr << "a nvml::file " << m_pathname.string() <<  " instance died...\n" ;
+     if(bfs::exists(m_pool_subdir)) {
+        try {
+             remove_all(m_pool_subdir);
+        }
+        catch(const bfs::filesystem_error& e) {
+            throw std::runtime_error(
+                    logger::build_message("Error removing stale pool subdir: ", m_pool_subdir, " (", e.what(), ")"));
+        }
+     }
 }
 
 void file::stat(struct stat& stbuf) const {
@@ -318,78 +327,6 @@ void file::lookup_segments(off_t range_start, off_t range_end, file_region_list&
 
     lookup_helper(range_start, range_end, /*alloc_gaps_as_needed=*/true, regions);
 
-#if 0
-    segment_ptr sptr;
-    auto res = m_segments.search_tree(range_start, sptr);
-
-    // range_start must exist, since the segment tree covers from 0 to 
-    // std::numeric_limits<off_t>::max(). Also, if a non-allocated offset 
-    // is accessed, the associated segment will be nullptr
-    assert(res.second == true);
-
-    segment_tree::const_iterator& it = res.first;
-
-    do {
-        const auto& s = it->second;
-
-        // out of allocated file
-        if(s == nullptr) {
-            return;
-        }
-
-        off_t s_start = s->m_offset;
-        off_t s_end = s_start + s->m_size;
-        off_t op_delta = range_start - s_start;
-
-        // this should be guaranteed by search_tree
-        assert(op_delta != (off_t) s->m_size);
-
-        ssize_t op_size = std::min({(ssize_t) req_size,
-                                    (ssize_t) s->m_size - op_delta});
-
-        // we found a gap affected by the write operation, create actual storage for it
-        if(s->m_is_gap) {
-            off_t seg_offset = efsng::align(range_start, segment::s_segment_size);
-            size_t seg_size = (range_start + req_size < s->m_offset + s->m_size) ?
-                efsng::xalign(range_start + req_size, segment::s_segment_size) - seg_offset :
-                s->m_offset + s->m_size - seg_offset;
-
-            segment_list sl;
-
-            s->allocate(seg_offset, seg_size);
-
-            off_t start_gap_offset = s_start;
-            size_t start_gap_size = seg_offset - s_start;
-
-            if(start_gap_size != 0) {
-                auto sptr = create_segment(start_gap_offset, start_gap_size, /*is_gap=*/true);
-                sl.push_back(sptr);
-            }
-
-            off_t end_gap_offset = seg_offset + seg_size;
-            size_t end_gap_size = s_end - (seg_offset + seg_size);
-
-            if(end_gap_size != 0) {
-                auto sptr = create_segment(end_gap_offset, end_gap_size, /*is_gap=*/true);
-                sl.push_back(sptr);
-            }
-
-            insert_segments(sl);
-        }
-
-        data_ptr_t s_addr = (data_ptr_t) ((uintptr_t)s->data() + op_delta);
-
-        regions.emplace_back(s_addr, op_size, s->m_is_gap, s->is_pmem());
-
-        if(s_end >= range_end) {
-            return;
-        }
-
-        range_start = s_end;
-        req_size -= op_size;
-        ++it;
-    } while(true);
-#endif
 }
 
 void file::lookup_data(off_t range_start, off_t range_end, file_region_list& regions) const {
@@ -404,50 +341,6 @@ void file::lookup_data(off_t range_start, off_t range_end, file_region_list& reg
 
     const_cast<file*>(this)->lookup_helper(range_start, range_end, /*alloc_gaps_as_needed=*/false, regions);
 
-#if 0
-    segment_ptr sptr;
-    auto res = m_segments.search_tree(range_start, sptr);
-
-    // range_start must exist, since the segment tree covers from 0 to 
-    // std::numeric_limits<off_t>::max(). Also, if a non-allocated offset 
-    // is accessed, the associated segment will be nullptr
-    assert(res.second == true);
-
-    segment_tree::const_iterator& it = res.first;
-
-    do {
-        const auto& s = it->second;
-
-        // out of allocated file
-        if(s == nullptr) {
-            return;
-        }
-
-        off_t s_start = s->m_offset;
-        off_t s_end = s_start + s->m_size;
-        off_t op_delta = range_start - s_start;
-
-        // this should be guaranteed by search_tree
-        assert(op_delta != (off_t) s->m_size);
-
-        ssize_t op_size = std::min({(ssize_t) req_size,
-                                    (ssize_t) s->m_size - op_delta});
-
-        data_ptr_t s_addr = s->m_is_gap ? 
-                            NULL : 
-                            (data_ptr_t) ((uintptr_t)s->data() + op_delta);
-
-        regions.emplace_back(s_addr, op_size, s->m_is_gap, s->is_pmem());
-
-        if(s_end >= range_end) {
-            return;
-        }
-
-        range_start = s_end;
-        req_size -= op_size;
-        ++it;
-    } while(true);
-#endif
 }
 
 void file::lookup_helper(off_t range_start, off_t range_end, bool alloc_gaps_as_needed, file_region_list& regions) {
@@ -640,8 +533,9 @@ ssize_t file::put_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse
     // before doing anything, whereas truncate() will try to get a unique_lock().
     // Thus, all writers can put data into a file's segments concurrently, without having 
     // to worry about them vanishing
-
+    m_dealloc_mutex.lock_shared();
     if (!m_initialized){
+        boost::unique_lock<boost::shared_mutex> lock(m_alloc_mutex);
       
         /* if the pool subdir already exists delete it, since we can't trust it */
         /* TODO: we may need to change this in the future */
@@ -654,17 +548,13 @@ ssize_t file::put_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse
                         logger::build_message("Error removing stale pool subdir: ", m_pool_subdir, " (", e.what(), ")"));
             }
         }
-
         if(::mkdir(m_pool_subdir.c_str(), S_IRWXU) != 0) {
             throw std::runtime_error(
-                    logger::build_message("Error creating pool subdir: ", m_pool_subdir, " (", strerror(errno), ")"));
+                    logger::build_message("Error creating pool subdir (pd): ", m_pool_subdir, " (", strerror(errno), ")"));
         }
         m_initialized = true;
     }
     
-
-
-    m_dealloc_mutex.lock_shared();
 
     off_t end_offset = start_offset + size;
 

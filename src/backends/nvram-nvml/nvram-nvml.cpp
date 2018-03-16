@@ -339,9 +339,6 @@ int nvml_backend::do_unlink(const char * pathname) {
     std::string path = pathname;
     std::lock_guard<std::mutex> lock(m_files_mutex);
     std::lock_guard<std::mutex> lock_dir(m_dirs_mutex);
-    if(m_files.count(pathname) == 0) {
-        return -ENOENT;
-    }
     // Remove the file
     auto file = m_files.find(path);
     if (file != m_files.end()) {

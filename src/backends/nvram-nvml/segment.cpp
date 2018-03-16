@@ -71,6 +71,15 @@ pool::~pool() {
     // release the mapped region
     if(m_data != NULL) {
         pmem_unmap(m_data, m_length);
+        bfs::path pool_path;
+        pool_path = ::generate_pool_path(m_subdir);
+        if(bfs::exists(pool_path)){
+            if(::unlink(pool_path.c_str()) != 0){
+                throw std::runtime_error(
+                    logger::build_message("Error removing pool file: ", pool_path, " (", strerror(errno), ")"));
+            }
+        }
+
     }
 }
 
@@ -127,6 +136,7 @@ segment::segment(const bfs::path& subdir, off_t offset, size_t size, bool is_gap
 }
 
 segment::~segment() {
+    pmem_drain();
 }
 
 void segment::allocate(off_t offset, size_t size) {
