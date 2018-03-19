@@ -409,7 +409,12 @@ void settings::load_from_yaml_file(const bfs::path& config_file) {
     }
 
     if(m_log_file == "none" && parsed_global_settings.count(keywords::log_file)) {
-        if(!m_debug) { // if the FUSE debug flag was passed, we ignore the log file
+        if(m_debug) {
+            // if the FUSE debug flag was passed, we ignore the log file
+            std::cout << "WARNING: Ignoring 'log-file' option in debug mode (-d)\n";
+            std::cout << "WARNING: Use foreground mode (-f), if you want messages redirected\n";
+        }
+        else {
             m_log_file = parsed_global_settings.get_as<bfs::path>(keywords::log_file);
         }
     }

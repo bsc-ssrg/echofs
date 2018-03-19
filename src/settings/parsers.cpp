@@ -121,9 +121,9 @@ bfs::path path_parser(const std::string& name, const std::string& value) {
 
     bfs::path path(value);
 
-    if(!bfs::exists(path)) {
-        throw std::invalid_argument("Path '" + value + "' in setting '" + name + "' does not exist");
-    }
+    // if(!bfs::exists(path)) {
+    //     throw std::invalid_argument("Path '" + value + "' in setting '" + name + "' does not exist");
+    // }
 
     return path;
 }

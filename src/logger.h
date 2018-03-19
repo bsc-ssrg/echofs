@@ -31,6 +31,15 @@
 #define __LOGGER_ENABLE_DEBUG__
 #endif
 
+#ifdef __EFS_TRACE__
+#warning "Enabling __EFS_TRACE__ disables __EFS_DEBUG__!"
+#undef __EFS_DEBUG__
+#undef __LOGGER_ENABLE_DEBUG__
+#define __LOGGER_ENABLE_TRACE__
+#define TRACING_PATTERN     "%E:%v"
+#define TRACING_NT_PATTERN  "%v"
+#endif
+
 #include <spdlog/spdlog.h>
 #include <spdlog/fmt/ostr.h>
 #include <sstream>
@@ -62,12 +71,22 @@ public:
             else if(type == "file") {
                  m_internal_logger = spdlog::basic_logger_mt(ident, logfile);
             }
+            else if(type == "null") {
+                m_internal_logger = spdlog::stdout_logger_mt(ident);
+                m_internal_logger->set_level(spdlog::level::off);
+                return;
+            }
             else {
                 throw std::invalid_argument("Unknown logger type: '" + type + "'");
             }
 
             assert(m_internal_logger != nullptr);
 
+#ifdef __LOGGER_ENABLE_TRACE__
+            // %E - epoch (microseconds precision)
+            // %v - message
+            m_internal_logger->set_pattern(TRACING_PATTERN);
+#else
             // %Y - Year in 4 digits
             // %m - month 1-12
             // %d - day 1-31
@@ -79,6 +98,7 @@ public:
             // %l - log level
             // %v - message
             m_internal_logger->set_pattern("[%Y-%m-%d %T.%f] [%E] [%n] [%t] [%l] %v");
+#endif
 
             spdlog::drop_all();
 
@@ -105,7 +125,18 @@ public:
 
     template <typename... Args>
     static inline void create_global_logger(Args&&... args) {
-        global_logger() = std::make_shared<logger>(args...);
+
+        try {
+            global_logger() = std::make_shared<logger>(args...);
+        }
+        catch(const std::exception& ex) {
+            // provide a "null logger" if initialization of fails,
+            // so that asynchronous operations that may have already
+            // started have a valid logger to work on, even if it does not
+            // do anything
+            global_logger() = std::make_shared<logger>("", "null");
+            throw std::runtime_error(ex.what());
+        }
     }
 
     static inline void register_global_logger(logger&& lg) {
@@ -118,8 +149,22 @@ public:
 
     // some macros to make it more convenient to use the global logger
 
+#ifndef __LOGGER_ENABLE_TRACE__
 #define LOGGER_INFO(...) \
     efsng::logger::get_global_logger()->info(__VA_ARGS__)
+#else
+#define LOGGER_INFO(...) \
+    do {} while(0)
+#endif
+
+#ifdef __LOGGER_ENABLE_TRACE__
+#define LOGGER_TRACE(...) \
+    efsng::logger::get_global_logger()->info(__VA_ARGS__)
+#else
+#define LOGGER_TRACE(...) \
+    do {} while(0)
+#endif
+
 
 #ifdef __LOGGER_ENABLE_DEBUG__
 #define LOGGER_DEBUG(...) \
@@ -146,6 +191,10 @@ public:
 
     inline void flush() {
         m_internal_logger->flush();
+    }
+
+    inline void set_pattern(const std::string& pattern) {
+        m_internal_logger->set_pattern(pattern);
     }
 
     template <typename... Args>

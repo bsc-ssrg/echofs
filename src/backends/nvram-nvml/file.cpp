@@ -25,6 +25,7 @@
  *************************************************************************/
 
 #include <libpmem.h>
+#include <fstream>
 
 #include "fuse_buf_copy_pmem.h"
 #include <nvram-nvml/file.h>
@@ -503,9 +504,17 @@ ssize_t file::get_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse
 
         if(data != NULL) {
             memcpy((void*) ((uintptr_t)buffer + n), (void*) data, size);
+
+            LOGGER_TRACE("nvml_read:{}:{}:{}:{}", 
+                    fuse_get_context()->pid, syscall(__NR_gettid), 
+                    data, size);
         }
         else {
             memset((void*) ((uintptr_t)buffer + n), 0, size);
+
+            LOGGER_TRACE("nvml_read:{}:{}:0x0:{}", 
+                    fuse_get_context()->pid, syscall(__NR_gettid), 
+                    size);
         }
 
         n += size;
@@ -586,6 +595,10 @@ ssize_t file::put_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse
 
         dst.buf[0].flags = (fuse_buf_flags) (~FUSE_BUF_IS_FD);
         dst.buf[0].mem = (void*) r.m_address;
+ 
+        LOGGER_TRACE("nvml_write:{}:{}:{}:{}:{}", 
+                fuse_get_context()->pid, syscall(__NR_gettid), 
+                "nvml", r.m_address, r.m_size);
 
         // copy user data from received in *fuse_buffer* to dst
         // (fuse_buf_copy tracks how much data has been copied)

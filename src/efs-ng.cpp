@@ -102,6 +102,9 @@ static int efsng_getattr(const char* pathname, struct stat* stbuf, struct fuse_f
 #endif
 
     LOGGER_DEBUG("stat(\"{}\")", pathname);
+    LOGGER_TRACE("stat:{}:{}:{}", 
+            fuse_get_context()->pid, syscall(__NR_gettid), 
+            pathname);
 
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
     const auto & kv = efsng_ctx->m_backends.begin();
@@ -156,6 +159,10 @@ static int efsng_mkdir(const char* pathname, mode_t mode){
 static int efsng_unlink(const char* pathname){
 
     LOGGER_DEBUG("unlink(\"{}\")", pathname);
+    LOGGER_TRACE("unlink:{}:{}:{}", 
+            fuse_get_context()->pid, syscall(__NR_gettid), 
+            pathname);
+
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
     const auto & kv = efsng_ctx->m_backends.begin();
     const auto& backend_ptr = kv->second; 
@@ -314,6 +321,10 @@ static int efsng_open(const char* pathname, struct fuse_file_info* file_info){
     const auto& backend_ptr = kv->second; 
 
     LOGGER_DEBUG ("OPEN {}", pathname);
+    LOGGER_TRACE("open:{}:{}:{}", 
+            fuse_get_context()->pid, syscall(__NR_gettid), 
+            pathname);
+
     auto ret = backend_ptr->find(pathname);
 
     if (ret == backend_ptr->end()) return -ENOENT;
@@ -344,7 +355,6 @@ static int efsng_open(const char* pathname, struct fuse_file_info* file_info){
     file_info->fh = (uint64_t) file_record;
 
     return 0;
-    
 }
 
 
@@ -434,6 +444,10 @@ static int efsng_flush(const char* pathname, struct fuse_file_info* file_info){
 
     (void) pathname;
 
+    LOGGER_TRACE("close:{}:{}:{}", 
+            fuse_get_context()->pid, syscall(__NR_gettid), 
+            pathname);
+
     auto file_record = (efsng::File*) file_info->fh;
 
     int fd = file_record->get_fd();
@@ -467,6 +481,10 @@ static int efsng_release(const char* pathname, struct fuse_file_info* file_info)
 
     (void) pathname;
 
+    LOGGER_TRACE("close:{}:{}:{}", 
+            fuse_get_context()->pid, syscall(__NR_gettid), 
+            pathname);
+
     auto file_record = (efsng::File*) file_info->fh;
 
     int fd = file_record->get_fd();
@@ -491,6 +509,10 @@ static int efsng_fsync(const char* pathname, int is_datasync, struct fuse_file_i
 
     (void) pathname;
     (void) is_datasync;
+
+    LOGGER_TRACE("fsync:{}:{}:{}", 
+            fuse_get_context()->pid, syscall(__NR_gettid), 
+            pathname);
 
     // Flush is not necessary, we do not have a cache.
 
@@ -571,6 +593,11 @@ static int efsng_removexattr(const char* pathname, const char* name){
  * be passed to readdir, closedir and fsyncdir.
  */
 static int efsng_opendir(const char* pathname, struct fuse_file_info* file_info){
+
+    LOGGER_TRACE("opendir:{}:{}:{}", 
+            fuse_get_context()->pid, syscall(__NR_gettid), 
+            pathname);
+
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
     const auto & kv = efsng_ctx->m_backends.begin();
     const auto& backend_ptr = kv->second;
@@ -604,6 +631,9 @@ static int efsng_readdir(const char* pathname, void* buf, fuse_fill_dir_t filler
 
 
     LOGGER_DEBUG("readdir called \"{}\" ", pathname);
+    LOGGER_TRACE("readdir:{}:{}:{}", 
+            fuse_get_context()->pid, syscall(__NR_gettid), 
+            pathname);
 
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
     const auto & kv = efsng_ctx->m_backends.begin();
@@ -616,6 +646,10 @@ static int efsng_readdir(const char* pathname, void* buf, fuse_fill_dir_t filler
 static int efsng_releasedir(const char* pathname, struct fuse_file_info* file_info){
 
     (void) pathname;
+
+    LOGGER_TRACE("closedir:{}:{}:{}", 
+            fuse_get_context()->pid, syscall(__NR_gettid), 
+            pathname);
 
     /*
     auto dir_record = (efsng::Directory*) file_info->fh;
@@ -713,6 +747,9 @@ static int efsng_access(const char* pathname, int mode){
 
    
     LOGGER_DEBUG("access called \"{}\" {} ", pathname, mode);
+    LOGGER_TRACE("access:{}:{}:{}", 
+            fuse_get_context()->pid, syscall(__NR_gettid), 
+            pathname);
 
     /* Search the backends */
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
@@ -739,6 +776,9 @@ static int efsng_access(const char* pathname, int mode){
 static int efsng_create(const char* pathname, mode_t mode, struct fuse_file_info* file_info){
 
     LOGGER_DEBUG("create called \"{}\" ", pathname);
+    LOGGER_TRACE("create:{}:{}:{}", 
+            fuse_get_context()->pid, syscall(__NR_gettid), 
+            pathname);
 
     /* Search the backends */
 
@@ -788,6 +828,9 @@ static int efsng_ftruncate(const char* pathname, off_t length, struct fuse_file_
     (void) pathname;
     
     LOGGER_DEBUG("truncate(\"{}\", {})", pathname, length);
+    LOGGER_TRACE("truncate:{}:{}:{}", 
+            fuse_get_context()->pid, syscall(__NR_gettid), 
+            pathname);
 
     auto file_record = (efsng::File*) file_info->fh;
     auto ptr = file_record->get_ptr();
@@ -966,11 +1009,15 @@ static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t 
 
     auto file_record = (efsng::File*) file_info->fh;
     auto file_ptr = file_record->get_ptr();
+    pid_t pid = 0;
 
     size_t size = fuse_buf_size(buf);
 
     LOGGER_DEBUG("write({}, {}, {})", pathname, offset, size);
-  
+    LOGGER_TRACE("write:{}:{}:{}:{}:{}", 
+            fuse_get_context()->pid, syscall(__NR_gettid), 
+            pathname, offset, size);
+
     ssize_t rv = file_ptr->put_data(offset, size, buf);
    
     return rv;
@@ -992,7 +1039,6 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
 
     auto file_record = (efsng::File*) file_info->fh;
     auto file_ptr = file_record->get_ptr();
-  
 
     struct fuse_bufvec* dst;
 
@@ -1003,6 +1049,9 @@ static int efsng_read_buf(const char* pathname, struct fuse_bufvec** bufp, size_
     }
 
     LOGGER_DEBUG("read(\"{}\", {}, {})", pathname, offset, size);
+    LOGGER_TRACE("read:{}:{}:{}:{}:{}", 
+            fuse_get_context()->pid, syscall(__NR_gettid), 
+            pathname, offset, size);
 
     *dst = FUSE_BUFVEC_INIT(size);
 

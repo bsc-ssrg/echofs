@@ -73,6 +73,30 @@ void context::initialize() {
 
     LOGGER_DEBUG("  {}", ss.str());
 
+    /* produce header if we are tracing */
+    logger::get_global_logger()->set_pattern(TRACING_NT_PATTERN);
+    LOGGER_TRACE("# trace format:\n"
+                 "# timestamp:operation:pid:tid:path|backend:arguments\n"
+                 "#   timestamp => epoch with usecs precision\n"
+                 "#   operation => high/low level operation performed\n"
+                 "#                - high level:\n"
+                 "#                  access, close, closedir, create, fsync, open,\n"
+                 "#                  opendir, read, readdir, stat, truncate, unlink\n"
+                 "#                  write\n"
+                 "#                - low level:\n"
+                 "#                  nvml_read, nvml_write\n"
+                 "#   pid       => PID of the process originating the call\n"
+                 "#   tid       => TID of the internal thread serving the call\n"
+                 "#   arguments => a list of additional fields separated by ':'\n"
+                 "#                - high level operations: pathname\n"
+                 "#                - read/write operations: pathname: offset, size\n"
+                 "#                - nvml_read/nvml_write operations: nvml_address, size\n"
+                 "#                  (note that nvml_address will be 0x0 when reading from a file gap)\n"
+                 "#                  ");
+
+    logger::get_global_logger()->flush();
+    logger::get_global_logger()->set_pattern(TRACING_PATTERN);
+
     /* 3. Hail user */
     LOGGER_INFO("==============================================");
     LOGGER_INFO("=== echofs (NG) v{}                     ===", VERSION);

@@ -36,6 +36,7 @@
 /* C++ includes */
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
+#include <boost/range/iterator_range.hpp>
 #include <memory>
 #include <chrono>
 #include <thread>
@@ -89,7 +90,9 @@ error_code nvml_backend::load(const bfs::path& pathname, backend::file::type typ
     if (bfs::is_directory(pathname)){
         // Recursive upload
         bfs::recursive_directory_iterator r(pathname);
-        for (auto entry : r) {
+
+        for(const auto& entry : boost::make_iterator_range(r, {}) ) {
+
             if (!bfs::is_directory(entry)) {
                 auto error = load(entry, type);
                 if (error != error_code::success) return error;
@@ -596,7 +599,9 @@ void nvml_backend::do_change_type(const char * path, backend::file::type  type){
 std::string nvml_backend::remove_root (std::string pathname) const {
     std::size_t rdir = pathname.find(m_root_dir.string());
     if (rdir == std::string::npos){
-        std::string last_part = boost::filesystem::path(pathname).rbegin()->c_str();
+
+        std::string last_part = bfs::path(pathname).filename().string();
+
         return "/"+last_part; //If it does not have the roor dir, just send "/" and the last part
     }
 
