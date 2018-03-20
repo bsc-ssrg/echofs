@@ -73,8 +73,11 @@ void context::initialize() {
 
     LOGGER_DEBUG("  {}", ss.str());
 
+#ifdef __EFS_TRACE__
     /* produce header if we are tracing */
     logger::get_global_logger()->set_pattern(TRACING_NT_PATTERN);
+#endif
+
     LOGGER_TRACE("# trace format:\n"
                  "# timestamp:operation:pid:tid:path|backend:arguments\n"
                  "#   timestamp => epoch with usecs precision\n"
@@ -94,8 +97,10 @@ void context::initialize() {
                  "#                  (note that nvml_address will be 0x0 when reading from a file gap)\n"
                  "#                  ");
 
+#ifdef __EFS_TRACE__
     logger::get_global_logger()->flush();
     logger::get_global_logger()->set_pattern(TRACING_PATTERN);
+#endif
 
     /* 3. Hail user */
     LOGGER_INFO("==============================================");
