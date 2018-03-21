@@ -53,6 +53,14 @@ request::request(task_id tid)
     : m_type(request_type::status),
       m_tid(tid) { }
 
+request::request(const bfs::path& path, bool is_persistent)
+    : m_path(path),
+      m_is_persistent(is_persistent) {}
+
+request::request(const bfs::path& path, const bfs::path & dest)
+    : m_path(path),
+      m_dest(dest) {}
+
 request_ptr request::create_from_buffer(const std::vector<uint8_t>& buffer, int size) {
 
     UserRequest user_req;
@@ -76,6 +84,13 @@ request_ptr request::create_from_buffer(const std::vector<uint8_t>& buffer, int 
                 break;
 
             case UserRequest::UNLOAD_PATH:
+		if (user_req.has_unload_desc()) {
+			auto descriptor = user_req.unload_desc();
+			bfs::path path = descriptor.path();
+			bfs::path dest = descriptor.dest();
+
+			return std::make_shared<request>(path, dest);
+		}
                 break;
 
             case UserRequest::STATUS:
@@ -89,6 +104,16 @@ request_ptr request::create_from_buffer(const std::vector<uint8_t>& buffer, int 
 
             case UserRequest::GET_CONFIG:
                 break;
+
+	    case UserRequest::CHANGE_TYPE:
+		if (user_req.has_change_desc()) {
+			auto descriptor = user_req.change_desc();
+			bfs::path path = descriptor.path();
+			bool is_persistent = descriptor.is_persistent();
+
+			return std::make_shared<request>(path, is_persistent);
+		}
+		break;
         }
     }
 
@@ -154,6 +179,9 @@ std::string request::to_string() const {
         case request_type::get_config:
             ss << "GET_CONFIG ";
             break;
+	case request_type::change_type:
+	    ss << "CHANGE_TYPE " ;
+	    break;
         case request_type::bad_request:
             ss << "BAD_REQUEST";
             break;

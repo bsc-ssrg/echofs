@@ -50,17 +50,19 @@ enum class request_type {
     unload_path, 
     status,
     get_config,
+    change_type,
     bad_request
 };
 
 struct request {
     using request_ptr = std::shared_ptr<request>;
 
-
     request(request_type type);
     request(std::string backend, const bfs::path& path, bool is_directory, 
             off_t offset, size_t size);
     request(task_id tid);
+    request(const bfs::path& path, bool is_persistent);
+    request(const bfs::path& path, const bfs::path& dest);
     ~request() = default;
 
     request_type type() const;
@@ -70,7 +72,8 @@ struct request {
     off_t offset() const;
     size_t size() const;
     task_id tid() const;
-
+    bfs::path dest() const;
+    bool is_persistent() const;
 
     std::string to_string() const;
 
@@ -86,6 +89,8 @@ private:
     off_t m_offset; 
     size_t m_size;
     task_id m_tid;
+    bool m_is_persistent;
+    bfs::path m_dest;
 };
 
 enum class response_type { 

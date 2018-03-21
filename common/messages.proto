@@ -9,6 +9,7 @@ message UserRequest {
         UNLOAD_PATH = 2;
         STATUS = 3;
         GET_CONFIG = 4;
+	CHANGE_TYPE = 5;
     }
 
     message LoadPath {
@@ -20,7 +21,13 @@ message UserRequest {
     }
 
     message UnloadPath {
-        required string id = 1;
+	required string path = 1;
+	required string dest = 2;
+    }
+
+    message ChangeType {
+	required string path = 1;
+	required bool is_persistent = 2;
     }
 
     required Type type = 1;
@@ -31,8 +38,10 @@ message UserRequest {
     // descriptor for efs_unload
     optional UnloadPath unload_desc = 3; 
 
+    optional ChangeType change_desc = 4;
+
     // task id for efs_status
-    optional uint64 tid = 4;
+    optional uint64 tid = 5;
 }
 
 message UserResponse {

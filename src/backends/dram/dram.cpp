@@ -59,7 +59,8 @@ uint64_t dram_backend::capacity() const {
 
 /** start the load process of a file requested by the user */
 error_code dram_backend::load(const bfs::path& pathname, backend::file::type type){
-
+    (void) pathname;
+    (void) type;
     LOGGER_DEBUG("Loading file \"{}\" in RAM", pathname.string());
 
     LOGGER_ERROR("Not implemented yet!");
@@ -69,12 +70,14 @@ error_code dram_backend::load(const bfs::path& pathname, backend::file::type typ
 
 /** start the load process of a file requested by the user */
 error_code dram_backend::unload(const bfs::path& pathname, const bfs::path & mntpathname){
+    (void)pathname;
+    (void)mntpathname;
     LOGGER_ERROR("Unload not implemented!");
     return error_code::success;
 }
 
 bool dram_backend::exists(const char* pathname) const {
-
+    
     std::lock_guard<std::mutex> lock(m_files_mutex);
 
     const auto& it = m_files.find(pathname);
@@ -89,45 +92,70 @@ bool dram_backend::exists(const char* pathname) const {
 }
 
 int dram_backend::do_readdir (const char * path, void * buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) const {
+    (void) path;
+    (void) buffer;
+    (void) filler;
+    (void) offset;
+    (void) fi;
     LOGGER_ERROR("do_readdir not implemented");
     return 0;
 }
 
 int dram_backend::do_stat (const char *path, struct stat& stbuf) const {
+    (void) path;
+    (void) stbuf;
     LOGGER_ERROR("do_stat not implemented");
     return 0;
 }
 
 int dram_backend::do_create(const char* pathname, mode_t mode, std::shared_ptr < backend::file> & file) {
+    (void) pathname;
+    (void) mode;
+    (void) file;
     LOGGER_ERROR("do_create not implemented");
     return 0;
 }
 
 int dram_backend::do_unlink(const char * pathname) {
+    (void) pathname;
     return 0;
 }
 
 int dram_backend::do_rename(const char * oldpath, const char * newpath) {
+    (void) oldpath;
+    (void) newpath;
     return 0;
 }
 
 int dram_backend::do_mkdir(const char * pathname, mode_t mode) {
+    (void) pathname;
+    (void) mode;
     return 0;
 }
 
 int dram_backend::do_rmdir(const char * pathname) {
+    (void) pathname;
     return 0;
 }
 
 int dram_backend::do_chmod(const char * pathname, mode_t mode) {   
+    (void) pathname;
+    (void) mode;
     return 0;
 }
 
 int dram_backend::do_chown(const char * pathname, uid_t owner, gid_t group) {
+    (void) pathname;
+    (void) owner;
+    (void) group;
     return 0;
 }
 
-void dram_backend::do_change_type(const char * pathname, backend::file::type type) {}
+void dram_backend::do_change_type(const char * pathname, backend::file::type type) { 
+    (void) pathname;
+    (void) type;
+}
+
 
 efsng::backend::iterator dram_backend::find(const char* path) {
     return m_files.find(path);
