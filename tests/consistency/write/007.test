@@ -70,9 +70,9 @@ _expect $? 0
 cp -v $input $expected_output
 
 # specify the backends to be used by the filesystem
-NVRAM_BACKEND["type"]="NVRAM-NVML"
-NVRAM_BACKEND["size"]="1.5GiB"
-NVRAM_BACKEND["dax-fs-path"]="$TEST_TMP"
+NVRAM_BACKEND["id"]="nvml://"
+NVRAM_BACKEND["capacity"]="1GiB"
+NVRAM_BACKEND["daxfs"]="$TEST_TMP"
 
 # specify the files to be preloaded on mount
 

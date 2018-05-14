@@ -42,14 +42,14 @@ if ! . ${TESTS_BASE_DIR}/config.sh; then
     exit 1
 fi
 
-if [[ ! -z $TOP_BUILD_DIR ]]; then
-    EFSNG_BIN="$TOP_BUILD_DIR/src/efs-ng"
-elif [[ ! -z $EFSNG ]]; then
+#if [[ ! -z $TOP_BUILD_DIR ]]; then
+#    EFSNG_BIN="$TOP_BUILD_DIR/src/efs-ng"
+#elif [[ ! -z $EFSNG ]]; then
     EFSNG_BIN="$EFSNG"
-else
-    echo "[FATAL] Unable to find 'efs-ng' binary"
-    exit 1
-fi
+#else
+#    echo "[FATAL] Unable to find 'efs-ng' binary"
+#    exit 1
+#fi
 
 # we need the filesystem to mirror $TEST_ROOT and 
 # be mounted on $TEST_MNT
@@ -160,86 +160,72 @@ _generate_efsng_config(){
     
     # generate header
     printf -v header \
-"efs-ng:
-{
-    root-dir = \"%s\";
-    mount-point = \"%s\";
-    log-file = \"%s\";
-
+"global-settings:
+[
+    root-dir : \"%s\",
+    mount-dir : \"%s\",
+    log-file : \"%s\"
+]
 " \
     "$TEST_ROOT" \
     "$TEST_MNT" \
     "$EFSNG_LOG"
-
+ 
     # generate backends
-    backends="    backend-stores:\n    (\n"
-
-    if [ ${#DRAM_BACKEND[@]} -ne 0 ]; then
-
-        backends+="        {\n"
-
-        for k in "${!DRAM_BACKEND[@]}"
-        do
-            backends+="            $k = \"${DRAM_BACKEND[$k]}\";\n"
-        done
-
-        if [ ${#nvram_backend[@]} -ne 0 ]; then
-            backends+="        },\n"
-        else
-            backends+="        }\n"
-        fi
-    fi
+    backends="backends:    [\n"
 
     if [ ${#NVRAM_BACKEND[@]} -ne 0 ]; then
 
-        backends+="        {\n"
-
+        backends+="        [\n"
+     
         for k in "${!NVRAM_BACKEND[@]}"
         do
-            backends+="            $k = \"${NVRAM_BACKEND[$k]}\";\n"
+            backends+="            $k : \"${NVRAM_BACKEND[$k]}\",\n"
         done
-
-        backends+="        }\n"
+        backends+="type : \"NVRAM-NVML\"\n"
+        backends+="        ]\n"
     fi
 
-    backends+="    )\n"
+    backends+="]\n"
 
     # generate preloads
-    preloads="    preload:\n    (\n"
+    preloads="resources:    [\n"
 
-    if [ ${#DRAM_PRELOAD_FILES[@]} -ne 0 ]; then
-        preloads+="        {\n"
+   
 
-        for f in "${DRAM_PRELOAD_FILES[@]}"
-        do
-            preloads+="            path = \"$f\";\n"
-        done
+     #   if [ ${#NVRAM_PRELOAD_FILES[@]} -ne 0 ]; then
+     #       preloads+="        ],\n"
+     #   else
 
-        preloads+="            backend = \"DRAM\";\n"
-
-        if [ ${#NVRAM_PRELOAD_FILES[@]} -ne 0 ]; then
-            preloads+="        },\n"
-        else
-            preloads+="        }\n"
-        fi
-    fi
+     #       preloads+="        ]\n"
+     #   fi
 
     if [ ${#NVRAM_PRELOAD_FILES[@]} -ne 0 ]; then
-        preloads+="        {\n"
-
+    
+    	num=${#NVRAM_PRELOAD_FILES[@]}
+    	
         for f in "${NVRAM_PRELOAD_FILES[@]}"
         do
-            preloads+="            path = \"$f\";\n"
+        	preloads+="        [\n"
+            preloads+="            path : \"$f\",\n"
+            preloads+="            backend: \"nvml://\",\n"
+            preloads+="            flags: \"persistent\"\n"
+            if [ $num -ne 1 ]; then
+            	preloads+="],\n"
+            else
+            	preloads+="]\n"
+            fi
+            num=$((num-1))
         done
 
-        preloads+="            backend = \"NVRAM-NVML\";\n"
-        preloads+="        }\n"
+        
+        
     fi
 
-    preloads+="    )\n"
+    preloads+="]\n"
 
     # generate trailer
-    trailer="}"
+  #  trailer="]"
 
     # assemble and output
     output+="$header"
@@ -260,7 +246,7 @@ _scratch_mnt_mount()
     echo "mounting testing instance of efs-ng"
 
     #../../../build/src/efs-ng -c "$EFSNG_CFG" -o splice_read,splice_write,splice_move
-    ${EFSNG_BIN} -c "$EFSNG_CFG" -o splice_read,splice_write,splice_move
+    ${EFSNG_BIN} -c "$EFSNG_CFG"
 
     if [[ $? -eq 0 ]]; then
         echo "mount ok"

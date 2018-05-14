@@ -67,9 +67,9 @@ dd if=/dev/urandom of=$expected bs=1MB count=1 > /dev/null 2>&1
 # DRAM_BACKEND["type"]="DRAM"
 # DRAM_BACKEND["size"]="1GiB"
 
-NVRAM_BACKEND["type"]="NVRAM-NVML"
-NVRAM_BACKEND["size"]="1.5GiB"
-NVRAM_BACKEND["dax-fs-path"]="${TEST_TMP}"
+NVRAM_BACKEND["id"]="nvml://"
+NVRAM_BACKEND["capacity"]="1GiB"
+NVRAM_BACKEND["daxfs"]="$TEST_TMP"
 
 # specify the files to be preloaded on mount
 

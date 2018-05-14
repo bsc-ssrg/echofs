@@ -27,9 +27,9 @@
 #
 
 EFSNG="${TESTS_BASE_DIR}/../../src/efs-ng"
+EFSNG="/home/rnou/efs-ng/build/src/efs-ng"
 IO_RUNNER="${TESTS_BASE_DIR}/io-runner.py"
 
-declare -a DRAM_PRELOAD_FILES
+
 declare -a NVRAM_PRELOAD_FILES
-declare -A DRAM_BACKEND
 declare -A NVRAM_BACKEND

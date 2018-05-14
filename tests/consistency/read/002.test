@@ -62,16 +62,13 @@ actual="${TEST_MNT}/${TESTID}.tmp"
 dd if=/dev/urandom of=$expected bs=1MB count=1 > /dev/null 2>&1 
 
 # specify the backends to be used by the filesystem
-DRAM_BACKEND["type"]="DRAM"
-DRAM_BACKEND["size"]="1GiB"
-
-# NVRAM_BACKEND["type"]="NVRAM-NVML"
-# NVRAM_BACKEND["size"]="1.5GiB"
-# NVRAM_BACKEND["dax-fs-path"]="/foo/bar/baz"
+NVRAM_BACKEND["id"]="nvml://"
+NVRAM_BACKEND["capacity"]="1GiB"
+NVRAM_BACKEND["daxfs"]="$TEST_TMP"
 
 # specify the files to be preloaded on mount
 
-DRAM_PRELOAD_FILES+=($expected)
+NVRAM_PRELOAD_FILES+=($expected)
 
 # the test needs efs-ng to be mounted
 _require_efsng_mounted
