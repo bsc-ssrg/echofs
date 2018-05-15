@@ -54,6 +54,7 @@ int fuse_custom_mounter(const config::settings& user_opts, const struct fuse_ope
 	                  &mountpoint,
 				      &multithreaded, 
 				      (void*) efsng_ctx.get());
+
 #else
 	struct fuse_args args = {1, const_cast<char**>(user_opts.m_fuse_argv), 0};
 	fuse = fuse_new(&args, 

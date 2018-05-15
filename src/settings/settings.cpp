@@ -41,7 +41,7 @@
 
 /* project includes */
 #include "command-line.h"
-#include "configuration.h"
+//#include "configuration.h"
 #include "defaults.h"
 #include "settings.h"
 #include "file-options.h"
@@ -210,7 +210,7 @@ void settings::from_cmdline(int argc, char* argv[]){
     /* command line options */
     struct option long_options[] = {
         {"root-dir",            1, 0, 'r'}, /* directory to mirror */
-        {"mount-point",         1, 0, 'm'}, /* mount point */
+        {"mount-dir",           1, 0, 'm'}, /* mount point */
         {"config-file",         1, 0, 'c'}, /* configuration file */
         {"help",                0, 0, 'h'}, /* display usage */
         {"foreground",          0, 0, 'f'}, /* foreground operation */

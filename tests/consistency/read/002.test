@@ -52,6 +52,7 @@ _generate_test_id
 _require_test_subdir
 _require_test_root
 _require_test_mnt
+_require_test_tmp
 
 expected="${TEST_ROOT}/${TESTID}.tmp"
 actual="${TEST_MNT}/${TESTID}.tmp"

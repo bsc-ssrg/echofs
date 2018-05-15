@@ -162,8 +162,8 @@ _generate_efsng_config(){
     printf -v header \
 "global-settings:
 [
-    root-dir : \"%s\",
-    mount-dir : \"%s\",
+    root-dir : \"%s/\",
+    mount-dir : \"%s/\",
     log-file : \"%s\"
 ]
 " \
@@ -285,6 +285,8 @@ _require_test_subdir()
     TEST_ROOT="${TEST_SUBDIR}/test_root"
     TEST_MNT="${TEST_SUBDIR}/test_mnt"
     TEST_TMP="${TEST_SUBDIR}/test_tmp"
+
+
 
     ln -f -s $EFSNG_BIN "${TEST_SUBDIR}"
 }

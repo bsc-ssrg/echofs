@@ -86,7 +86,7 @@ error_code nvml_backend::load(const bfs::path& pathname, backend::file::type typ
     }
 
     std::string path_wo_root = remove_root (pathname.string());
-    
+
     if (bfs::is_directory(pathname)){
         // Recursive upload
         bfs::recursive_directory_iterator r(pathname);

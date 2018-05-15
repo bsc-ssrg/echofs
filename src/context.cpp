@@ -134,7 +134,7 @@ void context::initialize() {
         LOGGER_ERROR("No valid backends configured. Check configuration file.");
         throw std::runtime_error(""); // we don't really care about the message
     }
-
+    
     LOGGER_INFO("* Importing resources...");
 
     /* 5. Import any files or directories defined by the user */
