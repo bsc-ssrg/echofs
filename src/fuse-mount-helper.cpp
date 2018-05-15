@@ -78,6 +78,7 @@ int fuse_custom_mounter(const config::settings& user_opts, const struct fuse_ope
 #if FUSE_USE_VERSION < 30
 		res = fuse_loop_mt(fuse);
 #else
+        fuse_daemonize(!user_opts.m_daemonize);
 		res = fuse_loop_mt(fuse, 1);
 #endif
     }

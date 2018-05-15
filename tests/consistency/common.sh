@@ -42,14 +42,14 @@ if ! . ${TESTS_BASE_DIR}/config.sh; then
     exit 1
 fi
 
-#if [[ ! -z $TOP_BUILD_DIR ]]; then
-#    EFSNG_BIN="$TOP_BUILD_DIR/src/efs-ng"
-#elif [[ ! -z $EFSNG ]]; then
+if [[ ! -z $TOP_BUILD_DIR ]]; then
+    EFSNG_BIN="$TOP_BUILD_DIR/src/efs-ng"
+elif [[ ! -z $EFSNG ]]; then
     EFSNG_BIN="$EFSNG"
-#else
-#    echo "[FATAL] Unable to find 'efs-ng' binary"
-#    exit 1
-#fi
+else
+    echo "[FATAL] Unable to find 'efs-ng' binary"
+    exit 1
+fi
 
 # we need the filesystem to mirror $TEST_ROOT and 
 # be mounted on $TEST_MNT

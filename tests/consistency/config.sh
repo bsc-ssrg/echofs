@@ -27,7 +27,6 @@
 #
 
 EFSNG="${TESTS_BASE_DIR}/../../src/efs-ng"
-EFSNG="/home/rnou/efs-ng/build/src/efs-ng"
 IO_RUNNER="${TESTS_BASE_DIR}/io-runner.py"
 
 
