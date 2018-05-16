@@ -136,7 +136,6 @@ void context::initialize() {
     }
     
     LOGGER_INFO("* Importing resources...");
-
     /* 5. Import any files or directories defined by the user */
     std::vector<pool::task_future<efsng::error_code>> return_values;
 
@@ -150,19 +149,18 @@ void context::initialize() {
             LOGGER_WARN("Invalid backend '{}' for input resource '{}'. Ignored.", target, pathname.string());
             continue;
         }
-
+        
         return_values.emplace_back(
             m_thread_pool.submit_and_track(
                     // service lambda to load files
                     [=] () -> efsng::error_code {
-
                         auto& backend_ptr = m_backends.at(target);
-			auto m_type = backend::file::type::persistent;
-			if (flag == "temporary") m_type = backend::file::type::temporary;
+			            auto m_type = backend::file::type::persistent;
+    			        if (flag == "temporary") m_type = backend::file::type::temporary;
                         LOGGER_DEBUG("Lambda called with {} - {}", pathname, flag);
 
                         auto rv = backend_ptr->load(pathname, m_type);
-			
+
                         if(rv != efsng::error_code::success) {
                             LOGGER_ERROR("Error importing {} into '{}': {}", pathname, target, rv);
                         }

@@ -80,7 +80,7 @@ uint64_t nvml_backend::capacity() const {
 error_code nvml_backend::load(const bfs::path& pathname, backend::file::type type) {
 
     LOGGER_DEBUG("Import {} to NVRAM", pathname);
-
+    
     if(!bfs::exists(pathname)) {
         return error_code::no_such_path;
     }

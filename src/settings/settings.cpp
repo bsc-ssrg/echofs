@@ -418,7 +418,7 @@ void settings::load_from_yaml_file(const bfs::path& config_file) {
             m_log_file = parsed_global_settings.get_as<bfs::path>(keywords::log_file);
         }
     }
-    m_debug=true;
+    
     // 'workers' and 'transfer-size' don't have a command line option, 
     // no need to check if they have been already set
     // Also, we have set a default value for them so they HAVE TO be 

@@ -137,11 +137,10 @@ public:
         using ResultType = typename std::result_of<decltype(bound_task)()>::type;
         using PackagedTaskType = std::packaged_task<ResultType()>;
         using TaskType = task<PackagedTaskType>;
-
         PackagedTaskType task{std::move(bound_task)};
         task_future<ResultType> result{task.get_future()};
         m_work_queue.push(std::make_unique<TaskType>(std::move(task)));
-
+        
         return result;
     }
 
@@ -150,9 +149,7 @@ public:
 
         auto bound_task = std::bind(std::forward<FuncType>(func), std::forward<Args>(args)...);
         using TaskType = task<decltype(std::bind(std::declval<FuncType>(), std::declval<Args>()...))>;
-
         TaskType task{std::move(bound_task)};
-
         m_work_queue.push(std::make_unique<TaskType>(std::move(task)));
     }
 
@@ -167,7 +164,7 @@ private:
 
         while(!m_done) {
             std::unique_ptr<detail::task> task_ptr;
-
+           
             if(m_work_queue.wait_pop(task_ptr)) {
                 task_ptr->execute();
             }

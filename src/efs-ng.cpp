@@ -73,7 +73,8 @@ extern "C" {
 #include "errors.h"
 #include "context.h"
 #include "efs-ng.h"
-std::mutex m_open;
+
+efsng::config::settings m_user_opts;
 /**********************************************************************************************************************/
 /*   Filesytem operations
  *
@@ -701,12 +702,14 @@ static void* efsng_init(struct fuse_conn_info *conn, struct fuse_config* cfg) {
 
 
     auto efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
+    if (efsng_ctx == NULL){
+        efsng_ctx = new efsng::context(m_user_opts); 
+    }
 
     try {
         efsng_ctx->initialize();
     } 
     catch(const std::exception& e) {
-
         if(efsng::logger::get_global_logger() != nullptr) {
             LOGGER_ERROR(e.what());
         }
@@ -717,7 +720,6 @@ static void* efsng_init(struct fuse_conn_info *conn, struct fuse_config* cfg) {
         // WARNING! trigger_shutdown() does not stop execution!
         efsng_ctx->trigger_shutdown();
     }
-
     return (void*) efsng_ctx;
 }
 
@@ -731,6 +733,7 @@ static void efsng_destroy(void *) {
     // this will block until all pending tasks have finished so that we can safely
     // destroy the filesystem structures when we return from efsng_destroy() to
     // fuse_custom_mounter()
+    delete efsng_ctx;
     efsng_ctx->teardown();
 }
 
@@ -1131,7 +1134,7 @@ int main (int argc, char *argv[]){
     std::string exec_name = bfs::basename(argv[0]);
 
     /* 1. parse command-line arguments */
-    efsng::config::settings user_opts;
+    //efsng::config::settings user_opts;
 
     if(argc == 1) {
         cmdline::usage(exec_name, true);
@@ -1139,13 +1142,13 @@ int main (int argc, char *argv[]){
     }
 
     try {
-        user_opts.from_cmdline(argc, argv);
+        m_user_opts.from_cmdline(argc, argv);
     } 
     catch(const std::exception& e) {
         std::cerr << exec_name << ": " << e.what() << "\n";
         return EXIT_FAILURE;
     }
-
+    
     /* 2. prepare operations */
     fuse_operations efsng_ops;
     memset(&efsng_ops, 0, sizeof(fuse_operations));
@@ -1216,7 +1219,7 @@ int main (int argc, char *argv[]){
     umask(0);
 
     /* 4. start the FUSE filesystem */
-    int res = efsng::fuse_custom_mounter(user_opts, &efsng_ops);
+    int res = efsng::fuse_custom_mounter(m_user_opts, &efsng_ops);
 
     return res;
 }
