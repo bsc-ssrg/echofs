@@ -52,6 +52,7 @@ _generate_test_id
 _require_test_subdir
 _require_test_root
 _require_test_mnt
+_require_test_tmp
 
 expected="${TEST_ROOT}/${TESTID}.tmp"
 actual="${TEST_MNT}/${TESTID}.tmp"
@@ -66,9 +67,10 @@ NVRAM_BACKEND["id"]="nvml://"
 NVRAM_BACKEND["capacity"]="1GiB"
 NVRAM_BACKEND["daxfs"]="$TEST_TMP"
 
-# NVRAM_BACKEND["type"]="NVRAM-NVML"
-# NVRAM_BACKEND["size"]="1.5GiB"
-# NVRAM_BACKEND["dax-fs-path"]="/foo/bar/baz"
+# specify the files to be preloaded on mount
+
+#DRAM_PRELOAD_FILES+=($expected)
+NVRAM_PRELOAD_FILES+=($expected)
 
 
 # the test needs efs-ng to be mounted

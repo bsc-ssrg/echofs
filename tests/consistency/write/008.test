@@ -78,6 +78,7 @@ NVRAM_BACKEND["daxfs"]="$TEST_TMP"
 
 NVRAM_PRELOAD_FILES+=($input)
 
+
 # the test needs efs-ng to be mounted
 _require_efsng_mounted
 

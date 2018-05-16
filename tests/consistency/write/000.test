@@ -52,6 +52,7 @@ _generate_test_id
 _require_test_subdir
 _require_test_root
 _require_test_mnt
+_require_test_tmp
 
 expected="${TEST_ROOT}/${TESTID}.tmp"
 actual="${TEST_MNT}/${TESTID}.tmp"
@@ -62,6 +63,16 @@ actual="${TEST_MNT}/${TESTID}.tmp"
 dd if=/dev/urandom of=$expected bs=1MB count=1 > /dev/null 2>&1 
 
 # the test needs efs-ng to be mounted
+NVRAM_BACKEND["id"]="nvml://"
+NVRAM_BACKEND["capacity"]="1GiB"
+NVRAM_BACKEND["daxfs"]="$TEST_TMP"
+
+# specify the files to be preloaded on mount
+
+#DRAM_PRELOAD_FILES+=($expected)
+NVRAM_PRELOAD_FILES+=($expected)
+
+
 _require_efsng_mounted
 
 # actual test starts here
