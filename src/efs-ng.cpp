@@ -271,11 +271,21 @@ static int efsng_truncate(const char* pathname, off_t length, struct fuse_file_i
 #endif
 
     int res;
-    return -EOPNOTSUPP;
+//    return -EOPNOTSUPP;
 
+#if FUSE_USE_VERSION < 30
+    efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
+    const auto & kv = efsng_ctx->m_backends.begin();
+    const auto& backend_ptr = kv->second;
+    auto ptr = backend_ptr->find(pathname);
 
-
-#if FUSE_USE_VERSION >= 30
+    if (ptr == backend_ptr->end()) {
+       return -ENOENT;
+    }
+    auto p_file = ptr->second.get();
+    struct stat stbuf;
+    p_file->truncate(length);
+#else
     if(file_info != NULL){
         auto file_record = (efsng::File*) file_info->fh;
         int fd = file_record->get_fd();
@@ -283,17 +293,6 @@ static int efsng_truncate(const char* pathname, off_t length, struct fuse_file_i
         if((res = ftruncate(fd, length)) == -1){
             return -errno;
         }
-    }
-    else{
-#endif
-
-        auto old_credentials = efsng::assume_user_credentials();
-
-        res = truncate(pathname, length);
-
-        efsng::restore_credentials(old_credentials);
-
-#if FUSE_USE_VERSION >= 30
     }
 #endif
 
