@@ -133,7 +133,7 @@ error_code nvml_backend::load(const bfs::path& pathname, backend::file::type typ
         auto d_it = m_dirs.find(buildPath);
         //td::cout << "IMPORTING " << buildPath << " d_it==m_dirs.end() " << (bool)(d_it==m_dirs.end()) << std::endl;
         if (d_it == m_dirs.end()){
-            auto t_it = m_dirs.emplace(buildPath, std::make_unique<nvml::dir>(buildPath,new_inode(), m_root_dir.string()+buildPath));
+            m_dirs.emplace(buildPath, std::make_unique<nvml::dir>(buildPath,new_inode(), m_root_dir.string()+buildPath));
             // Add to the parent
             parent = m_dirs.find(buildPath.substr(0,buildPath.rfind(m_path[i])));
             parent->second.get()->add_file(m_path[i]);
@@ -208,7 +208,7 @@ int mkdir_p(const char *path)
 
 // Unloads all the persistent files to the pathname
 error_code nvml_backend::unload(const bfs::path& pathname, const bfs::path & mntpathname) {
-
+    (void) mntpathname;
     for (const auto &it : m_files ) {
 	const auto & file_ptr = it.second;
 	//std::cout << " MKDIR " << pathname.string()+it.first.substr(0,it.first.rfind("/"))<< " " << std::endl;
@@ -234,6 +234,8 @@ bool nvml_backend::exists(const char* pathname) const {
 
 // TODO: Error control
 int nvml_backend::do_readdir (const char * path, void * buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) const {
+    (void) offset;
+    (void) fi;
     LOGGER_DEBUG("Inside backend readdir for {}", path);
     #if FUSE_USE_VERSION < 30
 	filler(buffer, ".", NULL, 0);
@@ -345,7 +347,7 @@ int nvml_backend::do_unlink(const char * pathname) {
     // Remove the file
     auto file = m_files.find(path);
     if (file != m_files.end()) {
-        const auto& file_ptr = file->second;
+        //const auto& file_ptr = file->second;
         m_files.erase(file);
     } 
     else { 
@@ -386,7 +388,7 @@ int nvml_backend::do_rename(const char * oldpath, const char * newpath) {
     auto file = m_files.find(opath);
     const auto& file_ptr = file->second;
      
-    auto it = m_files.emplace(npath, file_ptr);
+    m_files.emplace(npath, file_ptr);
     
     // remove old file
 

@@ -270,7 +270,7 @@ static int efsng_truncate(const char* pathname, off_t length){
 static int efsng_truncate(const char* pathname, off_t length, struct fuse_file_info* file_info){
 #endif
 
-    int res;
+    int res = 0;
 //    return -EOPNOTSUPP;
 
 #if FUSE_USE_VERSION < 30
@@ -283,7 +283,7 @@ static int efsng_truncate(const char* pathname, off_t length, struct fuse_file_i
        return -ENOENT;
     }
     auto p_file = ptr->second.get();
-    struct stat stbuf;
+    
     p_file->truncate(length);
 #else
     if(file_info != NULL){
@@ -506,7 +506,7 @@ static int efsng_release(const char* pathname, struct fuse_file_info* file_info)
  * If the datasync parameter is non-zero, then only the user data should be flushed, not the meta data.
  */
 static int efsng_fsync(const char* pathname, int is_datasync, struct fuse_file_info* file_info){
-
+    (void) file_info;
     (void) pathname;
     (void) is_datasync;
 
@@ -593,15 +593,16 @@ static int efsng_removexattr(const char* pathname, const char* name){
  * be passed to readdir, closedir and fsyncdir.
  */
 static int efsng_opendir(const char* pathname, struct fuse_file_info* file_info){
-
+    (void) file_info;
+    (void) pathname;
     LOGGER_TRACE("opendir:{}:{}:{}", 
             fuse_get_context()->pid, syscall(__NR_gettid), 
             pathname);
 
-    efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
+   /* efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
     const auto & kv = efsng_ctx->m_backends.begin();
     const auto& backend_ptr = kv->second;
-  
+  */
   //  struct stat stbuf;
    // backend_ptr->do_stat(pathname,stbuf);
     return 0;
@@ -646,7 +647,7 @@ static int efsng_readdir(const char* pathname, void* buf, fuse_fill_dir_t filler
 static int efsng_releasedir(const char* pathname, struct fuse_file_info* file_info){
 
     (void) pathname;
-
+    (void) file_info;
     LOGGER_TRACE("closedir:{}:{}:{}", 
             fuse_get_context()->pid, syscall(__NR_gettid), 
             pathname);
@@ -672,7 +673,7 @@ static int efsng_fsyncdir(const char* pathname, int is_datasync, struct fuse_fil
 
     (void) pathname;
     (void) is_datasync;
-
+    (void) file_info;
     
     return 0;
 }
@@ -761,9 +762,6 @@ static int efsng_access(const char* pathname, int mode){
     auto err = backend_ptr->do_stat(pathname,stbuf);
     if (err != 0) return -ENOENT;
     
-    int perm = 0;
-
-
     return err;
 }
 
@@ -1011,7 +1009,7 @@ static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t 
 
     auto file_record = (efsng::File*) file_info->fh;
     auto file_ptr = file_record->get_ptr();
-    pid_t pid = 0;
+    //pid_t pid = 0;
 
     size_t size = fuse_buf_size(buf);
 
