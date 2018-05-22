@@ -104,7 +104,7 @@ private:
 
     // Utils
     std::string remove_root (std::string path) const;
-
+    int do_renamedir(std::string opath, std::string npath);
 }; // nvml_backend
 
 } // namespace nvml

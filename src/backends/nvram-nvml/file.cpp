@@ -666,6 +666,9 @@ ssize_t file::allocate(off_t start_offset, size_t size){
         fetch_storage(start_offset, size, regions);
     }
     update_size(start_offset+size);
+    m_alloc_mutex.lock();
+    m_attributes.st_ctime = time(NULL);
+    m_alloc_mutex.unlock();
     m_dealloc_mutex.unlock_shared();
     #if defined(__EFS_DEBUG__) && defined(__PRINT_TREE__)
     print_tree(m_segments);
@@ -721,6 +724,7 @@ void file::truncate(off_t end_offset) {
         m_used_offset = end_offset;
         m_attributes.st_size = end_offset;
         m_attributes.st_blocks = end_offset/512;
+        m_attributes.st_ctime = time(NULL);
         m_alloc_mutex.unlock();
 	unlock_range(rl);
         m_dealloc_mutex.unlock();

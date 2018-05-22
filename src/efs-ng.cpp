@@ -272,7 +272,7 @@ static int efsng_truncate(const char* pathname, off_t length, struct fuse_file_i
 
     int res = 0;
 //    return -EOPNOTSUPP;
-
+    if ((long)length < 0) return -EINVAL;
 #if FUSE_USE_VERSION < 30
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
     const auto & kv = efsng_ctx->m_backends.begin();
@@ -775,7 +775,7 @@ static int efsng_access(const char* pathname, int mode){
  */
 static int efsng_create(const char* pathname, mode_t mode, struct fuse_file_info* file_info){
 
-    LOGGER_DEBUG("create called \"{}\" ", pathname);
+    LOGGER_DEBUG("create called \"{}:{}\" ", pathname, file_info->flags);
     LOGGER_TRACE("create:{}:{}:{}", 
             fuse_get_context()->pid, syscall(__NR_gettid), 
             pathname);
@@ -833,6 +833,7 @@ static int efsng_ftruncate(const char* pathname, off_t length, struct fuse_file_
             pathname);
 
     auto file_record = (efsng::File*) file_info->fh;
+    if (file_info->flags & O_RDONLY) return -EINVAL;
     auto ptr = file_record->get_ptr();
     ptr->truncate(length);
 

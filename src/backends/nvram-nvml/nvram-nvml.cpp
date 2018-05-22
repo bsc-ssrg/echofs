@@ -366,6 +366,33 @@ int nvml_backend::do_unlink(const char * pathname) {
 
     return 0;
 }
+int nvml_backend::do_renamedir(std::string opath, std::string npath)
+{
+
+    if(m_dirs.count(npath) != 0) {
+        return -EEXIST; // file exists
+    }
+
+    if(m_dirs.count(opath) == 0) {
+        return -ENOENT; // file do not exists
+    }
+
+
+
+    auto dir = m_dirs.find(opath);
+    if (dir != m_dirs.end()) {
+        struct stat stbuf;
+        dir->second.get()->stat(stbuf);
+        stbuf.st_mtime = stbuf.st_ctime = time (NULL);
+        dir->second.get()->save_attributes(stbuf);
+        std::swap(m_dirs[npath], dir->second);
+        m_dirs.erase(dir);
+
+    }
+
+    return 0;
+}
+
 
 int nvml_backend::do_rename(const char * oldpath, const char * newpath) {
     // Create the other file
@@ -374,12 +401,30 @@ int nvml_backend::do_rename(const char * oldpath, const char * newpath) {
   
     std::lock_guard<std::mutex> lock(m_files_mutex);
     std::lock_guard<std::mutex> lock_dir(m_dirs_mutex);
+
+
+    // Check first if it is a directory
+    
+    std::string opath_wo_root_slash = opath;
+    if (opath_wo_root_slash.length()>1) opath_wo_root_slash.push_back('/');
+    std::string npath_wo_root_slash = npath;
+    if (npath_wo_root_slash.length()>1) npath_wo_root_slash.push_back('/');
+    auto odir = m_dirs.find(opath_wo_root_slash);
+    if (odir != m_dirs.end() )
+    {
+        LOGGER_DEBUG("Renaming DIR {},{}",opath_wo_root_slash, npath_wo_root_slash); 
+        return do_renamedir( opath_wo_root_slash , npath_wo_root_slash);
+    }
+
+
+
     if(m_files.count(npath) != 0) {
         return -1; // file exists
     }
 
     if(m_files.count(opath) == 0) {
         return -ENOENT; // file do not exists
+
     }
 
     // Create the new file
@@ -387,7 +432,13 @@ int nvml_backend::do_rename(const char * oldpath, const char * newpath) {
     // Search for oldpointer 
     auto file = m_files.find(opath);
     const auto& file_ptr = file->second;
-     
+
+// Update ctime / mtime to be posix
+    struct stat stbuf;
+    file_ptr->stat(stbuf);
+    stbuf.st_ctime = stbuf.st_mtime = time(NULL);
+    file_ptr->save_attributes(stbuf);
+
     m_files.emplace(npath, file_ptr);
     
     // remove old file
@@ -396,8 +447,8 @@ int nvml_backend::do_rename(const char * oldpath, const char * newpath) {
     
     // Now we should update directory
 
-    std::string opath_wo_root_slash = opath.substr(0,opath.rfind('/')+1);
-    std::string npath_wo_root_slash = npath.substr(0,npath.rfind('/')+1);
+    opath_wo_root_slash = opath.substr(0,opath.rfind('/')+1);
+    npath_wo_root_slash = npath.substr(0,npath.rfind('/')+1);
 
    
     if (opath_wo_root_slash.size() == 0 or opath_wo_root_slash.back() != '/') opath_wo_root_slash.push_back('/');
@@ -439,9 +490,8 @@ int nvml_backend::do_mkdir(const char * pathname, mode_t mode) {
         stbuf.st_gid = getgid();
         stbuf.st_mode = mode | S_IFDIR;
 
-        stbuf.st_atime = time (NULL);
-        stbuf.st_mtime = time (NULL);
-        stbuf.st_ctime = time (NULL);
+        stbuf.st_atime = stbuf.st_mtime = stbuf.st_ctime = time (NULL);
+ 
 
         it.first->second.get()->save_attributes(stbuf);
         path_wo_root.pop_back();
@@ -509,6 +559,7 @@ int nvml_backend::do_chmod(const char * pathname, mode_t mode) {
         //Fill directory entry
         dir->second.get()->stat(stbuf);
         stbuf.st_mode = mode;
+        stbuf.st_ctime = time(NULL);
         dir->second.get()->save_attributes(stbuf);
     }
     else  {
@@ -518,6 +569,7 @@ int nvml_backend::do_chmod(const char * pathname, mode_t mode) {
             const auto& file_ptr = file->second;
             file_ptr->stat(stbuf);
             stbuf.st_mode = mode;
+            stbuf.st_ctime = time(NULL);
             file_ptr->save_attributes(stbuf);
         } 
         else { 
@@ -539,6 +591,7 @@ int nvml_backend::do_chown(const char * pathname, uid_t owner, gid_t group) {
         dir->second.get()->stat(stbuf);
         stbuf.st_uid = owner;
         stbuf.st_gid = group;
+        stbuf.st_ctime = time(NULL);
         dir->second.get()->save_attributes(stbuf);
     }
     else  {
@@ -549,6 +602,7 @@ int nvml_backend::do_chown(const char * pathname, uid_t owner, gid_t group) {
             file_ptr->stat(stbuf);
             stbuf.st_uid = owner;
             stbuf.st_gid = group;
+            stbuf.st_ctime = time(NULL);
             file_ptr->save_attributes(stbuf);
         } 
         else { 

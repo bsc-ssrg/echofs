@@ -75,6 +75,7 @@ void dir::add_file (const std::string file) {
         m_files.insert( file );
         m_attributes_mutex.lock();
         m_attributes.st_nlink += 1;
+        m_attributes.st_mtime = m_attributes.st_ctime = time (NULL);
         m_attributes_mutex.unlock();
 }
 
@@ -85,6 +86,7 @@ void dir::remove_file (const std::string file) {
         m_files.erase ( file );
         m_attributes_mutex.lock();
         m_attributes.st_nlink -= 1;
+        m_attributes.st_mtime = m_attributes.st_ctime = time (NULL);
         m_attributes_mutex.unlock();
    // }
 }
@@ -109,7 +111,7 @@ unsigned int dir::num_links() const {
 
 void dir::stat(struct stat& stbuf) const {
     m_attributes_mutex.lock_shared();
-    LOGGER_DEBUG(" STAT NVML DIR {}",m_pathname);
+    //LOGGER_DEBUG(" STAT NVML DIR {}",m_pathname);
     memcpy(&stbuf, &m_attributes, sizeof(stbuf));
     m_attributes_mutex.unlock_shared();
 }

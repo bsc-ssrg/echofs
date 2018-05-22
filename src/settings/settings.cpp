@@ -331,7 +331,7 @@ void settings::from_cmdline(int argc, char* argv[]){
     // read settings from configuration file, if one was passed at mount time.
     // Notice that command line arguments will always have precedence over 
     // configuration file options
-    if(m_config_file != ""){
+    if(m_config_file != "none"){
 
         settings backup(*this);
 
@@ -361,7 +361,17 @@ void settings::from_cmdline(int argc, char* argv[]){
     //if(m_log_file != "none"){
     //    init_logger(m_log_file);
     //}
-
+ 
+    if (m_config_file == "none")
+    {   kv_list extra_opts;
+        extra_opts.emplace ("daxfs","/tmp");
+        m_backend_opts.emplace(
+                "nvml://", 
+                backend_options {
+                    "nvml://", "NVRAM-NVML", 12000000, m_root_dir, 
+                    m_mount_dir, m_results_dir, extra_opts
+                });
+    }
     /** 
      * other default options for FUSE:
      * - nonempty: needed to allow the filesystem to be mounted on top of non empty directories.
