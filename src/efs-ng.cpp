@@ -75,6 +75,7 @@ extern "C" {
 #include "efs-ng.h"
 
 efsng::config::settings m_user_opts;
+
 /**********************************************************************************************************************/
 /*   Filesytem operations
  *
@@ -733,8 +734,9 @@ static void efsng_destroy(void *) {
     // this will block until all pending tasks have finished so that we can safely
     // destroy the filesystem structures when we return from efsng_destroy() to
     // fuse_custom_mounter()
-    delete efsng_ctx;
+    
     efsng_ctx->teardown();
+    delete efsng_ctx;
 }
 
 
@@ -1218,6 +1220,6 @@ int main (int argc, char *argv[]){
 
     /* 4. start the FUSE filesystem */
     int res = efsng::fuse_custom_mounter(m_user_opts, &efsng_ops);
-
+    
     return res;
 }

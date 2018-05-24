@@ -133,7 +133,8 @@ file::~file() {
         }
         catch(const bfs::filesystem_error& e) {
             throw std::runtime_error(
-                    logger::build_message("Error removing stale pool subdir: ", m_pool_subdir, " (", e.what(), ")"));
+                    logger::build_message("Error removing stale pool subdir: ", m_pool_subdir, " (", e.what(), ")")
+                    );
         }
      }
 }
