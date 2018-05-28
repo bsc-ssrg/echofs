@@ -263,28 +263,32 @@ int nvml_backend::do_readdir (const char * path, void * buffer, fuse_fill_dir_t 
 // TODO: change the order as directories will be less frequent than files
 int nvml_backend::do_stat (const char * path, struct stat& stbuf) const {
 
-    std::string path_wo_root_slash = path;
-    if (path_wo_root_slash.length()>1) path_wo_root_slash.push_back('/');
+    
 
-    std::lock_guard<std::mutex> lock_dir(m_dirs_mutex);
-    auto dir = m_dirs.find(path_wo_root_slash);
-    if (dir != m_dirs.end()) {
-        //Fill directory entry
-        dir->second.get()->stat(stbuf);
-    }
-    else  {
-        std::lock_guard<std::mutex> lock(m_files_mutex);
+    {
+        std::lock_guard<std::mutex> lock(m_files_mutex); // Avoid deadlock on create
         auto file = m_files.find(path);
         if (file != m_files.end()) {
             const auto& file_ptr = file->second;
             file_ptr->stat(stbuf);
-        } 
-        else { 
+            return 0;
+        }   
+        else
+        {
+            std::string path_wo_root_slash = path;
+            if (path_wo_root_slash.length()>1) path_wo_root_slash.push_back('/');
+            std::lock_guard<std::mutex> lock_dir(m_dirs_mutex);
+            auto dir = m_dirs.find(path_wo_root_slash);
+            if (dir != m_dirs.end()) {
+                //Fill directory entry
+                dir->second.get()->stat(stbuf);
+                return 0;
+            }
+            
             LOGGER_DEBUG("do_stat not found file {} - {} ",path, path_wo_root_slash); 
             return -ENOENT;
         }
     }
-     return 0;
 }
 
 /* Those are temporary files */

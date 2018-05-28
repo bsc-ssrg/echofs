@@ -196,6 +196,8 @@ void file::update_size(size_t size) {
 
 int file::unload (const std::string name){
 
+    if (m_type == file::type::temporary) return -1;
+
     file_region_list regions;
     std::ofstream output(name, std::ios::binary);
     auto rl = lock_range(0, size(), efsng::operation::read);
