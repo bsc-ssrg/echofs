@@ -422,14 +422,27 @@ int nvml_backend::do_rename(const char * oldpath, const char * newpath) {
 
 
 
-    if(m_files.count(npath) != 0) {
-        return -1; // file exists
-    }
-
     if(m_files.count(opath) == 0) {
         return -ENOENT; // file do not exists
 
     }
+
+    if(m_files.count(npath) != 0) {
+        std::string path = newpath;
+                    // Remove the file
+        auto file = m_files.find(path);
+        if (file != m_files.end()) {
+        const auto& file_ptr = file->second;
+        m_files.erase(file);
+        }
+        std::string path_wo_root_slash = path.substr(0,path.rfind('/')+1);
+        if (path_wo_root_slash.size() == 0 or path_wo_root_slash.back() != '/')    path_wo_root_slash.push_back('/');
+        auto dir =m_dirs.find(path_wo_root_slash);
+        if (dir != m_dirs.end()) {
+            dir->second.get()->remove_file(path.substr(path.rfind('/')+1));
+        }
+    }
+    
 
     // Create the new file
 

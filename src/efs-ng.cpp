@@ -896,10 +896,10 @@ static int efsng_lock(const char* pathname, struct fuse_file_info* file_info, in
 
     auto file_record = (efsng::File*) file_info->fh;
 
-    int fd = file_record->get_fd();
+    int fd = file_record->get_inode();
 
-    int res = ulockmgr_op(fd, cmd, flock, &file_info->lock_owner, sizeof(file_info->lock_owner));
-
+    //int res = ulockmgr_op(fd, cmd, flock, &file_info->lock_owner, sizeof(file_info->lock_owner));
+    int res = 0;
     /* ulockmgr_op returns 0 on success and -errno on error */
     return res;
 }
