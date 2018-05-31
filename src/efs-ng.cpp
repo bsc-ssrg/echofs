@@ -289,12 +289,10 @@ static int efsng_truncate(const char* pathname, off_t length, struct fuse_file_i
 #else
     if(file_info != NULL){
         auto file_record = (efsng::File*) file_info->fh;
-        int fd = file_record->get_fd();
-
-        if((res = ftruncate(fd, length)) == -1){
-            return -errno;
+        auto p_file =  file_record->get_ptr();
+        p_file->truncate(length);
         }
-    }
+    
 #endif
 
     if(res == -1){
