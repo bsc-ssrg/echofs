@@ -75,7 +75,7 @@ extern "C" {
 #include "efs-ng.h"
 
 efsng::config::settings m_user_opts;
-
+std::map <std::string, std::string> fastlink;
 /**********************************************************************************************************************/
 /*   Filesytem operations
  *
@@ -107,11 +107,11 @@ static int efsng_getattr(const char* pathname, struct stat* stbuf, struct fuse_f
     LOGGER_TRACE("stat:{}:{}:{}", 
             fuse_get_context()->pid, syscall(__NR_gettid), 
             pathname);
-
+    const char* path = fastlink.count(pathname) >0 ? fastlink[pathname].c_str() : pathname;
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
     const auto & kv = efsng_ctx->m_backends.begin();
     const auto& backend_ptr = kv->second; 
-    return backend_ptr->do_stat(pathname, *stbuf);  
+    return backend_ptr->do_stat(path, *stbuf);  
 }
 
 /** Read the target of a symbolic link */
@@ -164,11 +164,12 @@ static int efsng_unlink(const char* pathname){
     LOGGER_TRACE("unlink:{}:{}:{}", 
             fuse_get_context()->pid, syscall(__NR_gettid), 
             pathname);
-
+    const char* path = fastlink.count(pathname) >0 ? fastlink[pathname].c_str() : pathname;
+    fastlink.erase(pathname);
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
     const auto & kv = efsng_ctx->m_backends.begin();
     const auto& backend_ptr = kv->second; 
-    return backend_ptr->do_unlink(pathname);
+    return backend_ptr->do_unlink(path);
 }
 
 /** Remove a directory */
@@ -177,24 +178,15 @@ static int efsng_rmdir(const char* pathname){
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
     const auto & kv = efsng_ctx->m_backends.begin();
     const auto& backend_ptr = kv->second; 
-    return backend_ptr->do_rmdir(pathname);
+    const char* path = fastlink.count(pathname) >0 ? fastlink[pathname].c_str() : pathname;
+    return backend_ptr->do_rmdir(path);
 }
 
 /** Create a symbolic link */
 static int efsng_symlink(const char* oldpath, const char* newpath){
 
-    return -EOPNOTSUPP;
-
-    auto old_credentials = efsng::assume_user_credentials();
-
-    int res = symlink(oldpath, newpath);
-
-    efsng::restore_credentials(old_credentials);
-
-    if(res == -1){
-        return -errno;
-    }
-
+    //return -EOPNOTSUPP;
+    fastlink[oldpath] = newpath;
     return 0;
 }
 
@@ -314,17 +306,18 @@ static int efsng_truncate(const char* pathname, off_t length, struct fuse_file_i
  * to all file operations.
  */
 static int efsng_open(const char* pathname, struct fuse_file_info* file_info){
-
+    
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
     const auto & kv = efsng_ctx->m_backends.begin();
     const auto& backend_ptr = kv->second; 
-
+    
     LOGGER_DEBUG ("OPEN {}", pathname);
     LOGGER_TRACE("open:{}:{}:{}", 
             fuse_get_context()->pid, syscall(__NR_gettid), 
             pathname);
 
-    auto ret = backend_ptr->find(pathname);
+    const char* path = fastlink.count(pathname) >0 ? fastlink[pathname].c_str() : pathname;
+    auto ret = backend_ptr->find(path);
 
     if (ret == backend_ptr->end()) return -ENOENT;
 
@@ -638,7 +631,8 @@ static int efsng_readdir(const char* pathname, void* buf, fuse_fill_dir_t filler
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
     const auto & kv = efsng_ctx->m_backends.begin();
     const auto& backend_ptr = kv->second; 
-    return backend_ptr->do_readdir(pathname, buf, filler, offset, file_info);
+    const char* path = fastlink.count(pathname) >0 ? fastlink[pathname].c_str() : pathname;
+    return backend_ptr->do_readdir(path, buf, filler, offset, file_info);
 
 }
 
@@ -759,7 +753,8 @@ static int efsng_access(const char* pathname, int mode){
     const auto & kv = efsng_ctx->m_backends.begin();
     const auto& backend_ptr = kv->second; 
     struct stat stbuf;
-    auto err = backend_ptr->do_stat(pathname,stbuf);
+    const char* path = fastlink.count(pathname) >0 ? fastlink[pathname].c_str() : pathname;
+    auto err = backend_ptr->do_stat(path,stbuf);
     if (err != 0) return -ENOENT;
     
     return err;
@@ -923,8 +918,8 @@ static int efsng_utimens(const char* pathname, const struct timespec tv[2], stru
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
     const auto & kv = efsng_ctx->m_backends.begin();
     const auto& backend_ptr = kv->second; 
-    
-    auto ptr = backend_ptr->find(pathname);
+    const char* path = fastlink.count(pathname) >0 ? fastlink[pathname].c_str() : pathname;   
+    auto ptr = backend_ptr->find(path);
    
     if (ptr == backend_ptr->end()) {     
         return -ENOENT;

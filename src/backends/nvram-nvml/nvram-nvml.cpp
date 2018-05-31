@@ -267,7 +267,8 @@ int nvml_backend::do_stat (const char * path, struct stat& stbuf) const {
 
     {
         std::lock_guard<std::mutex> lock(m_files_mutex); // Avoid deadlock on create
-        auto file = m_files.find(path);
+        
+        auto file = m_files.count(path) > 0 ? m_files.find(path) : m_files.end();
         if (file != m_files.end()) {
             const auto& file_ptr = file->second;
             file_ptr->stat(stbuf);
@@ -278,7 +279,8 @@ int nvml_backend::do_stat (const char * path, struct stat& stbuf) const {
             std::string path_wo_root_slash = path;
             if (path_wo_root_slash.length()>1) path_wo_root_slash.push_back('/');
             std::lock_guard<std::mutex> lock_dir(m_dirs_mutex);
-            auto dir = m_dirs.find(path_wo_root_slash);
+            auto dir = m_dirs.count(path_wo_root_slash) > 0 ? m_dirs.find(path_wo_root_slash) : m_dirs.end();
+//            auto dir = m_dirs.find(path_wo_root_slash);
             if (dir != m_dirs.end()) {
                 //Fill directory entry
                 dir->second.get()->stat(stbuf);
