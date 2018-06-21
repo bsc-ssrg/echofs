@@ -42,9 +42,9 @@ namespace {
 /** generate a name for an NVML pool using a prefix and a base_path */
 bfs::path generate_pool_path(const bfs::path& subdir) {
 
-    static boost::random::mt19937 rng;
+    //static boost::random::mt19937 rng;
 
-    boost::uuids::uuid uuid = boost::uuids::random_generator(rng)();
+    boost::uuids::uuid uuid = boost::uuids::random_generator()();
     bfs::path ppath(boost::uuids::to_string(uuid));
 
     return subdir / ppath;
@@ -57,7 +57,7 @@ namespace nvml {
 
 // we need a definition of the constant because std::min/max rely on references
 // (see: http://stackoverflow.com/questions/16957458/static-const-in-c-class-undefined-reference)
-const size_t segment::s_min_size;
+const size_t segment::s_segment_size;
 
 pool::pool(const bfs::path& subdir)
     : m_subdir(subdir),

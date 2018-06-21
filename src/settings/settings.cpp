@@ -368,7 +368,7 @@ void settings::from_cmdline(int argc, char* argv[]){
         m_backend_opts.emplace(
                 "nvml://", 
                 backend_options {
-                    "nvml://", "NVRAM-NVML", 12000000, m_root_dir, 
+                    "nvml://", "NVRAM-NVML", 12000000, m_root_dir,  // 12 MB maximum segment
                     m_mount_dir, m_results_dir, extra_opts
                 });
     }
@@ -445,7 +445,6 @@ void settings::load_from_yaml_file(const bfs::path& config_file) {
         std::string id = pb.get_as<std::string>(keywords::id);
         std::string type = pb.get_as<std::string>(keywords::type);
         uint32_t capacity = pb.get_as<uint32_t>(keywords::capacity);
-
         kv_list extra_opts;
 
         for(const auto& kv : pb) {

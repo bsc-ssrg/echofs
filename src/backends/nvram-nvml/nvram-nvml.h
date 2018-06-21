@@ -87,6 +87,7 @@ public:
 private:
     /* maximum allocatable size in bytes */
     uint64_t m_capacity;
+
     /* mount point of the DAX filesystem needed to access NVRAM */
     bfs::path m_daxfs_mount_point;
     bfs::path m_root_dir;

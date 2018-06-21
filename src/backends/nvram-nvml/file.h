@@ -83,7 +83,6 @@ struct file_region_list : public std::vector<file_region> {
     size_t            m_size;
 };
 
-
 /* descriptor for a file loaded onto NVML */
 struct file : public backend::file {
 
@@ -128,6 +127,8 @@ private:
 
     off_t m_alloc_offset; /*!< Maximum allocated offset */
     off_t m_used_offset; /*!< Maximum used offset, i.e. eof */
+
+    uint64_t m_segment_size; /*!< Last segment size used */
 
     segment_tree                m_segments;
     std::atomic<bool> m_initialized; /*!< segments initialized ? */

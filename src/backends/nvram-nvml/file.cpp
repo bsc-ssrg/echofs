@@ -65,8 +65,9 @@ namespace nvml {
 /**********************************************************************************************************************/
 file::file() 
     : backend::file(),
+      m_segment_size(4096),
       m_segments(0, std::numeric_limits<off_t>::max(), segment_ptr()),
-      m_initialized(false) {
+      m_initialized(false)    {
 }
 
 file::file(const bfs::path& pool_base, const bfs::path& pathname, const ino_t inode, file::type type,  bool populate) 
@@ -74,6 +75,7 @@ file::file(const bfs::path& pool_base, const bfs::path& pathname, const ino_t in
       m_type(type),
       m_alloc_offset(0),
       m_used_offset(0),
+      m_segment_size(4096),
       m_segments(0, std::numeric_limits<off_t>::max(), segment_ptr()),
       m_initialized(false) {
 
@@ -109,7 +111,7 @@ file::file(const bfs::path& pool_base, const bfs::path& pathname, const ino_t in
         fd.stat(stbuf);
         stbuf.st_ino = inode;
         off_t seg_offset = 0;
-        size_t seg_size = efsng::xalign(stbuf.st_size, segment::s_segment_size);
+        size_t seg_size = efsng::xalign(stbuf.st_size, m_segment_size);      // Preloaded file
 
         auto sptr = create_segment(seg_offset, seg_size, /*is_gap=*/false);
 
@@ -292,11 +294,11 @@ void file::fetch_storage(off_t offset, size_t size, file_region_list& regions) {
     // and contain a *nullptr*
     assert((*++m_segments.rbegin()).first == m_alloc_offset);
     assert((*++m_segments.rbegin()).second == nullptr);
-
+    m_segment_size = std::min (m_segment_size*2, segment::s_segment_size);
     off_t new_segment_offset = (offset <= m_alloc_offset ?  m_alloc_offset : 
-            efsng::align(offset, segment::s_segment_size));
+            efsng::align(offset, m_segment_size));
     size_t gap_size = new_segment_offset - m_alloc_offset;
-    size_t new_segment_size = efsng::xalign(offset + size, segment::s_segment_size) - new_segment_offset;
+    size_t new_segment_size = efsng::xalign(offset + size, m_segment_size) - new_segment_offset;
 
     segment_list sl;
 
