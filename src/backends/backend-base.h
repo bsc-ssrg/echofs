@@ -122,6 +122,7 @@ public:
         UNKNOWN = -1,
         DRAM = 0,
         NVRAM_NVML,
+        NVRAM_DEVDAX,
 
         /* add newly registered backend types ABOVE this line */
         TOTAL_COUNT

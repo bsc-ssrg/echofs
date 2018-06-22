@@ -24,81 +24,55 @@
  *                                                                       *
  *************************************************************************/
 
+#ifndef __NVML_DEV_DIR_H__
+#define __NVML_DEV_DIR_H__
+
+#include <boost/thread/shared_mutex.hpp>
+
+#include <efs-common.h>
+#include "backend-base.h"
+#include "file.h"
 #include <fuse.h>
-#if FUSE_USE_VERSION < 30
-#else
-#include <fuse_lowlevel.h>
-#endif
-#include <stdlib.h>
-#include "utils.h"
-#include "context.h"
-#include "fuse-mount-helper.h"
+#include <unordered_set>
+
+namespace bfs = boost::filesystem;
 
 namespace efsng {
+namespace nvml_dev {
 
-int fuse_custom_mounter(const config::settings& user_opts, const struct fuse_operations* ops) {
+
     
-	struct fuse *fuse;
-	char *mountpoint;
-	int multithreaded;
-	int res;
-	
-    /* create a context object to maintain the internal state of the filesystem 
-     * so that we can later pass it around to the filesystem operations */
-    //auto efsng_ctx = std::make_unique<efsng::context>(user_opts);
-#if FUSE_USE_VERSION < 30
-	fuse = fuse_setup(user_opts.m_fuse_argc, 
-	                  const_cast<char**>(user_opts.m_fuse_argv), 
-	                  ops, 
-	                  sizeof(*ops), 
-	                  &mountpoint,
-				      &multithreaded, 
-                      NULL);
-//				      (void*) efsng_ctx.get());
-#else
-	struct fuse_args args = {user_opts.m_fuse_argc, const_cast<char**>(user_opts.m_fuse_argv), 0};
-	fuse = fuse_new(&args, 
-	                  ops, 
-	                  sizeof(*ops), 
-                      NULL);
-//				      (void*) efsng_ctx.get());
-	if (fuse == NULL) return 1;
-	fuse_mount (fuse, user_opts.m_mount_dir.string().c_str());
-	multithreaded = true;
-	struct fuse_session *se = fuse_get_session(fuse);
-	if (fuse_set_signal_handlers(se) != 0) {
-		res = 1;
-		return 1;
-	}
-#endif
-	if(fuse == NULL) {
-		return 1;
-    }
-	
-    if(multithreaded) {
-#if FUSE_USE_VERSION < 30
-		res = fuse_loop_mt(fuse);
-#else
-        fuse_daemonize(!user_opts.m_daemonize);
-		res = fuse_loop_mt(fuse, 1);
-#endif
-    }
-	else {
-		res = fuse_loop(fuse);
-    }
-#if FUSE_USE_VERSION < 30
-	fuse_teardown(fuse, mountpoint);
-#else
-	fuse_remove_signal_handlers(se);
-	fuse_unmount(fuse);
-	fuse_destroy(fuse);
-	fuse_opt_free_args(&args);
-#endif
-	if (res == -1) {
-		return 1;
-	}
+/* descriptor for a directory structure in NVML */
+struct dir : public backend::dir {
 
-	return 0;
-}
+  
+    dir();
+    dir(const bfs::path& pathname, const ino_t inode, const bfs::path & path_original, dir::type type=dir::type::persistent, bool populate=true);
+    void list_files(std::list <std::string> & m_files) const;
+    ~dir();
+    void add_file (const std::string fname);
+    void remove_file (const std::string fname);
+    bool find (const std::string fname, std::unordered_set < std::string >::iterator & it) const;
+    unsigned int num_links () const;
+    void stat(struct stat& stbuf) const;
+    void save_attributes(struct stat & stbuf) override;    /* Saves attributes of the directory */
 
-} //namespace efsng
+private:
+    /* container with the list of files inside the directory. 
+       We store the canonical name, 
+       for the standard ls and a pointer to the file for the ls -ltrh optimization */
+    bfs::path m_pathname;
+    dir::type m_type;
+    mutable std::unordered_set < std::string > m_files; // TODO : Mutex
+
+    mutable boost::shared_mutex m_attributes_mutex;
+    struct stat m_attributes; /*!< Dir attributes */
+
+    
+};
+
+} // namespace nvml_dev
+} // namespace efsng
+
+
+#endif /* __NVML_DEV_DIR_H__ */

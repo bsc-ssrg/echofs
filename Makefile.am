@@ -126,6 +126,16 @@ src_libefs_aux_la_SOURCES = \
 	src/backends/nvram-nvml/segment.h \
 	src/backends/nvram-nvml/nvram-nvml.cpp \
 	src/backends/nvram-nvml/nvram-nvml.h \
+	src/backends/nvram-devdax/file.cpp \
+	src/backends/nvram-devdax/file.h \
+	src/backends/nvram-devdax/dir.cpp \
+	src/backends/nvram-devdax/dir.h \
+	src/backends/nvram-devdax/fuse_buf_copy_pmem.cpp \
+	src/backends/nvram-devdax/fuse_buf_copy_pmem.h \
+	src/backends/nvram-devdax/segment.cpp	\
+	src/backends/nvram-devdax/segment.h \
+	src/backends/nvram-devdax/nvram-devdax.cpp \
+	src/backends/nvram-devdax/nvram-devdax.h \
 	src/context.h \
 	src/context.cpp \
 	src/defaults.h \

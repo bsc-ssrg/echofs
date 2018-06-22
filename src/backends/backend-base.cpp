@@ -32,6 +32,7 @@ namespace bfs = boost::filesystem;
 #include "utils.h"
 #include "dram/dram.h"
 #include "nvram-nvml/nvram-nvml.h"
+#include "nvram-devdax/nvram-devdax.h"
 
 namespace efsng {
 
@@ -53,6 +54,16 @@ backend::backend_ptr backend::create_from_options(const config::backend_options&
 
         return std::make_unique<nvml::nvml_backend>(opts.m_capacity, daxfs, opts.m_root_dir);
     }
+    else if (type == "NVRAM-DEVDAX") {
+
+        if(opts.m_extra_options.count("daxfs") == 0) {
+            throw std::runtime_error("Mandatory option 'daxfs' missing in definition of backend '" + id + "'");
+        }
+
+        const bfs::path& daxfs = opts.m_extra_options.at("daxfs");
+
+        return std::make_unique<nvml_dev::nvml_devdax_backend>(opts.m_capacity, daxfs, opts.m_root_dir);
+    }
 
     return std::unique_ptr<backend>(nullptr);
 }
@@ -65,6 +76,10 @@ backend::Type backend::name_to_type(const std::string& name) {
 
     if(name == "NVRAM-NVML"){
         return NVRAM_NVML;
+    }
+
+     if(name == "NVRAM-DEVDAX"){
+        return NVRAM_DEVDAX;
     }
 
     return UNKNOWN;
