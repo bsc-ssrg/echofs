@@ -615,10 +615,11 @@ ssize_t file::put_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse
         needs_sync |= r.m_is_pmem;
     }
 
-    // ensure data is persistent
-    if(needs_sync) {
-        segment::sync_all();
-    }
+//XXX FIXME this should be done only if fsync() is called!
+//    // ensure data is persistent
+//    if(needs_sync) {
+//        segment::sync_all();
+//    }
 
     // update cached attributes
     update_size(end_offset);
