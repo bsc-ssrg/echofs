@@ -688,7 +688,12 @@ static void* efsng_init(struct fuse_conn_info *conn, struct fuse_config* cfg) {
 
 #if FUSE_USE_VERSION >= 30
 
-    conn->want |= FUSE_CAP_WRITEBACK_CACHE;
+    if(conn->capable & FUSE_CAP_WRITEBACK_CACHE) {
+        conn->want |= FUSE_CAP_WRITEBACK_CACHE;
+    } 
+    else {
+        std::cerr << "WARNING: Writeback cache not supported\n";
+    }
 
     cfg->use_ino = 1;
 #endif
@@ -1212,7 +1217,12 @@ int main (int argc, char *argv[]){
     umask(0);
 
     /* 4. start the FUSE filesystem */
-    int res = efsng::fuse_custom_mounter(m_user_opts, &efsng_ops);
+//    int res = efsng::fuse_custom_mounter(m_user_opts, &efsng_ops);
+
+    int res = fuse_main(m_user_opts.m_fuse_argc, 
+                        const_cast<char **>(m_user_opts.m_fuse_argv), 
+                        &efsng_ops, 
+                        NULL);
     
     return res;
 }
