@@ -51,7 +51,18 @@ backend::backend_ptr backend::create_from_options(const config::backend_options&
 
         const bfs::path& daxfs = opts.m_extra_options.at("daxfs");
 
-        return std::make_unique<nvml::nvml_backend>(opts.m_capacity, daxfs, opts.m_root_dir);
+        int64_t ssize = -1;
+
+        if(opts.m_extra_options.count("segment-size") != 0) {
+            try {
+                ssize = parse_size(opts.m_extra_options.at("segment-size"));
+            }
+            catch(const std::exception& e) {
+                throw std::runtime_error("Invalid argument in option 'segment-size' of backend '" + id + "'");
+            }
+        }
+
+        return std::make_unique<nvml::nvml_backend>(opts.m_capacity, daxfs, opts.m_root_dir, ssize);
     }
 
     return std::unique_ptr<backend>(nullptr);

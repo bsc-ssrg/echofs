@@ -116,17 +116,17 @@ void context::initialize() {
         const auto& id = kv.first;
         const auto& opts = kv.second;
 
-        auto backend_ptr = backend::create_from_options(opts);
+        try {
+            auto backend_ptr = backend::create_from_options(opts);
 
-        LOGGER_INFO("    Backend {} (type: {})", id, backend_ptr->name());  
-        LOGGER_INFO("      [ capacity: {} bytes ]", backend_ptr->capacity());
+            LOGGER_INFO("    Backend {} (type: {})", id, backend_ptr->name());  
+            LOGGER_INFO("      [ capacity: {} bytes ]", backend_ptr->capacity());
 
-        if(backend_ptr == nullptr) {
-            LOGGER_ERROR("Unable to create backend '{}'", id);
-            throw std::runtime_error(""); // we don't really care about the message
+            m_backends.emplace(id, std::move(backend_ptr));
         }
-
-        m_backends.emplace(id, std::move(backend_ptr));
+        catch(const std::exception& e) {
+            LOGGER_ERROR("Unable to create backend '{}'", e.what());
+        }
     }
 
     // check that there is at least one backend

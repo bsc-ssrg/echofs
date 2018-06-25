@@ -717,6 +717,7 @@ static void* efsng_init(struct fuse_conn_info *conn, struct fuse_config* cfg) {
 
         // WARNING! trigger_shutdown() does not stop execution!
         efsng_ctx->trigger_shutdown();
+        exit(EXIT_FAILURE);
     }
     return (void*) efsng_ctx;
 }
