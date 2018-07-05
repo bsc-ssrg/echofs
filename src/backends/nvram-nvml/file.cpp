@@ -492,21 +492,32 @@ ssize_t file::get_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse
         goto unlock_and_return;
     }
 
+#ifndef __TEST_FUSE_READBUF_PATCH__
     /* the FUSE interface forces us to allocate a buffer using malloc() and 
     * memcpy() the requested data in order to return it back to the user. meh */
     buffer = (void*) malloc(regions.total_size());
+
+    if(posix_memalign(&buffer, 512, regions.total_size()) != 0) {
+        rv = -ENOMEM;
+        goto unlock_and_return;
+    }
 
     if(buffer == NULL) {
         rv = -ENOMEM;
         goto unlock_and_return;
     }
+#endif // __TEST_FUSE_READBUF_PATCH__
 
     for(const auto& r : regions) {
         efsng::data_ptr_t data = r.m_address;
         size_t size = r.m_size;
 
         if(data != NULL) {
+#ifndef __TEST_FUSE_READBUF_PATCH__
             memcpy((void*) ((uintptr_t)buffer + n), (void*) data, size);
+#else
+            buffer = data;
+#endif // __TEST_FUSE_READBUF_PATCH__
 
             LOGGER_TRACE("nvml_read:{}:{}:{}:{}", 
                     fuse_get_context()->pid, syscall(__NR_gettid), 
@@ -537,7 +548,32 @@ unlock_and_return:
     return rv;
 }
 
+#ifdef __TEST_STATIC_BUFFER__
+char global_buffer[8*1024*1024];
+#endif // __TEST_STATIC_BUFFER__
+
 ssize_t file::put_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse_buffer) {
+
+#ifdef __TEST_SINGLE_BUFFER_WRITES__
+
+    { // single malloc'ed buffer
+#ifdef __TEST_STATIC_BUFFER__
+        void* buffer = global_buffer;
+
+        assert(size <= sizeof(global_buffer));
+#else
+        void* buffer = malloc(size);
+        assert(buffer);
+#endif
+
+        struct fuse_bufvec dst = FUSE_BUFVEC_INIT(size);
+        dst.buf[0].flags = (fuse_buf_flags) (~FUSE_BUF_IS_FD);
+        dst.buf[0].mem = (void*) buffer;
+
+        return fuse_buf_copy(&dst, fuse_buffer, FUSE_BUF_SPLICE_MOVE);
+    }
+
+#else
 
     // a truncate() call while writing data is a problem: allocated segments
     // that we believe exist may be removed before writing data to them. To avoid 
@@ -628,6 +664,8 @@ ssize_t file::put_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse
 
     m_dealloc_mutex.unlock_shared();
     return n;
+
+#endif // ! __SINGLE_BUFFER_WRITES__
 }
 
 ssize_t file::append_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse_buffer) {
