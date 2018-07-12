@@ -24,6 +24,13 @@
  *                                                                       *
  *************************************************************************/
 
+ /*
+* This software was developed as part of the
+* EC H2020 funded project NEXTGenIO (Project ID: 671951)
+* www.nextgenio.eu
+*/ 
+
+
 #ifndef __SETTINGS_H__
 #define __SETTINGS_H__
 

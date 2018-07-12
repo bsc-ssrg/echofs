@@ -24,6 +24,13 @@
  *                                                                       *
  *************************************************************************/
 
+ /*
+* This software was developed as part of the
+* EC H2020 funded project NEXTGenIO (Project ID: 671951)
+* www.nextgenio.eu
+*/ 
+
+
 #include <efs-api.h>
 
 #define ERR_REMAP(n) ((n) < 0 ? -(n) : (n))

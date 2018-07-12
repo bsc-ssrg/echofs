@@ -24,6 +24,13 @@
  *                                                                       *
  *************************************************************************/
 
+ /*
+* This software was developed as part of the
+* EC H2020 funded project NEXTGenIO (Project ID: 671951)
+* www.nextgenio.eu
+*/ 
+
+
 #include <sys/un.h>
 #include <sys/socket.h>
 #include <stdlib.h>

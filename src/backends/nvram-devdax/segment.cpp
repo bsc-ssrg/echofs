@@ -24,6 +24,13 @@
  *                                                                       *
  *************************************************************************/
 
+ /*
+* This software was developed as part of the
+* EC H2020 funded project NEXTGenIO (Project ID: 671951)
+* www.nextgenio.eu
+*/ 
+
+
 #include <boost/filesystem.hpp>
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_io.hpp>
@@ -56,21 +63,24 @@ bfs::path generate_pool_path(const bfs::path& subdir) {
 namespace efsng {
 namespace nvml_dev {
 
-int big_pool::init (const bfs::path & subdir, size_t length){
+const size_t segment::s_segment_size;
+
+int big_pool::init (const bfs::path & subdir, size_t length) {
 	m_offset = 0;
 	m_length = length;
-        std::lock_guard<std::mutex> lock_allocate(m_allocate_mutex);
-        m_size_of_segment = segment::s_segment_size;
-        m_fd = open(subdir.c_str(), O_RDWR);
-	   std::cerr << " FD Result for open " << m_fd << std::endl;
-         //  std::min(length / NVML_MAPPINGS, s_segment_size); // 4 KB is the minimum:
-        m_NVML_MAPPINGS = length / m_size_of_segment;
-        m_address = mmap(NULL,m_length, PROT_READ|PROT_WRITE, MAP_SHARED,
-                  m_fd, 0);
+    std::lock_guard<std::mutex> lock_allocate(m_allocate_mutex);
+    m_size_of_segment = segment::s_segment_size;
+    m_fd = open(subdir.c_str(), O_RDWR);
+    std::cerr << " FD Result for open " << m_fd << std::endl;
+     //  std::min(length / NVML_MAPPINGS, s_segment_size); // 4 KB is the minimum:
+    m_NVML_MAPPINGS = length / m_size_of_segment;
+    m_address = mmap(NULL,m_length, PROT_READ|PROT_WRITE, MAP_SHARED,
+              m_fd, 0);
 
-	std::cerr << "MMAP result " << m_address << " - " << errno << " - " << strerror (errno) << std::endl;
-	m_init = true;
-    	return 0;
+    std::cerr << "MMAP result " << m_address << " - " << errno << " - " << strerror (errno) << std::endl;
+
+    m_init = true;
+	return 0;
 }
 
 big_pool::~big_pool() {
@@ -78,8 +88,8 @@ big_pool::~big_pool() {
     munmap (m_address, m_length);
     close(m_fd);
 }
-void * big_pool::allocate(size_t size)
-{
+
+void * big_pool::allocate(size_t size) {
     std::lock_guard<std::mutex> lock_allocate(m_allocate_mutex);
     void * ret_address = NULL;
 
@@ -89,8 +99,7 @@ void * big_pool::allocate(size_t size)
     size_t start_offset = m_offset;
     if ( n_segments + start_offset < m_NVML_MAPPINGS) {
 
-        for (unsigned int i = 0; i < n_segments; i++)
-        {
+        for (unsigned int i = 0; i < n_segments; i++) {
             if (m_bitset.test(i+start_offset) == true) {
                 found = false;
                 start_offset = 0;
@@ -116,7 +125,6 @@ void * big_pool::allocate(size_t size)
             }
             if (found == false) j = start_offset;
             else {
-
                 break;
             }
         } else { found = false;  LOGGER_INFO ("Device is full"); break;}
@@ -128,7 +136,7 @@ void * big_pool::allocate(size_t size)
         ret_address = (void *)((unsigned long long)m_address + start_offset*m_size_of_segment);
         for (unsigned int i = 0; i < n_segments; i++)
             m_bitset.set(i+start_offset);
-        m_offset =  n_segments + start_offset;
+        m_offset =  n_segments + start_offset + 1;
     }
     else {
         LOGGER_INFO ("Device is full");
@@ -143,7 +151,6 @@ void big_pool::deallocate(void * address, size_t length) {
     std::lock_guard<std::mutex> lock_allocate(m_allocate_mutex);
     for (unsigned int i = 0 ; i < length / m_size_of_segment; i++) { 
        m_bitset.reset( ((unsigned long long)address-(unsigned long long)m_address + i*m_size_of_segment) / m_size_of_segment );
-       
    }
 }
 
@@ -171,21 +178,7 @@ pool::~pool() {
 
     // release the mapped region
     if(m_data != NULL) {
-        #ifdef __ECHOFS_DAXFS
-        pmem_unmap(m_data, m_length);
-        
-        bfs::path pool_path;
-        pool_path = ::generate_pool_path(m_subdir);
-        if(bfs::exists(pool_path)){
-            if(::unlink(pool_path.c_str()) != 0){
-                throw std::runtime_error(
-                    logger::build_message("Error removing pool file: ", pool_path, " (", strerror(errno), ")"));
-            }
-        }
-        #else
-            pool::m_bpool.deallocate(m_data, m_length);
-        #endif
-
+        pool::m_bpool.deallocate(m_data, m_length);
     }
 }
 void pool::deallocate() {
@@ -204,36 +197,8 @@ void pool::allocate(size_t size) {
     size_t pool_length = 0;
     int is_pmem = 0;
 
-    #ifdef  __ECHOFS_DAXFS
-    pool_path = ::generate_pool_path(m_subdir);
-
-    /* if the segment pool already exists delete it, since we can't trust that it's the same file */
-    /* TODO: we may need to change this in the future */
-    if(bfs::exists(pool_path)){
-        if(::unlink(pool_path.c_str()) != 0){
-            throw std::runtime_error(
-                    logger::build_message("Error removing pool file: ", pool_path, " (", strerror(errno), ")"));
-        }
-    }
-    
-    /* create the pool */
-    if((pool_addr = pmem_map_file(pool_path.c_str(), size, PMEM_FILE_CREATE | PMEM_FILE_EXCL | PMEM_FILE_SPARSE,
-                                0666, &pool_length, &is_pmem)) == NULL) {
-        throw std::runtime_error(
-                logger::build_message("Fatal error creating pmem file: ", pool_path, " (", strerror(errno), ")"));
-    }
-
-    /* check that the range allocated is of the required size */
-    if(pool_length != size) {
-        pmem_unmap(pool_addr, pool_length);
-        throw std::runtime_error("File segment of different size than requested");
-    }
-    #else
-
     pool_addr = m_bpool.allocate(size);
     pool_length = size;
-
-    #endif
 
     m_path = pool_path;
     m_data = pool_addr;
@@ -382,7 +347,7 @@ ssize_t segment::copy_data_to_non_pmem(const posix::file& fdesc){
 
 #ifdef __EFS_DEBUG__
 
-std::ostream& operator<<(std::ostream& os, const efsng::nvml::segment& mp) {
+std::ostream& operator<<(std::ostream& os, const efsng::nvml_dev::segment& mp) {
     os << "segment {" << "\n"
        << "  m_is_gap: " << mp.m_is_gap << "\n"
        << "  m_data: " << mp.m_pool.m_data << "\n"

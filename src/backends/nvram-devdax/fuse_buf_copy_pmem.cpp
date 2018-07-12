@@ -24,6 +24,13 @@
  *                                                                       *
  *************************************************************************/
 
+ /*
+* This software was developed as part of the
+* EC H2020 funded project NEXTGenIO (Project ID: 671951)
+* www.nextgenio.eu
+*/ 
+
+
 /* This code implements fuse_buf_copy_pmem, a function identical to 
  * fuse_buf_copy but that relies on NVM-aware functions pmem_memcpy_* and 
  * pmem_memmove_* from the NVML library rather than the standard 

@@ -24,6 +24,13 @@
  *                                                                       *
  *************************************************************************/
 
+ /*
+* This software was developed as part of the
+* EC H2020 funded project NEXTGenIO (Project ID: 671951)
+* www.nextgenio.eu
+*/ 
+
+
 #ifndef __SEGMENT_H__
 #define __SEGMENT_H__
 
@@ -75,13 +82,8 @@ struct pool {
 /* descriptor for an in-NVM mmap()-ed file region */
 struct segment {
 
-    #ifdef __ECHOFS_DAXFS
-    static const size_t s_min_size = 0x100000;
-    static const size_t s_segment_size = 0x100000*1; //0x100000*1; // 1MiB
-    #else
     static const size_t s_min_size = 0x100000;//0x100000*128;
     static const size_t s_segment_size = 0x100000;//0x100000*128; //0x100000;
-    #endif
 
     off_t                       m_offset;   /*!< Base offset within file */
     size_t                      m_size;     /*!< Mapped size */
@@ -119,7 +121,7 @@ private:
 
 #ifdef __EFS_DEBUG__
 
-std::ostream& operator<<(std::ostream& os, const efsng::nvml::segment& mp);
+std::ostream& operator<<(std::ostream& os, const efsng::nvml_dev::segment& mp);
 
 #endif /* __EFS_DEBUG__ */
 

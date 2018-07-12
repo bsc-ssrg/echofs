@@ -24,6 +24,13 @@
  *                                                                       *
  *************************************************************************/
 
+ /*
+* This software was developed as part of the
+* EC H2020 funded project NEXTGenIO (Project ID: 671951)
+* www.nextgenio.eu
+*/ 
+
+
 #include <fuse.h>
 
 ssize_t fuse_buf_copy_pmem(struct fuse_bufvec *dstv, struct fuse_bufvec *srcv,

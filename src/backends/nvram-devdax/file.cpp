@@ -24,6 +24,13 @@
  *                                                                       *
  *************************************************************************/
 
+ /*
+* This software was developed as part of the
+* EC H2020 funded project NEXTGenIO (Project ID: 671951)
+* www.nextgenio.eu
+*/ 
+
+
 #include <libpmem.h>
 #include <fstream>
 
@@ -34,7 +41,7 @@
 
 #if defined(__EFS_DEBUG__) && defined(__PRINT_TREE__)
 namespace {
-void print_tree(const efsng::nvml::segment_tree& tree) {
+void print_tree(const efsng::nvml_dev::segment_tree& tree) {
 
     std::cerr << "tree {\n";
 
@@ -79,7 +86,7 @@ file::file(const bfs::path& pool_base, const bfs::path& pathname, const ino_t in
       m_segments(0, std::numeric_limits<off_t>::max(), segment_ptr()),
       m_initialized(false) {
 
-      m_pool_subdir = generate_pool_subdir(pool_base, pathname);
+      m_pool_subdir = pool_base;
    
     if(populate) { //XXX this is probably not needed if we have another constructor
                    // for non-Lustre backed files
@@ -88,23 +95,7 @@ file::file(const bfs::path& pool_base, const bfs::path& pathname, const ino_t in
        
          /* generate a subdir to store all pools for this file */
 
-        /* if the pool subdir already exists delete it, since we can't trust it */
-        /* TODO: we may need to change this in the future */
-        if(bfs::exists(m_pool_subdir)) {
-            try {
-                remove_all(m_pool_subdir);
-            }
-            catch(const bfs::filesystem_error& e) {
-                throw std::runtime_error(
-                        logger::build_message("Error removing stale pool subdir: ", m_pool_subdir, " (", e.what(), ")"));
-            }
-        }
-
-        if(::mkdir(m_pool_subdir.c_str(), S_IRWXU) != 0) {
-            throw std::runtime_error(
-                    logger::build_message("Error creating pool subdir: ", m_pool_subdir, " (", strerror(errno), ")"));
-        }
-
+     
 
         posix::file fd(pathname);
         struct stat stbuf;
@@ -129,16 +120,7 @@ file::file(const bfs::path& pool_base, const bfs::path& pathname, const ino_t in
 
 file::~file() {
  //   std::cerr << "a nvml::file " << m_pathname.string() <<  " instance died...\n" ;
-     if(bfs::exists(m_pool_subdir)) {
-        try {
-             remove_all(m_pool_subdir);
-        }
-        catch(const bfs::filesystem_error& e) {
-            throw std::runtime_error(
-                    logger::build_message("Error removing stale pool subdir: ", m_pool_subdir, " (", e.what(), ")")
-                    );
-        }
-     }
+ 
 }
 
 void file::stat(struct stat& stbuf) const {
@@ -294,7 +276,7 @@ void file::fetch_storage(off_t offset, size_t size, file_region_list& regions) {
     // and contain a *nullptr*
     assert((*++m_segments.rbegin()).first == m_alloc_offset);
     assert((*++m_segments.rbegin()).second == nullptr);
-    m_segment_size = std::min (m_segment_size*2, segment::s_segment_size);
+    m_segment_size = std::min (m_segment_size*2, nvml_dev::segment::s_segment_size);
     off_t new_segment_offset = (offset <= m_alloc_offset ?  m_alloc_offset : 
             efsng::align(offset, m_segment_size));
     size_t gap_size = new_segment_offset - m_alloc_offset;
@@ -456,23 +438,6 @@ ssize_t file::get_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse
     file_region_list regions;
 
     if (!m_initialized){
-         
-        /* if the pool subdir already exists delete it, since we can't trust it */
-        /* TODO: we may need to change this in the future */
-        if(bfs::exists(m_pool_subdir)) {
-            try {
-                remove_all(m_pool_subdir);
-            }
-            catch(const bfs::filesystem_error& e) {
-                throw std::runtime_error(
-                        logger::build_message("Error removing stale pool subdir: ", m_pool_subdir, " (", e.what(), ")"));
-            }
-        }
-
-        if(::mkdir(m_pool_subdir.c_str(), S_IRWXU) != 0) {
-            throw std::runtime_error(
-                    logger::build_message("Error creating pool subdir: ", m_pool_subdir, " (", strerror(errno), ")"));
-        }
         m_initialized = true;
     }
    
@@ -549,23 +514,7 @@ ssize_t file::put_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse
     // to worry about them vanishing
     m_dealloc_mutex.lock_shared();
     if (!m_initialized){
-        boost::unique_lock<boost::shared_mutex> lock(m_alloc_mutex);
-      
-        /* if the pool subdir already exists delete it, since we can't trust it */
-        /* TODO: we may need to change this in the future */
-        if(bfs::exists(m_pool_subdir)) {
-            try {
-                remove_all(m_pool_subdir);
-            }
-            catch(const bfs::filesystem_error& e) {
-                throw std::runtime_error(
-                        logger::build_message("Error removing stale pool subdir: ", m_pool_subdir, " (", e.what(), ")"));
-            }
-        }
-        if(::mkdir(m_pool_subdir.c_str(), S_IRWXU) != 0) {
-            throw std::runtime_error(
-                    logger::build_message("Error creating pool subdir (pd): ", m_pool_subdir, " (", strerror(errno), ")"));
-        }
+       
         m_initialized = true;
     }
     
@@ -643,23 +592,6 @@ ssize_t file::allocate(off_t start_offset, size_t size){
      
     
     if (!m_initialized){
-      
-        /* if the pool subdir already exists delete it, since we can't trust it */
-        /* TODO: we may need to change this in the future */
-        if(bfs::exists(m_pool_subdir)) {
-            try {
-                remove_all(m_pool_subdir);
-            }
-            catch(const bfs::filesystem_error& e) {
-                throw std::runtime_error(
-                        logger::build_message("Error removing stale pool subdir: ", m_pool_subdir, " (", e.what(), ")"));
-            }
-        }
-
-        if(::mkdir(m_pool_subdir.c_str(), S_IRWXU) != 0) {
-            throw std::runtime_error(
-                    logger::build_message("Error creating pool subdir: ", m_pool_subdir, " (", strerror(errno), ")"));
-        }
         m_initialized = true;
     }
 
@@ -737,5 +669,5 @@ void file::truncate(off_t end_offset) {
 }
 
 
-} // namespace nvml
+} // namespace nvml_dev
 } // namespace efsng

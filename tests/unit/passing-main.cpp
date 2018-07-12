@@ -24,5 +24,12 @@
  *                                                                       *
  *************************************************************************/
 
+ /*
+* This software was developed as part of the
+* EC H2020 funded project NEXTGenIO (Project ID: 671951)
+* www.nextgenio.eu
+*/ 
+
+
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
