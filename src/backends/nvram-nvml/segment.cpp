@@ -62,9 +62,10 @@ bfs::path generate_pool_path(const bfs::path& subdir) {
 namespace efsng {
 namespace nvml {
 
+size_t segment::s_segment_size = segment::default_segment_size;
+
 // we need a definition of the constant because std::min/max rely on references
 // (see: http://stackoverflow.com/questions/16957458/static-const-in-c-class-undefined-reference)
-const size_t segment::s_segment_size;
 
 pool::pool(const bfs::path& subdir)
     : m_subdir(subdir),

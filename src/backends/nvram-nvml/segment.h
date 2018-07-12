@@ -60,7 +60,9 @@ struct pool {
 /* descriptor for an in-NVM mmap()-ed file region */
 struct segment {
 
-    static const size_t s_segment_size = 0x100000*128; //0x100000*1; // 1MiB
+    constexpr static const size_t default_segment_size = 128*1024*1024;
+    static size_t s_segment_size; // = 512*1024*1024; // 512MiB
+
 
     off_t                       m_offset;   /*!< Base offset within file */
     size_t                      m_size;     /*!< Mapped size */

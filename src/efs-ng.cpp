@@ -312,6 +312,10 @@ static int efsng_truncate(const char* pathname, off_t length, struct fuse_file_i
  * to all file operations.
  */
 static int efsng_open(const char* pathname, struct fuse_file_info* file_info){
+
+#ifdef __TEST_DIRECT_IO__
+    file_info->direct_io = 1;
+#endif // __TEST_DIRECT_IO__
     
     efsng::context* efsng_ctx = (efsng::context*) fuse_get_context()->private_data;
     const auto & kv = efsng_ctx->m_backends.begin();
@@ -351,6 +355,8 @@ static int efsng_open(const char* pathname, struct fuse_file_info* file_info){
     auto file_record = new efsng::File(st.st_ino, 42, flags);
     file_record->set_ptr(ptr);
     file_info->fh = (uint64_t) file_record;
+
+//    file_info->direct_io = 1;
 
     return 0;
 }
@@ -448,20 +454,21 @@ static int efsng_flush(const char* pathname, struct fuse_file_info* file_info){
 
     auto file_record = (efsng::File*) file_info->fh;
 
-    int fd = file_record->get_fd();
-    if (fd != 42) {
+//     int fd = file_record->get_fd();
+//     if (fd != 42) {
+// 
+//         /* This is called from every close on an open file, so call the
+//            close on the underlying filesystem.  But since flush may be
+//            called multiple times for an open file, this must not really
+//            close the file.  This is important if used on a network
+//            filesystem like NFS which flush the data/metadata on close() */
+//         int res = close(dup(fd));
+// 
+//         if (res == -1){
+//             return -errno;
+//         }
+//     }
 
-        /* This is called from every close on an open file, so call the
-           close on the underlying filesystem.  But since flush may be
-           called multiple times for an open file, this must not really
-           close the file.  This is important if used on a network
-           filesystem like NFS which flush the data/metadata on close() */
-        int res = close(dup(fd));
-
-        if (res == -1){
-            return -errno;
-        }
-    }
     return 0;
 }
 
@@ -485,14 +492,14 @@ static int efsng_release(const char* pathname, struct fuse_file_info* file_info)
 
     auto file_record = (efsng::File*) file_info->fh;
 
-    int fd = file_record->get_fd();
-    if (fd != 42) {
-
-        if(close(fd) == -1){
-            return -errno;
-        }
-
-    }
+//    int fd = file_record->get_fd();
+//    if (fd != 42) {
+//
+//        if(close(fd) == -1){
+//            return -errno;
+//        }
+//
+//    }
    
     delete file_record;
     return 0;
@@ -694,7 +701,18 @@ static void* efsng_init(struct fuse_conn_info *conn, struct fuse_config* cfg) {
 
 #if FUSE_USE_VERSION >= 30
 
-    conn->want |= FUSE_CAP_WRITEBACK_CACHE;
+#ifdef __TEST_WRITEBACK_CACHE__
+    if(conn->capable & FUSE_CAP_WRITEBACK_CACHE) {
+        conn->want |= FUSE_CAP_WRITEBACK_CACHE;
+    } 
+    else {
+        std::cerr << "WARNING: Writeback cache not supported\n";
+    }
+#endif // __TEST_WRITEBACK_CACHE__
+
+    conn->want |= FUSE_CAP_SPLICE_READ;
+    conn->want |= FUSE_CAP_SPLICE_WRITE;
+    conn->want |= FUSE_CAP_SPLICE_MOVE;
 
     cfg->use_ino = 1;
 #endif
@@ -718,6 +736,7 @@ static void* efsng_init(struct fuse_conn_info *conn, struct fuse_config* cfg) {
 
         // WARNING! trigger_shutdown() does not stop execution!
         efsng_ctx->trigger_shutdown();
+        exit(EXIT_FAILURE);
     }
     return (void*) efsng_ctx;
 }
@@ -775,6 +794,10 @@ static int efsng_access(const char* pathname, int mode){
  * will be called instead.
  */
 static int efsng_create(const char* pathname, mode_t mode, struct fuse_file_info* file_info){
+
+#ifdef __TEST_DIRECT_IO__
+    file_info->direct_io = 1;
+#endif // __TEST_DIRECT_IO__
 
     LOGGER_DEBUG("create called \"{}:{}\" ", pathname, file_info->flags);
     LOGGER_TRACE("create:{}:{}:{}", 
@@ -1009,6 +1032,14 @@ static int efsng_poll(const char* pathname, struct fuse_file_info* file_info, st
 static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t offset, 
                            struct fuse_file_info* file_info){
 
+#ifdef __TEST_NOOP_CALLBACK__
+    return fuse_buf_size(buf);
+#endif // __TEST_NOOP_CALLBACK__
+
+#ifdef __EFS_TIMING__
+    auto t0 = std::chrono::steady_clock::now();
+#endif
+
     auto file_record = (efsng::File*) file_info->fh;
     auto file_ptr = file_record->get_ptr();
     //pid_t pid = 0;
@@ -1021,7 +1052,15 @@ static int efsng_write_buf(const char* pathname, struct fuse_bufvec* buf, off_t 
             pathname, offset, size);
 
     ssize_t rv = file_ptr->put_data(offset, size, buf);
-   
+
+#ifdef __EFS_TIMING__
+    auto t1 = std::chrono::steady_clock::now();
+    auto delta = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+
+    LOGGER_INFO("efsng_write_buf({}, {}, {}) took {} usecs", pathname, offset, size, std::to_string(delta));
+#endif
+    
+    
     return rv;
 }
 
@@ -1218,7 +1257,12 @@ int main (int argc, char *argv[]){
     umask(0);
 
     /* 4. start the FUSE filesystem */
-    int res = efsng::fuse_custom_mounter(m_user_opts, &efsng_ops);
+//    int res = efsng::fuse_custom_mounter(m_user_opts, &efsng_ops);
+
+    int res = fuse_main(m_user_opts.m_fuse_argc, 
+                        const_cast<char **>(m_user_opts.m_fuse_argv), 
+                        &efsng_ops, 
+                        NULL);
     
     return res;
 }

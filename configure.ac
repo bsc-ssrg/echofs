@@ -59,7 +59,9 @@ AC_ARG_WITH([fuse3],
 
 # check whether FUSE (3.0 or 2.X >= 2.6) is available
 AS_IF([test "x$with_fuse3" = "xyes"], [PKG_CHECK_MODULES([FUSE3], [fuse3])],
+      [test "x$with_fuse3_readbuf" = "xyes"], [PKG_CHECK_MODULES([FUSE3], [fuse3_readbuf])],
       [test "x$with_fuse3_4mb" = "xyes"], [PKG_CHECK_MODULES([FUSE3], [fuse3_4mb])],
+      [test "x$with_fuse3_4mb_readbuf" = "xyes"], [PKG_CHECK_MODULES([FUSE3], [fuse3_4mb_readbuf])],
       [test "x$with_fuse3_8mb" = "xyes"], [PKG_CHECK_MODULES([FUSE3], [fuse3_8mb])],
       [test "x$with_fuse3_12mb" = "xyes"], [PKG_CHECK_MODULES([FUSE3], [fuse3_12mb])],
       [PKG_CHECK_MODULES([FUSE], [fuse >= 2.6])]
@@ -68,9 +70,22 @@ AS_IF([test "x$with_fuse3" = "xyes"], [PKG_CHECK_MODULES([FUSE3], [fuse3])],
 
 # WARNING: the following options are for testing purposes only and should
 # not be used in production
+AC_ARG_WITH([fuse3-readbuf], 
+            AS_HELP_STRING([--with-fuse3-readbuf @<:@=ARG@:>@ ], 
+                           [Build the filesystem using the FUSE3 library (readbuf patch) [ARG=yes].
+                            (EXPERIMENTAL.)])
+)
+
 AC_ARG_WITH([fuse3-4mb], 
             AS_HELP_STRING([--with-fuse3-4mb @<:@=ARG@:>@ ], 
                            [Build the filesystem using the FUSE3 library (4mb transfer size) [ARG=yes].
+                            (EXPERIMENTAL.)])
+)
+
+##
+AC_ARG_WITH([fuse3-4mb-readbuf], 
+            AS_HELP_STRING([--with-fuse3-4mb-readbuf @<:@=ARG@:>@ ], 
+                           [Build the filesystem using the FUSE3 library (4mb transfer size with readbuf patch) [ARG=yes].
                             (EXPERIMENTAL.)])
 )
 
@@ -90,7 +105,9 @@ AC_ARG_WITH([fuse3-12mb],
 
 AM_CONDITIONAL([FUSE3_BUILD], 
                [test "x$with_fuse3" = "xyes" || 
+                test "x$with_fuse3_readbuf" = "xyes" ||
                 test "x$with_fuse3_4mb" = "xyes" ||
+                test "x$with_fuse3_4mb_readbuf" = "xyes" ||
                 test "x$with_fuse3_8mb" = "xyes" ||
                 test "x$with_fuse3_12mb" = "xyes" ])
 
@@ -100,11 +117,14 @@ AC_CHECK_FUNCS([posix_fallocate])
 AC_CHECK_LIB(ulockmgr, ulockmgr_op)
 
 if [ test "x$with_fuse3" == "xyes" ||
+     test "x$with_fuse3_readbuf" == "xyes" ||
      test "x$with_fuse3_4mb" == "xyes" ||
+     test "x$with_fuse3_4mb_readbuf" == "xyes" ||
      test "x$with_fuse3_8mb" == "xyes" ||
      test "x$with_fuse3_12mb" == "xyes" ]; 
 then
     FUSE3_LIBS+=$LIBS
+    echo "${FUSE3_LIBS}"
 else
     FUSE_LIBS+=" ${LIBS}"
 fi

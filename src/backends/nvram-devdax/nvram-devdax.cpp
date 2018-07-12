@@ -65,11 +65,15 @@ namespace nvml_dev {
 
 
 
-nvml_devdax_backend::nvml_devdax_backend(uint64_t capacity, bfs::path daxfs_mount, bfs::path root_dir)
+nvml_devdax_backend::nvml_devdax_backend(uint64_t capacity, bfs::path daxfs_mount, bfs::path root_dir, int64_t segment_size)
     : m_capacity(capacity),
       m_daxfs_mount_point(daxfs_mount),
       m_root_dir(root_dir) {
     // Insert the root dir into the map
+
+    if(segment_size != -1) {
+         segment::s_segment_size = (size_t) segment_size;
+    }
 
     std::lock_guard<std::mutex> lock(m_dirs_mutex);
     m_dirs.emplace("/", std::make_unique<nvml_dev::dir>("/",new_inode(), m_root_dir));

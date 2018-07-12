@@ -61,7 +61,7 @@ class nvml_backend : public efsng::backend {
     static constexpr const char* s_name = "NVRAM-NVML";
 
 public:
-    nvml_backend(uint64_t capacity, bfs::path daxfs_mount, bfs::path root_dir);
+    nvml_backend(uint64_t capacity, bfs::path daxfs_mount, bfs::path root_dir, int64_t segment_size);
     ~nvml_backend();
 
     std::string name() const override;

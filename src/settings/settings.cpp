@@ -211,8 +211,10 @@ void settings::from_cmdline(int argc, char* argv[]){
     /* daemonize by default if no options prevent it */
     m_daemonize = true;
 
+//#if FUSE_USE_VERSION < 30
     /* leave a space for the mount point given that FUSE expects the mount point before any flags */
     push_arg(NULL); // fuse_argv[1]
+//#endif
 
     /* command line options */
     struct option long_options[] = {
@@ -397,10 +399,11 @@ void settings::from_cmdline(int argc, char* argv[]){
         push_arg(argv[optind]);
         ++optind;
     }
-    #if FUSE_USE_VERSION < 30
+
+//#if FUSE_USE_VERSION < 30
     /* fill in the mount point for FUSE */
     push_arg(m_mount_dir.string().c_str(), 1 /*fuse_argv[1]*/);
-    #endif
+//#endif
 	
 }
 
