@@ -515,6 +515,10 @@ unlock_and_return:
     return rv;
 }
 
+#ifdef __TEST_STATIC_BUFFER__
+char global_buffer[8*1024*1024];
+#endif // __TEST_STATIC_BUFFER__
+
 ssize_t file::put_data(off_t start_offset, size_t size, struct fuse_bufvec* fuse_buffer) {
 
 #ifdef __TEST_SINGLE_BUFFER_WRITES__
